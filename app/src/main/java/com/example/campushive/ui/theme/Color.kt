@@ -11,5 +11,4 @@ val CardWhite = Color(0xFFFFFFFF)
 val Hairline = Color(0xFFEBE5DC)
 val MutedText = Color(0xFF6B6860)
 val VerifiedGreen = Color(0xFF059669)
-val VerifiedGreenBg = Color(0xFFEBFBF3)
-val AlertRed = Color(0xFFEF4444)
+

@@ -12,7 +12,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Palette
@@ -30,7 +29,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.campushive.model.Listing
 import com.example.campushive.ui.theme.*
 
 private data class ServiceCategory(
@@ -64,7 +62,6 @@ private val quickHelpItems = listOf(
 
 @Composable
 fun HomeScreen(
-    onListingClick: (Listing) -> Unit = {},
     onNavigateToSearch: () -> Unit = {},
     onNavigateToCreateService: () -> Unit = {},
     onOpenChat: (chatId: String, studentName: String, serviceTitle: String) -> Unit = { _, _, _ -> }

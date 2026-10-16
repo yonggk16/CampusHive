@@ -1,7 +1,6 @@
 package com.example.campushive.model
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.EditNote
