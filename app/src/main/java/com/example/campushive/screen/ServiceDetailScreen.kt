@@ -11,11 +11,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.ChevronRight
-import androidx.compose.material.icons.outlined.CropSquare
+import androidx.compose.material.icons.outlined.Code
+import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Handyman
 import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.School
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -28,6 +34,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.campushive.components.ServiceCategoryIconBox
+import com.example.campushive.model.getCategoryVisual
 import com.example.campushive.model.sampleListings
 import com.example.campushive.ui.theme.*
 
@@ -41,6 +49,9 @@ fun ServiceDetailScreen(
     val listing = sampleListings.find { it.id == listingId } ?: sampleListings.first()
     var isFavorite by remember { mutableStateOf(false) }
 
+    val initials = listing.providerName.split(" ").mapNotNull { it.firstOrNull()?.toString() }.joinToString("")
+    val firstName = listing.providerName.split(" ").firstOrNull() ?: listing.providerName
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -51,14 +62,14 @@ fun ServiceDetailScreen(
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Hero Image/Banner Box (Top Gradient Banner with floating buttons)
+            // Hero Image/Banner Box (Top Category Icon Showcase)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(240.dp)
+                    .height(200.dp)
                     .background(
                         brush = Brush.verticalGradient(
-                            colors = listOf(Color(0xFFEFEBFF), Color(0xFFFFF7F0))
+                            colors = listOf(HoneyTint, Cream)
                         )
                     )
             ) {
@@ -77,6 +88,7 @@ fun ServiceDetailScreen(
                             .size(42.dp)
                             .clip(CircleShape)
                             .background(CardWhite)
+                            .bounceClick(scaleDown = 0.90f)
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -95,9 +107,10 @@ fun ServiceDetailScreen(
                             .size(42.dp)
                             .clip(CircleShape)
                             .background(CardWhite)
+                            .bounceClick(scaleDown = 0.88f)
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.FavoriteBorder,
+                            imageVector = if (isFavorite) Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,
                             contentDescription = "Favorite",
                             tint = if (isFavorite) Color.Red else Charcoal,
                             modifier = Modifier.size(20.dp)
@@ -105,34 +118,35 @@ fun ServiceDetailScreen(
                     }
                 }
 
-                // Center Vector Icon Illustration
-                Box(
+                // Center Category Vector Icon Showcase matching Home Page Style
+                Column(
                     modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.CropSquare,
-                        contentDescription = null,
-                        tint = Color(0xFF6C5CE7),
-                        modifier = Modifier.size(80.dp)
+                    ServiceCategoryIconBox(
+                        category = listing.category,
+                        size = 72.dp,
+                        shape = RoundedCornerShape(24.dp),
+                        symbolFontSize = 28.sp,
+                        iconSize = 34.dp
                     )
-                }
 
-                // Image Counter Pill "1/1"
-                Surface(
-                    color = Charcoal,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(16.dp)
-                ) {
-                    Text(
-                        text = "1/1",
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = CardWhite
-                    )
+                    Spacer(Modifier.height(10.dp))
+
+                    Surface(
+                        color = CardWhite,
+                        shape = RoundedCornerShape(20.dp),
+                        border = BorderStroke(1.dp, Hairline)
+                    ) {
+                        Text(
+                            text = listing.category.uppercase(),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Charcoal
+                        )
+                    }
                 }
             }
 
@@ -146,7 +160,6 @@ fun ServiceDetailScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // TUTORING Pill
                     Surface(
                         color = Color(0xFFFFF7DB),
                         shape = RoundedCornerShape(20.dp)
@@ -160,7 +173,6 @@ fun ServiceDetailScreen(
                         )
                     }
 
-                    // Location Pill
                     Surface(
                         color = Color(0xFFF6F3EE),
                         shape = RoundedCornerShape(20.dp)
@@ -246,9 +258,11 @@ fun ServiceDetailScreen(
                     }
                 }
 
-                // Provider Info Card
+                // Dynamic Provider Info Card
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .bounceClick(scaleDown = 0.98f),
                     shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = CardWhite),
                     border = BorderStroke(1.dp, Hairline)
@@ -265,11 +279,11 @@ fun ServiceDetailScreen(
                                 modifier = Modifier
                                     .size(44.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFFEFEBFF)),
+                                    .background(Honey),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "AR",
+                                    text = initials,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 15.sp,
                                     color = Charcoal
@@ -280,7 +294,7 @@ fun ServiceDetailScreen(
 
                             Column {
                                 Text(
-                                    text = "Amina R. • Year 3, Actuarial Science",
+                                    text = "${listing.providerName} • ${listing.providerMajor}",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.sp,
                                     color = Charcoal
@@ -323,7 +337,7 @@ fun ServiceDetailScreen(
                     Spacer(Modifier.height(8.dp))
                     Text(
                         text = listing.description.ifBlank {
-                            "1-on-1 tutoring for Calculus I/II and Intro Statistics. Past-year paper drills, assignment walkthroughs, and exam prep. First 30 minutes free for new students."
+                            "1-on-1 tutoring and student service. High quality assistance and past year study notes included."
                         },
                         fontSize = 13.sp,
                         color = Charcoal,
@@ -339,7 +353,7 @@ fun ServiceDetailScreen(
                         border = BorderStroke(1.dp, Hairline)
                     ) {
                         Text(
-                            text = "Weekdays after 5pm",
+                            text = "Weekdays & Weekends",
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
@@ -381,13 +395,13 @@ fun ServiceDetailScreen(
             ) {
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
-                        text = "RM 18",
+                        text = "RM ${"%.0f".format(listing.price)}",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
                         color = Charcoal
                     )
                     Text(
-                        text = "/hr",
+                        text = listing.pricingType.shortLabel,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                         color = MutedText,
@@ -399,10 +413,11 @@ fun ServiceDetailScreen(
                     onClick = { onChatClick(listing.providerName, listing.title) },
                     shape = RoundedCornerShape(50),
                     colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
-                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp)
+                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
+                    modifier = Modifier.bounceClick(scaleDown = 0.95f)
                 ) {
                     Text(
-                        text = "Chat with Amina",
+                        text = "Chat with $firstName",
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
                     )

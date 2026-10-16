@@ -13,41 +13,63 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.outlined.CropSquare
-import androidx.compose.material.icons.outlined.LocationOn
-import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.Code
+import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.School
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.campushive.model.Listing
-import com.example.campushive.model.sampleListings
 import com.example.campushive.ui.theme.*
 
-private val categories = listOf("All", "Tutoring", "Design", "Tech Help", "Errands")
+private data class ServiceCategory(
+    val id: String,
+    val name: String,
+    val listingCount: String,
+    val backgroundColor: Color,
+    val icon: ImageVector,
+    val symbolText: String? = null
+)
+
+private val homeCategories = listOf(
+    ServiceCategory("tutoring", "Tutoring", "24 listings", Color(0xFFEFEBFF), Icons.Outlined.School, "Σ"),
+    ServiceCategory("design", "Design", "18 listings", Color(0xFFFFEBDD), Icons.Outlined.Palette, "✎"),
+    ServiceCategory("tech", "Tech help", "15 listings", Color(0xFFE4F0FF), Icons.Outlined.Code, "</>"),
+    ServiceCategory("errands", "Errands", "9 listings", Color(0xFFE3F7EC), Icons.Filled.Check, "✓")
+)
+
+private data class QuickHelpItem(
+    val iconBg: Color,
+    val iconSymbol: String,
+    val title: String,
+    val categoryQuery: String
+)
+
+private val quickHelpItems = listOf(
+    QuickHelpItem(Color(0xFFEFEBFF), "Σ", "Study for an exam", "Tutoring"),
+    QuickHelpItem(Color(0xFFFFEBDD), "✎", "Design a poster", "Design"),
+    QuickHelpItem(Color(0xFFE4F0FF), "</>", "Fix my code or laptop", "Tech help")
+)
 
 @Composable
 fun HomeScreen(
-    onListingClick: (Listing) -> Unit = {}
+    onListingClick: (Listing) -> Unit = {},
+    onNavigateToSearch: () -> Unit = {},
+    onNavigateToCreateService: () -> Unit = {},
+    onOpenChat: (chatId: String, studentName: String, serviceTitle: String) -> Unit = { _, _, _ -> }
 ) {
     val context = LocalContext.current
-    var selectedCategory by remember { mutableStateOf("All") }
-
-    val filteredListings = remember(selectedCategory) {
-        sampleListings.filter { listing ->
-            selectedCategory == "All" || listing.category == selectedCategory
-        }
-    }
 
     Column(
         modifier = Modifier
@@ -55,506 +77,370 @@ fun HomeScreen(
             .background(Cream)
             .statusBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(bottom = 90.dp)
+            .padding(bottom = 96.dp)
     ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-            Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(10.dp))
 
-            // Top Bar: Greeting & Notifications Icon
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "GOOD MORNING",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MutedText,
-                        letterSpacing = 0.8.sp
-                    )
-                    Text(
-                        text = "Daniel Wong",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Charcoal
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Surface(
-                        color = CardWhite,
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, Hairline)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.LocationOn,
-                                contentDescription = null,
-                                tint = Charcoal,
-                                modifier = Modifier.size(12.dp)
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = "HELP University Subang 2 Campus",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Charcoal
-                            )
-                        }
-                    }
-                }
+        // 1. Top Greeting Row ("Hi, Daniel" + Avatar Button)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Hi, Daniel",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                color = Charcoal,
+                letterSpacing = (-0.8).sp
+            )
 
-                // Notifications Button
-                IconButton(
-                    onClick = {
-                        Toast.makeText(context, "No new notifications", Toast.LENGTH_SHORT).show()
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(Honey)
+                    .bounceClick(scaleDown = 0.90f) {
+                        Toast.makeText(context, "Daniel Wong • HELP University Subang 2", Toast.LENGTH_SHORT).show()
                     },
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(CardWhite)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Notifications,
-                        contentDescription = "Notifications",
-                        tint = Charcoal,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "DW",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Charcoal
+                )
             }
+        }
 
-            Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(14.dp))
 
-            // Featured on Campus Slider Header
+        // 2. Search Services Bar
+        Surface(
+            shape = RoundedCornerShape(50),
+            color = Color(0xFFEFEEEA),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(46.dp)
+                .padding(horizontal = 20.dp)
+                .bounceClick(scaleDown = 0.97f) { onNavigateToSearch() }
+        ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "🔥", fontSize = 16.sp)
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        text = "Featured on Campus",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Charcoal
-                    )
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { }
-                ) {
-                    Text(
-                        text = "Swipe",
-                        fontSize = 12.sp,
-                        color = MutedText,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        tint = MutedText,
-                        modifier = Modifier.size(14.dp)
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Outlined.Search,
+                    contentDescription = "Search",
+                    tint = MutedText,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    text = "Search services",
+                    fontSize = 15.sp,
+                    color = MutedText,
+                    fontWeight = FontWeight.Medium
+                )
             }
         }
 
         Spacer(Modifier.height(12.dp))
 
-        // Featured Horizontal Carousel Slider
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp)
+        // 3. Up Next Dark Card
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .bounceClick(scaleDown = 0.98f) {
+                    onOpenChat("chat_1", "Alex", "Calculus Tutoring")
+                },
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Charcoal),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
-            items(sampleListings) { listing ->
-                FeaturedCard(
-                    listing = listing,
-                    onClick = { onListingClick(listing) }
-                )
-            }
-        }
-
-        Spacer(Modifier.height(24.dp))
-
-        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-            // Category Filter Pills
-            Text(
-                text = "Categories",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = Charcoal
-            )
-        }
-
-        Spacer(Modifier.height(10.dp))
-
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp)
-        ) {
-            items(categories) { category ->
-                val isSelected = category == selectedCategory
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = if (isSelected) Charcoal else CardWhite,
-                    border = if (isSelected) null else BorderStroke(1.dp, Hairline),
-                    modifier = Modifier.clickable { selectedCategory = category }
-                ) {
-                    Text(
-                        text = category,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (isSelected) CardWhite else Charcoal
-                    )
-                }
-            }
-        }
-
-        Spacer(Modifier.height(24.dp))
-
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // Picked for You Header
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Picked for you",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Charcoal
-                )
-                Text(
-                    text = "See all",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFFD4A017),
-                    modifier = Modifier.clickable { }
-                )
-            }
-
-            // Picked for You Cards Stack (Matching exact screenshot layout)
-            if (filteredListings.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 30.dp),
-                    contentAlignment = Alignment.Center
-                ) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "No services found in this category",
-                        color = MutedText,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            } else {
-                filteredListings.forEach { listing ->
-                    PickedForYouCard(
-                        listing = listing,
-                        onClick = { onListingClick(listing) }
-                    )
-                }
-            }
-        }
-    }
-}
-
-// Compact Picked For You Card Component (Matching exact screenshot)
-@Composable
-private fun PickedForYouCard(
-    listing: Listing,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = CardWhite),
-        border = BorderStroke(1.dp, Hairline),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Avatar Square (Lavender or Soft Peach background)
-            val bgColors = listOf(Color(0xFFEFEBFF), Color(0xFFFFF0E6), Color(0xFFEBFBF3))
-            val avatarBg = bgColors[listing.id.hashCode().mod(bgColors.size)]
-
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(avatarBg),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = listing.providerName.split(" ").mapNotNull { it.firstOrNull()?.toString() }.joinToString(""),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    color = Color(0xFF6C5CE7)
-                )
-            }
-
-            Spacer(Modifier.width(12.dp))
-
-            // Middle Info
-            Column(modifier = Modifier.weight(1f)) {
-                Surface(
-                    color = Color(0xFFFFF7DB),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text(
-                        text = listing.category.uppercase(),
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        fontSize = 9.sp,
+                        text = "UP NEXT · SAT 10:00",
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF8C6B10)
+                        color = Honey,
+                        letterSpacing = 0.6.sp
                     )
-                }
-
-                Spacer(Modifier.height(4.dp))
-
-                Text(
-                    text = listing.title,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Charcoal,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(Modifier.height(2.dp))
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Spacer(Modifier.height(2.dp))
                     Text(
-                        text = listing.providerName,
-                        fontSize = 12.sp,
-                        color = MutedText,
-                        fontWeight = FontWeight.Medium
-                    )
-                    if (listing.isVerifiedStudent) {
-                        Spacer(Modifier.width(4.dp))
-                        Icon(
-                            imageVector = Icons.Filled.CheckCircle,
-                            contentDescription = "Verified Student",
-                            tint = VerifiedGreen,
-                            modifier = Modifier.size(13.dp)
-                        )
-                    }
-                }
-            }
-
-            Spacer(Modifier.width(8.dp))
-
-            // Right Price & Rating
-            Column(horizontalAlignment = Alignment.End) {
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(
-                        text = "RM ${"%.0f".format(listing.price)}",
+                        text = "Calculus with Alex",
                         fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Charcoal
-                    )
-                    Text(
-                        text = listing.pricingType.shortLabel,
-                        fontSize = 10.sp,
-                        color = MutedText
-                    )
-                }
-
-                Spacer(Modifier.height(4.dp))
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Filled.Star,
-                        contentDescription = null,
-                        tint = Color(0xFFFFB800),
-                        modifier = Modifier.size(12.dp)
-                    )
-                    Spacer(Modifier.width(2.dp))
-                    Text(
-                        text = "${listing.rating}",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Charcoal
-                    )
-                    Text(
-                        text = " (${listing.reviewCount})",
-                        fontSize = 10.sp,
-                        color = MutedText
-                    )
-                }
-            }
-        }
-    }
-}
-
-// Featured Carousel Card Component (Replicating exact design from screenshot)
-@Composable
-private fun FeaturedCard(
-    listing: Listing,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .width(230.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = CardWhite),
-        border = BorderStroke(1.dp, Hairline),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Column {
-            // Image Box with Overlays
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(125.dp)
-                    .background(Color(0xFFF9F5EC)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.CropSquare,
-                    contentDescription = null,
-                    tint = Honey,
-                    modifier = Modifier.size(48.dp)
-                )
-
-                // Category Tag Badge (Top Left)
-                Surface(
-                    color = Color(0xFFFFF7DB),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(10.dp)
-                ) {
-                    Text(
-                        text = listing.category,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Charcoal
-                    )
-                }
-
-                // Rating Pill Badge (Bottom Right)
-                Surface(
-                    color = CardWhite,
-                    shape = RoundedCornerShape(12.dp),
-                    shadowElevation = 2.dp,
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(10.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Star,
-                            contentDescription = null,
-                            tint = Color(0xFFFFB800),
-                            modifier = Modifier.size(12.dp)
-                        )
-                        Spacer(Modifier.width(3.dp))
-                        Text(
-                            text = listing.rating.toString(),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Charcoal
-                        )
-                    }
-                }
-            }
-
-            // Card Details
-            Column(Modifier.padding(12.dp)) {
-                Text(
-                    text = listing.title,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Charcoal,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(Modifier.height(4.dp))
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Outlined.School,
-                        contentDescription = null,
-                        tint = MutedText,
-                        modifier = Modifier.size(13.dp)
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = "Student_#${listing.id.takeLast(3)} (HELP S2)",
-                        fontSize = 11.sp,
-                        color = MutedText,
+                        fontWeight = FontWeight.SemiBold,
+                        color = CardWhite,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.width(12.dp))
 
-                HorizontalDivider(color = Hairline, thickness = 0.8.dp)
+                Button(
+                    onClick = { onOpenChat("chat_1", "Alex", "Calculus Tutoring") },
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                    modifier = Modifier.height(34.dp)
+                ) {
+                    Text(
+                        text = "Open",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
 
-                Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(18.dp))
 
-                // Price Tag + Book Button
+        // 4. Section Header: "Browse services"
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Browse services",
+                fontSize = 17.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Charcoal,
+                letterSpacing = (-0.2).sp
+            )
+            Text(
+                text = "See all",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF7B5800),
+                modifier = Modifier.bounceClick { onNavigateToSearch() }
+            )
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        // 5. Browse Services Carousel
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(horizontal = 20.dp)
+        ) {
+            items(homeCategories) { cat ->
+                Card(
+                    modifier = Modifier
+                        .width(140.dp)
+                        .height(120.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .bounceClick(scaleDown = 0.94f) { onNavigateToSearch() },
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = cat.backgroundColor),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(RoundedCornerShape(13.dp))
+                                .background(CardWhite.copy(alpha = 0.75f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (cat.symbolText != null) {
+                                Text(
+                                    text = cat.symbolText,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Charcoal
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = cat.icon,
+                                    contentDescription = cat.name,
+                                    tint = Charcoal,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+
+                        Column {
+                            Text(
+                                text = cat.name,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Charcoal,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = cat.listingCount,
+                                fontSize = 12.sp,
+                                color = Charcoal.copy(alpha = 0.75f),
+                                letterSpacing = 0.2.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(20.dp))
+
+        // 6. Section Header: "What do you need help with?"
+        Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+            Text(
+                text = "What do you need help with?",
+                fontSize = 17.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Charcoal,
+                letterSpacing = (-0.2).sp
+            )
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        // 7. Grouped Help Action List
+        Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = CardWhite,
+                border = BorderStroke(1.dp, Hairline),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column {
+                    quickHelpItems.forEachIndexed { index, item ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onNavigateToSearch() }
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(RoundedCornerShape(13.dp))
+                                    .background(item.iconBg),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = item.iconSymbol,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Charcoal
+                                )
+                            }
+
+                            Spacer(Modifier.width(12.dp))
+
+                            Text(
+                                text = item.title,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Charcoal,
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = Color(0xFFFFF1C9),
+                                modifier = Modifier.bounceClick(scaleDown = 0.92f) { onNavigateToSearch() }
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .height(32.dp)
+                                        .padding(horizontal = 16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "Find",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF5D4200)
+                                    )
+                                }
+                            }
+                        }
+
+                        if (index < quickHelpItems.lastIndex) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(start = 64.dp),
+                                color = Hairline,
+                                thickness = 0.5.dp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(14.dp))
+
+        // 8. "WHAT'S NEW" Callout Offer Banner
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .bounceClick(scaleDown = 0.98f) { onNavigateToCreateService() },
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF1C9)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)
+            ) {
+                Text(
+                    text = "WHAT'S NEW",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF7B5800),
+                    letterSpacing = 0.6.sp
+                )
+
+                Spacer(Modifier.height(2.dp))
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            text = "RM ${"%.0f".format(listing.price)}",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Charcoal
-                        )
-                        Text(
-                            text = listing.pricingType.shortLabel,
-                            fontSize = 10.sp,
-                            color = MutedText,
-                            modifier = Modifier.padding(start = 2.dp)
-                        )
-                    }
+                    Text(
+                        text = "Got a skill? List it in 2 minutes.",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Charcoal,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
 
-                    Button(
-                        onClick = onClick,
-                        shape = RoundedCornerShape(50),
-                        colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                        modifier = Modifier.height(30.dp)
-                    ) {
-                        Text(
-                            text = "Book",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    Spacer(Modifier.width(8.dp))
+
+                    Text(
+                        text = "Offer →",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Charcoal
+                    )
                 }
             }
         }

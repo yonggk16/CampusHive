@@ -5,6 +5,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -72,13 +73,27 @@ fun CampusHiveApp() {
                 )
             }
 
-            // Home Screen
+            // Home Screen (New User Onboarding + Live Bounties)
             composable(Screen.Home.route) {
                 HomeScreen(
                     onListingClick = { listing ->
                         navController.navigate("service_detail/${listing.id}")
+                    },
+                    onNavigateToSearch = {
+                        navController.navigate(Screen.Search.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    onNavigateToCreateService = {
+                        navController.navigate(Screen.Create.route)
+                    },
+                    onOpenChat = { chatId, studentName, serviceTitle ->
+                        navController.navigate("chat_detail/$chatId/$studentName/$serviceTitle")
                     }
-                ) }
+                )
+            }
 
             // Search Screen
             composable(Screen.Search.route) {

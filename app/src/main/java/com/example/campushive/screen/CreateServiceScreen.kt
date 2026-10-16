@@ -15,28 +15,22 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.CropSquare
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.campushive.components.ServiceCategoryIconBox
 import com.example.campushive.model.PricingType
 import com.example.campushive.ui.theme.*
 
@@ -53,7 +47,6 @@ fun CreateServiceScreen(
     var priceText by remember { mutableStateOf("18") }
     var selectedPricingType by remember { mutableStateOf(PricingType.PER_HOUR) }
     var description by remember { mutableStateOf("") }
-    var hasPhoto by remember { mutableStateOf(true) }
 
     Column(
         modifier = Modifier
@@ -82,6 +75,7 @@ fun CreateServiceScreen(
                     .size(40.dp)
                     .clip(CircleShape)
                     .background(CardWhite)
+                    .bounceClick(scaleDown = 0.90f)
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Close,
@@ -99,73 +93,54 @@ fun CreateServiceScreen(
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            // Photo Uploader Row
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                // Dashed "ADD PHOTO" Box
-                Box(
+            // Category Icon Preview Card (Auto-assigned based on chosen category)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = CardWhite),
+                border = BorderStroke(1.dp, Hairline)
+            ) {
+                Row(
                     modifier = Modifier
-                        .size(100.dp)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(CardWhite.copy(alpha = 0.5f))
-                        .drawDashedBorder(color = MutedText.copy(alpha = 0.5f), cornerRadius = 20.dp)
-                        .clickable {
-                            hasPhoto = true
-                            Toast.makeText(context, "Photo added", Toast.LENGTH_SHORT).show()
-                        },
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Outlined.CameraAlt,
-                            contentDescription = "Add Photo",
-                            tint = MutedText,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(Modifier.height(4.dp))
+                    ServiceCategoryIconBox(
+                        category = selectedCategory,
+                        size = 68.dp,
+                        shape = RoundedCornerShape(20.dp),
+                        symbolFontSize = 26.sp,
+                        iconSize = 30.dp
+                    )
+
+                    Spacer(Modifier.width(16.dp))
+
+                    Column {
                         Text(
-                            text = "ADD PHOTO",
+                            text = "CATEGORY PREVIEW",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
+                            color = MutedText,
+                            letterSpacing = 0.7.sp
+                        )
+
+                        Spacer(Modifier.height(2.dp))
+
+                        Text(
+                            text = selectedCategory,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Charcoal
+                        )
+
+                        Spacer(Modifier.height(2.dp))
+
+                        Text(
+                            text = "Icon auto-assigned based on selection",
+                            fontSize = 11.sp,
                             color = MutedText
                         )
-                    }
-                }
-
-                // Uploaded Photo Preview Box (Lavender background)
-                if (hasPhoto) {
-                    Box(modifier = Modifier.size(100.dp)) {
-                        Box(
-                            modifier = Modifier
-                                .size(100.dp)
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(Color(0xFFEFEBFF)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.CropSquare,
-                                contentDescription = "Photo Preview",
-                                tint = Color(0xFF6C5CE7),
-                                modifier = Modifier.size(32.dp)
-                            )
-                        }
-
-                        // Badge count circle "1"
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .offset(x = 4.dp, y = (-4).dp)
-                                .size(22.dp)
-                                .clip(CircleShape)
-                                .background(Charcoal),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "1",
-                                color = CardWhite,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
                     }
                 }
             }
@@ -218,7 +193,7 @@ fun CreateServiceScreen(
                             shape = RoundedCornerShape(20.dp),
                             color = if (isSelected) Charcoal else CardWhite,
                             border = if (isSelected) null else BorderStroke(1.dp, Hairline),
-                            modifier = Modifier.clickable { selectedCategory = cat }
+                            modifier = Modifier.bounceClick(scaleDown = 0.94f) { selectedCategory = cat }
                         ) {
                             Text(
                                 text = cat,
@@ -403,7 +378,9 @@ fun CreateServiceScreen(
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
-                modifier = Modifier.wrapContentWidth()
+                modifier = Modifier
+                    .wrapContentWidth()
+                    .bounceClick(scaleDown = 0.95f)
             ) {
                 Text(
                     text = "Publish listing",
@@ -421,18 +398,4 @@ fun CreateServiceScreen(
             Spacer(Modifier.height(80.dp))
         }
     }
-}
-
-// Helper Modifier for dashed border
-private fun Modifier.drawDashedBorder(color: Color, cornerRadius: Dp): Modifier = this.drawWithContent {
-    drawContent()
-    val stroke = Stroke(
-        width = 2.dp.toPx(),
-        pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 12f), 0f)
-    )
-    drawRoundRect(
-        color = color,
-        style = stroke,
-        cornerRadius = CornerRadius(cornerRadius.toPx(), cornerRadius.toPx())
-    )
 }

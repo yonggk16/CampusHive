@@ -1,6 +1,7 @@
 package com.example.campushive.screen
 
 import android.widget.Toast
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -15,14 +16,18 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.campushive.R
 import com.example.campushive.ui.theme.*
 
 @Composable
@@ -33,8 +38,8 @@ fun SignUpScreen(
     val context = LocalContext.current
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
-    var major by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
@@ -46,6 +51,18 @@ fun SignUpScreen(
         horizontalAlignment = Alignment.Start
     ) {
         Spacer(Modifier.height(10.dp))
+
+        // App Logo
+        Image(
+            painter = painterResource(id = R.drawable.app_logo),
+            contentDescription = "CampusHive Logo",
+            modifier = Modifier
+                .size(60.dp)
+                .clip(RoundedCornerShape(14.dp)),
+            contentScale = ContentScale.Fit
+        )
+
+        Spacer(Modifier.height(14.dp))
 
         Text(
             text = "JOIN CAMPUS HIVE",
@@ -123,29 +140,6 @@ fun SignUpScreen(
 
         Spacer(Modifier.height(12.dp))
 
-        // MAJOR & ACADEMIC YEAR Card
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = CardWhite),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-        ) {
-            Column(Modifier.padding(16.dp)) {
-                Text("MAJOR & ACADEMIC YEAR", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MutedText, letterSpacing = 0.8.sp)
-                Spacer(Modifier.height(6.dp))
-                BasicTextField(
-                    value = major,
-                    onValueChange = { major = it },
-                    textStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Charcoal),
-                    cursorBrush = SolidColor(Honey),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        }
-
-        Spacer(Modifier.height(12.dp))
-
         // PASSWORD Card
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -169,22 +163,51 @@ fun SignUpScreen(
             }
         }
 
+        Spacer(Modifier.height(12.dp))
+
+        // CONFIRM PASSWORD Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = CardWhite),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        ) {
+            Column(Modifier.padding(16.dp)) {
+                Text("CONFIRM PASSWORD", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MutedText, letterSpacing = 0.8.sp)
+                Spacer(Modifier.height(6.dp))
+                BasicTextField(
+                    value = confirmPassword,
+                    onValueChange = { confirmPassword = it },
+                    textStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Charcoal),
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    cursorBrush = SolidColor(Honey),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
         Spacer(Modifier.height(24.dp))
 
-        // Create Account Button (Honey pill with arrow ->)
+        // Create Account Button
         Button(
             onClick = {
-                if (fullName.isBlank() || email.isBlank() || password.isBlank()) {
+                if (fullName.isBlank() || email.isBlank() || password.isBlank() || confirmPassword.isBlank()) {
                     Toast.makeText(context, "Please fill in all required fields", Toast.LENGTH_SHORT).show()
+                } else if (password != confirmPassword) {
+                    Toast.makeText(context, "Passwords do not match", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(context, "Account created successfully!", Toast.LENGTH_SHORT).show()
                     onSignUpSuccess()
                 }
             },
             shape = RoundedCornerShape(50),
-            colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
+            colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
             contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
-            modifier = Modifier.wrapContentWidth()
+            modifier = Modifier
+                .wrapContentWidth()
+                .bounceClick(scaleDown = 0.95f)
         ) {
             Text(
                 text = "Create account",

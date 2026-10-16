@@ -1,6 +1,7 @@
 package com.example.campushive.screen
 
 import android.widget.Toast
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -13,14 +14,18 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.campushive.R
 import com.example.campushive.ui.theme.*
 
 @Composable
@@ -40,7 +45,19 @@ fun LoginScreen(
             .padding(horizontal = 24.dp, vertical = 20.dp),
         horizontalAlignment = Alignment.Start
     ) {
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(10.dp))
+
+        // App Logo
+        Image(
+            painter = painterResource(id = R.drawable.app_logo),
+            contentDescription = "CampusHive Logo",
+            modifier = Modifier
+                .size(60.dp)
+                .clip(RoundedCornerShape(14.dp)),
+            contentScale = ContentScale.Fit
+        )
+
+        Spacer(Modifier.height(16.dp))
 
         // Small Brand Header
         Text(
@@ -60,16 +77,6 @@ fun LoginScreen(
             fontWeight = FontWeight.Bold,
             color = Charcoal,
             lineHeight = 34.sp
-        )
-
-        Spacer(Modifier.height(8.dp))
-
-        // Description
-        Text(
-            text = "Offer your skills or find trusted help from students on your campus.",
-            fontSize = 13.sp,
-            color = MutedText,
-            lineHeight = 18.sp
         )
 
         Spacer(Modifier.height(32.dp))
@@ -171,7 +178,7 @@ fun LoginScreen(
                 }
             },
             shape = RoundedCornerShape(50),
-            colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
+            colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
             contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
             modifier = Modifier.wrapContentWidth()
         ) {

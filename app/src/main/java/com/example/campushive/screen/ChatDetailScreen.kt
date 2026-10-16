@@ -70,7 +70,7 @@ fun ChatDetailScreen(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFEFEBFF)),
+                            .background(Honey),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(

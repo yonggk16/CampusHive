@@ -36,86 +36,109 @@ fun ListingCard(
         border = BorderStroke(1.dp, Hairline),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(Modifier.padding(12.dp)) {
-            // Category Badge & Rating
+        Column(Modifier.padding(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ServiceCategoryIconBox(
+                    category = listing.category,
+                    size = 46.dp,
+                    shape = RoundedCornerShape(14.dp),
+                    symbolFontSize = 18.sp,
+                    iconSize = 22.dp
+                )
+
+                Spacer(Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            color = HoneyTint,
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Text(
+                                text = listing.category.uppercase(),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Charcoal
+                            )
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Filled.Star,
+                                contentDescription = "Rating",
+                                tint = Color(0xFFFFB800),
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(Modifier.width(2.dp))
+                            Text(
+                                text = "${listing.rating} (${listing.reviewCount})",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Charcoal
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(4.dp))
+
+                    Text(
+                        text = listing.title,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Charcoal,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        lineHeight = 18.sp
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            // Provider Name & Verification
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Surface(
-                    color = HoneyTint,
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text(
-                        text = listing.category,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Charcoal
-                    )
-                }
-
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Filled.Star,
-                        contentDescription = "Rating",
-                        tint = Color(0xFFFFB800),
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(Modifier.width(2.dp))
                     Text(
-                        text = "${listing.rating} (${listing.reviewCount})",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Charcoal
+                        text = listing.providerName,
+                        fontSize = 12.sp,
+                        color = Charcoal,
+                        fontWeight = FontWeight.Bold
                     )
+                    if (listing.isVerifiedStudent) {
+                        Spacer(Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Filled.CheckCircle,
+                            contentDescription = "Verified Student",
+                            tint = VerifiedGreen,
+                            modifier = Modifier.size(13.dp)
+                        )
+                    }
                 }
-            }
 
-            Spacer(Modifier.height(10.dp))
-
-            // Service Title
-            Text(
-                text = listing.title,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = Charcoal,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                lineHeight = 18.sp
-            )
-
-            Spacer(Modifier.height(10.dp))
-
-            // Provider Name & Verification
-            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = listing.providerName,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Charcoal,
-                    fontWeight = FontWeight.Bold
+                    text = listing.providerMajor,
+                    fontSize = 11.sp,
+                    color = MutedText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-                if (listing.isVerifiedStudent) {
-                    Spacer(Modifier.width(4.dp))
-                    Icon(
-                        imageVector = Icons.Filled.CheckCircle,
-                        contentDescription = "Verified Student",
-                        tint = VerifiedGreen,
-                        modifier = Modifier.size(13.dp)
-                    )
-                }
             }
-
-            Text(
-                text = listing.providerMajor,
-                fontSize = 11.sp,
-                color = MutedText,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
 
             Spacer(Modifier.height(10.dp))
 
-            Divider(color = Hairline, thickness = 0.8.dp)
+            HorizontalDivider(color = Hairline, thickness = 0.8.dp)
 
             Spacer(Modifier.height(8.dp))
 
@@ -137,7 +160,7 @@ fun ListingCard(
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
                         text = "RM${"%.0f".format(listing.price)} ",
-                        style = MaterialTheme.typography.titleMedium,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = Charcoal
                     )

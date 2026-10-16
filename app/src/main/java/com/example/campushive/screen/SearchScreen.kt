@@ -1,28 +1,32 @@
 package com.example.campushive.screen
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.campushive.components.ListingCard
+import com.example.campushive.components.ServiceCategoryIconBox
 import com.example.campushive.model.Listing
+import com.example.campushive.model.getCategoryVisual
 import com.example.campushive.model.sampleListings
 import com.example.campushive.ui.theme.*
 
@@ -61,18 +65,14 @@ fun SearchScreen(
             .background(Cream)
             .statusBarsPadding()
     ) {
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 80.dp),
+        LazyColumn(
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 90.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            // Header, Search Field, Tags & Filters Span Across 2 Columns
-            item(span = { GridItemSpan(2) }) {
+            // Header, Search Field, Tags & Filters
+            item {
                 Column {
-                    Spacer(Modifier.height(8.dp))
-
                     Text(
                         text = "Explore Campus Services",
                         style = MaterialTheme.typography.headlineMedium,
@@ -90,7 +90,10 @@ fun SearchScreen(
                         leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = "Search", tint = Charcoal) },
                         trailingIcon = {
                             if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { searchQuery = "" }) {
+                                IconButton(
+                                    onClick = { searchQuery = "" },
+                                    modifier = Modifier.bounceClick(scaleDown = 0.85f)
+                                ) {
                                     Icon(Icons.Outlined.Close, contentDescription = "Clear", tint = MutedText)
                                 }
                             }
@@ -122,8 +125,8 @@ fun SearchScreen(
                             Surface(
                                 color = CardWhite,
                                 shape = RoundedCornerShape(20.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Hairline),
-                                modifier = Modifier.clickable { searchQuery = tag }
+                                border = BorderStroke(1.dp, Hairline),
+                                modifier = Modifier.bounceClick(scaleDown = 0.93f) { searchQuery = tag }
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -152,7 +155,8 @@ fun SearchScreen(
                                     containerColor = CardWhite,
                                     labelColor = MutedText
                                 ),
-                                shape = RoundedCornerShape(20.dp)
+                                shape = RoundedCornerShape(20.dp),
+                                modifier = Modifier.bounceClick(scaleDown = 0.92f)
                             )
                         }
                     }
@@ -177,13 +181,13 @@ fun SearchScreen(
                         )
                     }
 
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(6.dp))
                 }
             }
 
-            // Results Grid Items
+            // Results List (Horizontal Bar Cards)
             if (searchResults.isEmpty()) {
-                item(span = { GridItemSpan(2) }) {
+                item {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -199,8 +203,157 @@ fun SearchScreen(
                 }
             } else {
                 items(searchResults) { listing ->
-                    ListingCard(listing,
-                        onClick = { onListingClick(listing)})
+                    SearchHorizontalListingBar(
+                        listing = listing,
+                        onClick = { onListingClick(listing) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchHorizontalListingBar(
+    listing: Listing,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(22.dp))
+            .bounceClick(scaleDown = 0.97f) { onClick() },
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = CardWhite),
+        border = BorderStroke(1.dp, Hairline),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Category Visual Box matching Home Page Style
+            ServiceCategoryIconBox(
+                category = listing.category,
+                size = 52.dp,
+                shape = RoundedCornerShape(16.dp),
+                symbolFontSize = 20.sp,
+                iconSize = 24.dp
+            )
+
+            Spacer(Modifier.width(12.dp))
+
+            // Main Info Column
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Surface(
+                        color = HoneyTint,
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text(
+                            text = listing.category.uppercase(),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Charcoal
+                        )
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Outlined.LocationOn,
+                            contentDescription = null,
+                            tint = MutedText,
+                            modifier = Modifier.size(11.dp)
+                        )
+                        Spacer(Modifier.width(2.dp))
+                        Text(
+                            text = listing.campusLocation,
+                            fontSize = 11.sp,
+                            color = MutedText,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(4.dp))
+
+                Text(
+                    text = listing.title,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Charcoal,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 18.sp
+                )
+
+                Spacer(Modifier.height(4.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = listing.providerName,
+                        fontSize = 12.sp,
+                        color = MutedText,
+                        fontWeight = FontWeight.Medium
+                    )
+                    if (listing.isVerifiedStudent) {
+                        Spacer(Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Filled.CheckCircle,
+                            contentDescription = "Verified Student",
+                            tint = VerifiedGreen,
+                            modifier = Modifier.size(13.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.width(10.dp))
+
+            // Right Price & Rating Column
+            Column(horizontalAlignment = Alignment.End) {
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        text = "RM${"%.0f".format(listing.price)}",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Charcoal
+                    )
+                    Text(
+                        text = listing.pricingType.shortLabel,
+                        fontSize = 10.sp,
+                        color = MutedText
+                    )
+                }
+
+                Spacer(Modifier.height(6.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Filled.Star,
+                        contentDescription = null,
+                        tint = Color(0xFFFFB800),
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(Modifier.width(2.dp))
+                    Text(
+                        text = "${listing.rating}",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Charcoal
+                    )
+                    Text(
+                        text = " (${listing.reviewCount})",
+                        fontSize = 10.sp,
+                        color = MutedText
+                    )
                 }
             }
         }

@@ -2,7 +2,6 @@ package com.example.campushive.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -75,7 +75,7 @@ fun BottomBar(nav: NavController) {
                 tabsRight.forEach { TabItem(it, current == it.screen.route, Modifier.weight(1f)) { go(it.screen) } }
             }
         }
-        // Floating Honey "+" Button
+        // Floating Honey "+" Button with instant spring press feedback
         Box(
             Modifier
                 .align(Alignment.TopCenter)
@@ -83,7 +83,7 @@ fun BottomBar(nav: NavController) {
                 .size(56.dp)
                 .clip(CircleShape)
                 .background(Honey)
-                .clickable { go(Screen.Create) },
+                .bounceClick(scaleDown = 0.92f) { go(Screen.Create) },
             contentAlignment = Alignment.Center,
         ) {
             Icon(Icons.Filled.Add, contentDescription = "New listing", tint = Charcoal)
@@ -97,7 +97,7 @@ private fun TabItem(tab: Tab, selected: Boolean, modifier: Modifier, onClick: ()
         modifier
             .clip(RoundedCornerShape(24.dp))
             .background(if (selected) HoneyTint else CardWhite)
-            .clickable(onClick = onClick)
+            .bounceClick(scaleDown = 0.95f, onClick = onClick)
             .padding(vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -105,7 +105,9 @@ private fun TabItem(tab: Tab, selected: Boolean, modifier: Modifier, onClick: ()
         Text(
             tab.screen.title,
             style = MaterialTheme.typography.labelSmall,
-            color = if (selected) Charcoal else MutedText
+            color = if (selected) Charcoal else MutedText,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
