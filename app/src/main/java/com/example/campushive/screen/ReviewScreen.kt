@@ -45,7 +45,7 @@ fun PostReviewScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Cream)
+            .background(AppBackgroundGradient)
             .statusBarsPadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 20.dp),
@@ -53,18 +53,18 @@ fun PostReviewScreen(
     ) {
         Spacer(Modifier.height(20.dp))
 
-        // Checkmark Circle Icon Badge (Light Yellow Circle)
+        // Checkmark Circle Icon Badge
         Box(
             modifier = Modifier
                 .size(72.dp)
                 .clip(CircleShape)
-                .background(Color(0xFFFFF7DB)),
+                .background(CreamTint),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Filled.Check,
                 contentDescription = null,
-                tint = Color(0xFFD4A017),
+                tint = Charcoal,
                 modifier = Modifier.size(32.dp)
             )
         }
@@ -76,7 +76,7 @@ fun PostReviewScreen(
             text = "SESSION COMPLETE",
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFFD4A017),
+            color = MutedText,
             letterSpacing = 0.8.sp
         )
 

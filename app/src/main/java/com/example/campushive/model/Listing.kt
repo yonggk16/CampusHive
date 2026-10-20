@@ -25,32 +25,32 @@ fun getCategoryVisual(category: String): CategoryVisual {
     return when (category.lowercase()) {
         "tutoring" -> CategoryVisual(
             icon = Icons.Outlined.School,
-            bgColor = Color(0xFFEFEBFF),
+            bgColor = Color(0xFFFFF1C9),
             symbol = "Σ"
         )
         "design" -> CategoryVisual(
             icon = Icons.Outlined.Palette,
-            bgColor = Color(0xFFFFEBDD),
+            bgColor = Color(0xFFFFF1C9),
             symbol = "✎"
         )
         "coding", "tech help", "tech" -> CategoryVisual(
             icon = Icons.Outlined.Code,
-            bgColor = Color(0xFFE4F0FF),
+            bgColor = Color(0xFFFFF1C9),
             symbol = "</>"
         )
         "writing" -> CategoryVisual(
             icon = Icons.Outlined.EditNote,
-            bgColor = Color(0xFFFFF9E6),
+            bgColor = Color(0xFFFFF1C9),
             symbol = "✎"
         )
         "campus services", "errands" -> CategoryVisual(
             icon = Icons.Outlined.Handyman,
-            bgColor = Color(0xFFE3F7EC),
+            bgColor = Color(0xFFFFF1C9),
             symbol = "✓"
         )
         else -> CategoryVisual(
             icon = Icons.Outlined.Category,
-            bgColor = Color(0xFFFFF9E6),
+            bgColor = Color(0xFFFFF1C9),
             symbol = null
         )
     }

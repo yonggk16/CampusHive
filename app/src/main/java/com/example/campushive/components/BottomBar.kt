@@ -49,23 +49,26 @@ fun BottomBar(nav: NavController) {
         restoreState = true
     }
 
+    // Outer layout anchor (100% transparent, no box background or border)
     Box(
-        Modifier
+        modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 12.dp, vertical = 12.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+
     ) {
+        // Floating White Pill Surface (Only this pill is drawn!)
         Surface(
             shape = RoundedCornerShape(50),
             color = CardWhite,
             border = BorderStroke(1.dp, Hairline),
-            shadowElevation = 8.dp,
+            shadowElevation = 10.dp,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(68.dp),
+                .height(66.dp)
         ) {
             Row(
-                Modifier
+                modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -75,18 +78,24 @@ fun BottomBar(nav: NavController) {
                 tabsRight.forEach { TabItem(it, current == it.screen.route, Modifier.weight(1f)) { go(it.screen) } }
             }
         }
-        // Floating Honey "+" Button with instant spring press feedback
+
+        // Floating Center "+" Create Service Button
         Box(
-            Modifier
+            modifier = Modifier
                 .align(Alignment.TopCenter)
                 .offset(y = (-14).dp)
                 .size(56.dp)
                 .clip(CircleShape)
-                .background(Honey)
+                .background(Charcoal)
                 .bounceClick(scaleDown = 0.92f) { go(Screen.Create) },
-            contentAlignment = Alignment.Center,
+            contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Filled.Add, contentDescription = "New listing", tint = Charcoal)
+            Icon(
+                imageVector = Icons.Filled.Add,
+                contentDescription = "New listing",
+                tint = CardWhite,
+                modifier = Modifier.size(24.dp)
+            )
         }
     }
 }
@@ -96,16 +105,21 @@ private fun TabItem(tab: Tab, selected: Boolean, modifier: Modifier, onClick: ()
     Column(
         modifier
             .clip(RoundedCornerShape(24.dp))
-            .background(if (selected) HoneyTint else CardWhite)
+            .background(if (selected) Charcoal else CardWhite)
             .bounceClick(scaleDown = 0.95f, onClick = onClick)
             .padding(vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(tab.icon, null, tint = if (selected) Charcoal else MutedText, modifier = Modifier.size(22.dp))
+        Icon(
+            imageVector = tab.icon,
+            contentDescription = null,
+            tint = if (selected) CardWhite else MutedText,
+            modifier = Modifier.size(22.dp)
+        )
         Text(
-            tab.screen.title,
+            text = tab.screen.title,
             style = MaterialTheme.typography.labelSmall,
-            color = if (selected) Charcoal else MutedText,
+            color = if (selected) CardWhite else MutedText,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )

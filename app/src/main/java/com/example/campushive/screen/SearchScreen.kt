@@ -61,11 +61,11 @@ fun SearchScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Cream)
+            .background(AppBackgroundGradient)
             .statusBarsPadding()
     ) {
         LazyColumn(
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 90.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxSize()
         ) {
@@ -149,8 +149,8 @@ fun SearchScreen(
                                 onClick = { selectedPriceFilter = filter },
                                 label = { Text(filter, fontSize = 12.sp) },
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Honey,
-                                    selectedLabelColor = Charcoal,
+                                    selectedContainerColor = Charcoal,
+                                    selectedLabelColor = CardWhite,
                                     containerColor = CardWhite,
                                     labelColor = MutedText
                                 ),

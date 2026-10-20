@@ -40,7 +40,7 @@ fun LoginScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Cream)
+            .background(AppBackgroundGradient)
             .statusBarsPadding()
             .padding(horizontal = 24.dp, vertical = 20.dp),
         horizontalAlignment = Alignment.Start

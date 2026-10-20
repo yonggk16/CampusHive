@@ -47,7 +47,7 @@ fun ChatDetailScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Cream)
+            .background(AppBackgroundGradient)
             .statusBarsPadding()
     ) {
         // Top Header Bar
@@ -70,7 +70,7 @@ fun ChatDetailScreen(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
-                            .background(Honey),
+                            .background(HoneyTint),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -286,8 +286,8 @@ fun ChatDetailScreen(
                             messageText = ""
                         }
                     },
-                    containerColor = Honey,
-                    contentColor = Charcoal,
+                    containerColor = Charcoal,
+                    contentColor = CardWhite,
                     modifier = Modifier.size(42.dp),
                     shape = CircleShape
                 ) {

@@ -48,7 +48,7 @@ fun ServiceDetailScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Cream)
+            .background(AppBackgroundGradient)
     ) {
         Column(
             modifier = Modifier
@@ -272,7 +272,7 @@ fun ServiceDetailScreen(
                                 modifier = Modifier
                                     .size(44.dp)
                                     .clip(CircleShape)
-                                    .background(Honey),
+                                    .background(HoneyTint),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
@@ -418,7 +418,7 @@ fun ServiceDetailScreen(
                     Icon(
                         imageVector = Icons.Outlined.ChatBubbleOutline,
                         contentDescription = null,
-                        tint = Honey,
+                        tint = CardWhite,
                         modifier = Modifier.size(16.dp)
                     )
                 }

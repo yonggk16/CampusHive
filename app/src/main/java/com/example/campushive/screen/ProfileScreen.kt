@@ -33,7 +33,7 @@ fun ProfileScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Cream)
+            .background(AppBackgroundGradient)
             .statusBarsPadding()
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
@@ -65,7 +65,7 @@ fun ProfileScreen(
                     modifier = Modifier
                         .size(72.dp)
                         .clip(CircleShape)
-                        .background(Honey),
+                        .background(HoneyTint),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -288,6 +288,6 @@ fun ProfileScreen(
             }
         }
 
-        Spacer(Modifier.height(80.dp))
+        Spacer(Modifier.height(115.dp))
     }
 }

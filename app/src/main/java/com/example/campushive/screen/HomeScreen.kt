@@ -3,6 +3,7 @@ package com.example.campushive.screen
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -14,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Code
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.School
 import androidx.compose.material.icons.outlined.Search
@@ -29,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.campushive.model.Listing
 import com.example.campushive.ui.theme.*
 
 private data class ServiceCategory(
@@ -41,10 +44,10 @@ private data class ServiceCategory(
 )
 
 private val homeCategories = listOf(
-    ServiceCategory("tutoring", "Tutoring", "24 listings", Color(0xFFEFEBFF), Icons.Outlined.School, "Σ"),
-    ServiceCategory("design", "Design", "18 listings", Color(0xFFFFEBDD), Icons.Outlined.Palette, "✎"),
-    ServiceCategory("tech", "Tech help", "15 listings", Color(0xFFE4F0FF), Icons.Outlined.Code, "</>"),
-    ServiceCategory("errands", "Errands", "9 listings", Color(0xFFE3F7EC), Icons.Filled.Check, "✓")
+    ServiceCategory("tutoring", "Tutoring", "24 listings", CardWhite, Icons.Outlined.School, "Σ"),
+    ServiceCategory("design", "Design", "18 listings", CardWhite, Icons.Outlined.Palette, "✎"),
+    ServiceCategory("tech", "Tech help", "15 listings", CardWhite, Icons.Outlined.Code, "</>"),
+    ServiceCategory("errands", "Errands", "9 listings", CardWhite, Icons.Filled.Check, "✓")
 )
 
 private data class QuickHelpItem(
@@ -55,13 +58,14 @@ private data class QuickHelpItem(
 )
 
 private val quickHelpItems = listOf(
-    QuickHelpItem(Color(0xFFEFEBFF), "Σ", "Study for an exam", "Tutoring"),
-    QuickHelpItem(Color(0xFFFFEBDD), "✎", "Design a poster", "Design"),
-    QuickHelpItem(Color(0xFFE4F0FF), "</>", "Fix my code or laptop", "Tech help")
+    QuickHelpItem(Color(0xFFFFF1C9), "Σ", "Study for an exam", "Tutoring"),
+    QuickHelpItem(Color(0xFFFFF1C9), "✎", "Design a poster", "Design"),
+    QuickHelpItem(Color(0xFFFFF1C9), "</>", "Fix my code or laptop", "Tech help")
 )
 
 @Composable
 fun HomeScreen(
+    onListingClick: (Listing) -> Unit = {},
     onNavigateToSearch: () -> Unit = {},
     onNavigateToCreateService: () -> Unit = {},
     onOpenChat: (chatId: String, studentName: String, serviceTitle: String) -> Unit = { _, _, _ -> }
@@ -71,14 +75,14 @@ fun HomeScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Cream)
+            .background(AppBackgroundGradient)
             .statusBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(bottom = 96.dp)
+            .padding(bottom = 120.dp)
     ) {
         Spacer(Modifier.height(10.dp))
 
-        // 1. Top Greeting Row ("Hi, Daniel" + Avatar Button)
+        // 1. Top Greeting Row ("Hi, Daniel" + Notification Bell Button)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -94,21 +98,22 @@ fun HomeScreen(
                 letterSpacing = (-0.8).sp
             )
 
-            Box(
+            IconButton(
+                onClick = {
+                    Toast.makeText(context, "You're all caught up! No new notifications.", Toast.LENGTH_SHORT).show()
+                },
                 modifier = Modifier
                     .size(44.dp)
                     .clip(CircleShape)
-                    .background(Honey)
-                    .bounceClick(scaleDown = 0.90f) {
-                        Toast.makeText(context, "Daniel Wong • HELP University Subang 2", Toast.LENGTH_SHORT).show()
-                    },
-                contentAlignment = Alignment.Center
+                    .background(CardWhite)
+                    .border(BorderStroke(1.dp, Hairline), CircleShape)
+                    .bounceClick(scaleDown = 0.90f)
             ) {
-                Text(
-                    text = "DW",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Charcoal
+                Icon(
+                    imageVector = Icons.Outlined.Notifications,
+                    contentDescription = "Notifications",
+                    tint = Charcoal,
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
@@ -118,7 +123,8 @@ fun HomeScreen(
         // 2. Search Services Bar
         Surface(
             shape = RoundedCornerShape(50),
-            color = Color(0xFFEFEEEA),
+            color = CardWhite,
+            border = BorderStroke(1.dp, Hairline),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(46.dp)
@@ -173,7 +179,7 @@ fun HomeScreen(
                         text = "UP NEXT · SAT 10:00",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Honey,
+                        color = CardWhite,
                         letterSpacing = 0.6.sp
                     )
                     Spacer(Modifier.height(2.dp))
@@ -192,14 +198,15 @@ fun HomeScreen(
                 Button(
                     onClick = { onOpenChat("chat_1", "Alex", "Calculus Tutoring") },
                     shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
+                    colors = ButtonDefaults.buttonColors(containerColor = CardWhite, contentColor = Charcoal),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
                     modifier = Modifier.height(34.dp)
                 ) {
                     Text(
                         text = "Open",
                         fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        color = Charcoal
                     )
                 }
             }
@@ -226,7 +233,7 @@ fun HomeScreen(
                 text = "See all",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF7B5800),
+                color = Charcoal,
                 modifier = Modifier.bounceClick { onNavigateToSearch() }
             )
         }
@@ -246,7 +253,8 @@ fun HomeScreen(
                         .clip(RoundedCornerShape(24.dp))
                         .bounceClick(scaleDown = 0.94f) { onNavigateToSearch() },
                     shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = cat.backgroundColor),
+                    colors = CardDefaults.cardColors(containerColor = CardWhite),
+                    border = BorderStroke(1.dp, Hairline),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Column(
@@ -259,7 +267,7 @@ fun HomeScreen(
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(RoundedCornerShape(13.dp))
-                                .background(CardWhite.copy(alpha = 0.75f)),
+                                .background(HoneyTint),
                             contentAlignment = Alignment.Center
                         ) {
                             if (cat.symbolText != null) {
@@ -359,7 +367,7 @@ fun HomeScreen(
 
                             Surface(
                                 shape = RoundedCornerShape(50),
-                                color = Color(0xFFFFF1C9),
+                                color = Charcoal,
                                 modifier = Modifier.bounceClick(scaleDown = 0.92f) { onNavigateToSearch() }
                             ) {
                                 Box(
@@ -372,7 +380,7 @@ fun HomeScreen(
                                         text = "Find",
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFF5D4200)
+                                        color = CardWhite
                                     )
                                 }
                             }
@@ -399,7 +407,8 @@ fun HomeScreen(
                 .padding(horizontal = 20.dp)
                 .bounceClick(scaleDown = 0.98f) { onNavigateToCreateService() },
             shape = RoundedCornerShape(22.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF1C9)),
+            colors = CardDefaults.cardColors(containerColor = CardWhite),
+            border = BorderStroke(1.dp, Hairline),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column(
@@ -409,7 +418,7 @@ fun HomeScreen(
                     text = "WHAT'S NEW",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF7B5800),
+                    color = MutedText,
                     letterSpacing = 0.6.sp
                 )
 
