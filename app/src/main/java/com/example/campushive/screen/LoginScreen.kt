@@ -25,17 +25,39 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campushive.R
 import com.example.campushive.ui.theme.*
+import com.example.campushive.viewmodel.AuthUiState
+import com.example.campushive.viewmodel.AuthViewModel
 
 @Composable
 fun LoginScreen(
+    authViewModel: AuthViewModel = viewModel(),
     onLoginSuccess: () -> Unit,
     onNavigateToSignUp: () -> Unit
 ) {
     val context = LocalContext.current
-    var email by remember { mutableStateOf("you@student.uni.edu.my") }
-    var password by remember { mutableStateOf("••••••••") }
+    val uiState by authViewModel.uiState.collectAsState()
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+
+    val isLoading = uiState is AuthUiState.Loading
+
+    // Observe UiState for messages
+    LaunchedEffect(uiState) {
+        when (val state = uiState) {
+            is AuthUiState.Error -> {
+                Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
+                authViewModel.clearUiState()
+            }
+            is AuthUiState.Success -> {
+                Toast.makeText(context, state.message, Toast.LENGTH_SHORT).show()
+                authViewModel.clearUiState()
+            }
+            else -> {}
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -141,7 +163,7 @@ fun LoginScreen(
                         fontSize = 12.sp,
                         color = MutedText,
                         modifier = Modifier.clickable {
-                            Toast.makeText(context, "Password reset link sent to your email", Toast.LENGTH_SHORT).show()
+                            authViewModel.sendPasswordReset(email)
                         }
                     )
                 }
@@ -167,32 +189,38 @@ fun LoginScreen(
 
         Spacer(Modifier.height(28.dp))
 
-        // Login Button (Honey pill with arrow ->)
+        // Login Button
         Button(
             onClick = {
-                if (email.isBlank() || password.isBlank()) {
-                    Toast.makeText(context, "Please enter your student email and password", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(context, "Welcome back!", Toast.LENGTH_SHORT).show()
+                authViewModel.login(email, password) {
                     onLoginSuccess()
                 }
             },
+            enabled = !isLoading,
             shape = RoundedCornerShape(50),
             colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
             contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
             modifier = Modifier.wrapContentWidth()
         ) {
-            Text(
-                text = "Login",
-                fontWeight = FontWeight.Bold,
-                fontSize = 15.sp
-            )
-            Spacer(Modifier.width(8.dp))
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    color = CardWhite,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text(
+                    text = "Login",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
+                Spacer(Modifier.width(8.dp))
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
 
         Spacer(Modifier.height(20.dp))

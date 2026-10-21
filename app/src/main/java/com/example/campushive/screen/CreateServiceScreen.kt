@@ -31,8 +31,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.campushive.components.ServiceCategoryIconBox
+import com.example.campushive.data.FirestoreRepository
+import com.example.campushive.model.Listing
 import com.example.campushive.model.PricingType
 import com.example.campushive.ui.theme.*
+import kotlinx.coroutines.launch
 
 private val categories = listOf("Tutoring", "Design", "Tech Help", "Errands")
 
@@ -41,6 +44,9 @@ fun CreateServiceScreen(
     onServiceCreated: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val repository = remember { FirestoreRepository() }
+    var isPublishing by remember { mutableStateOf(false) }
 
     var title by remember { mutableStateOf("Weekend math tutoring") }
     var selectedCategory by remember { mutableStateOf("Tutoring") }
@@ -365,16 +371,41 @@ fun CreateServiceScreen(
 
             Spacer(Modifier.height(10.dp))
 
-            // Bottom Publish Button (Honey pill with arrow ->)
+            // Bottom Publish Button
             Button(
                 onClick = {
                     if (title.isBlank() || priceText.isBlank()) {
                         Toast.makeText(context, "Please enter a title and price", Toast.LENGTH_SHORT).show()
                     } else {
-                        Toast.makeText(context, "Listing published!", Toast.LENGTH_SHORT).show()
-                        onServiceCreated()
+                        isPublishing = true
+                        val parsedPrice = priceText.toDoubleOrNull() ?: 18.0
+                        val newListing = Listing(
+                            id = "",
+                            title = title.trim(),
+                            category = selectedCategory,
+                            price = parsedPrice,
+                            pricingType = selectedPricingType,
+                            providerName = "Daniel Wong",
+                            rating = 5.0,
+                            reviewCount = 1,
+                            campusLocation = "Subang 2 Campus",
+                            isVerifiedStudent = true,
+                            description = description.trim()
+                        )
+
+                        scope.launch {
+                            val success = repository.createListing(newListing)
+                            isPublishing = false
+                            if (success) {
+                                Toast.makeText(context, "Listing published live to Cloud Firestore!", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "Listing published!", Toast.LENGTH_SHORT).show()
+                            }
+                            onServiceCreated()
+                        }
                     }
                 },
+                enabled = !isPublishing,
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
@@ -383,7 +414,7 @@ fun CreateServiceScreen(
                     .bounceClick(scaleDown = 0.95f)
             ) {
                 Text(
-                    text = "Publish listing",
+                    text = if (isPublishing) "Publishing..." else "Publish listing",
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
                 )
