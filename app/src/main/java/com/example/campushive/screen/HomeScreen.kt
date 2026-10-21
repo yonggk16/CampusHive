@@ -30,12 +30,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-<<<<<<< HEAD
-=======
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
->>>>>>> origin/Bob
 import com.example.campushive.model.Listing
 import com.example.campushive.ui.theme.*
 import com.example.campushive.viewmodel.AuthViewModel
