@@ -30,23 +30,27 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campushive.model.Listing
 import com.example.campushive.ui.theme.*
+import com.example.campushive.viewmodel.AuthViewModel
+import com.example.campushive.viewmodel.ListingViewModel
 
 private data class ServiceCategory(
     val id: String,
     val name: String,
-    val listingCount: String,
     val backgroundColor: Color,
     val icon: ImageVector,
     val symbolText: String? = null
 )
 
 private val homeCategories = listOf(
-    ServiceCategory("tutoring", "Tutoring", "24 listings", Color(0xFFEFEBFF), Icons.Outlined.School, "Σ"),
-    ServiceCategory("design", "Design", "18 listings", Color(0xFFFFEBDD), Icons.Outlined.Palette, "✎"),
-    ServiceCategory("tech", "Tech help", "15 listings", Color(0xFFE4F0FF), Icons.Outlined.Code, "</>"),
-    ServiceCategory("errands", "Errands", "9 listings", Color(0xFFE3F7EC), Icons.Filled.Check, "✓")
+    ServiceCategory("tutoring", "Tutoring", Color(0xFFEFEBFF), Icons.Outlined.School, "Σ"),
+    ServiceCategory("design", "Design", Color(0xFFFFEBDD), Icons.Outlined.Palette, "✎"),
+    ServiceCategory("tech", "Tech help", Color(0xFFE4F0FF), Icons.Outlined.Code, "</>"),
+    ServiceCategory("errands", "Errands", Color(0xFFE3F7EC), Icons.Filled.Check, "✓")
 )
 
 private data class QuickHelpItem(
@@ -64,12 +68,18 @@ private val quickHelpItems = listOf(
 
 @Composable
 fun HomeScreen(
+    authViewModel: AuthViewModel = viewModel(),
+    listingViewModel: ListingViewModel = viewModel(),
     onListingClick: (Listing) -> Unit = {},
     onNavigateToSearch: () -> Unit = {},
     onNavigateToCreateService: () -> Unit = {},
     onOpenChat: (chatId: String, studentName: String, serviceTitle: String) -> Unit = { _, _, _ -> }
 ) {
     val context = LocalContext.current
+    val liveListings by listingViewModel.listings.collectAsState()
+    val currentUserName = authViewModel.currentUser?.displayName?.takeIf { it.isNotBlank() } ?: "Student"
+    val firstName = currentUserName.split(" ").firstOrNull() ?: "Student"
+    val initials = currentUserName.split(" ").mapNotNull { it.firstOrNull()?.toString() }.take(2).joinToString("").ifBlank { "CH" }
 
     Column(
         modifier = Modifier
@@ -81,7 +91,7 @@ fun HomeScreen(
     ) {
         Spacer(Modifier.height(10.dp))
 
-        // 1. Top Greeting Row ("Hi, Daniel" + Avatar Button)
+        // 1. Top Greeting Row ("Hi, $firstName" + Avatar Button)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -90,7 +100,7 @@ fun HomeScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Hi, Daniel",
+                text = "Hi, $firstName",
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
                 color = Charcoal,
@@ -103,12 +113,12 @@ fun HomeScreen(
                     .clip(CircleShape)
                     .background(Honey)
                     .bounceClick(scaleDown = 0.90f) {
-                        Toast.makeText(context, "Daniel Wong • HELP University Subang 2", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "$currentUserName • Campus Verified", Toast.LENGTH_SHORT).show()
                     },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "DW",
+                    text = initials,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = Charcoal
@@ -282,6 +292,12 @@ fun HomeScreen(
                             }
                         }
 
+                        val count = liveListings.count {
+                            it.category.equals(cat.name, ignoreCase = true) ||
+                            (cat.name == "Tech help" && (it.category.equals("Coding", ignoreCase = true) || it.category.equals("Tech", ignoreCase = true)))
+                        }
+                        val countText = "$count ${if (count == 1) "listing" else "listings"}"
+
                         Column {
                             Text(
                                 text = cat.name,
@@ -292,7 +308,7 @@ fun HomeScreen(
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
-                                text = cat.listingCount,
+                                text = countText,
                                 fontSize = 12.sp,
                                 color = Charcoal.copy(alpha = 0.75f),
                                 letterSpacing = 0.2.sp
