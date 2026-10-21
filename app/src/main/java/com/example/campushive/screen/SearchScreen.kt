@@ -26,21 +26,23 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.campushive.components.ServiceCategoryIconBox
 import com.example.campushive.model.Listing
-import com.example.campushive.model.sampleListings
 import com.example.campushive.ui.theme.*
+import com.example.campushive.viewmodel.ListingViewModel
 
 private val popularSearchTags = listOf("Calculus Tutor", "Python", "Poster Design", "Dorm Move", "Proofreading", "Java", "Canva")
 private val priceFilters = listOf("All Prices", "Under RM20", "RM20 - RM50", "RM50+")
 
 @Composable
 fun SearchScreen(
-    onListingClick: (Listing) -> Unit = {}
+    onListingClick: (Listing) -> Unit = {},
+    viewModel: ListingViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedPriceFilter by remember { mutableStateOf("All Prices") }
+    val listings by viewModel.listings.collectAsState()
 
-    val searchResults = remember(searchQuery, selectedPriceFilter) {
-        sampleListings.filter { listing ->
+    val searchResults = remember(listings, searchQuery, selectedPriceFilter) {
+        listings.filter { listing ->
             val matchesQuery = searchQuery.isBlank() ||
                     listing.title.contains(searchQuery, ignoreCase = true) ||
                     listing.category.contains(searchQuery, ignoreCase = true) ||
