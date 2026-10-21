@@ -26,7 +26,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.campushive.components.ServiceCategoryIconBox
 import com.example.campushive.model.Listing
-import com.example.campushive.model.getCategoryVisual
 import com.example.campushive.model.sampleListings
 import com.example.campushive.ui.theme.*
 
