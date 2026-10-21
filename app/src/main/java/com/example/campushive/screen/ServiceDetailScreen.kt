@@ -287,7 +287,7 @@ fun ServiceDetailScreen(
 
                             Column {
                                 Text(
-                                    text = "${listing.providerName} • ${listing.providerMajor}",
+                                    text = listing.providerName,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.sp,
                                     color = Charcoal
