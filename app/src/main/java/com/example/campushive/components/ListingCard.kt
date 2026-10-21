@@ -126,14 +126,6 @@ fun ListingCard(
                         )
                     }
                 }
-
-                Text(
-                    text = listing.providerMajor,
-                    fontSize = 11.sp,
-                    color = MutedText,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
             }
 
             Spacer(Modifier.height(10.dp))
