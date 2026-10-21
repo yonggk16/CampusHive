@@ -1,6 +1,5 @@
 package com.example.campushive.ui.theme
 
-import android.annotation.SuppressLint
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -22,7 +21,6 @@ private val Colors = lightColorScheme(
     outline = Hairline,
 )
 
-@SuppressLint("ConfigurationScreenWidthHeight")
 @Composable
 fun CampusHiveTheme(content: @Composable () -> Unit) {
     val configuration = LocalConfiguration.current

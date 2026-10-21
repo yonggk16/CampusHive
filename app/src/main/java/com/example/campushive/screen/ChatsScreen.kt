@@ -44,7 +44,7 @@ fun ChatsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(AppBackgroundGradient)
+            .background(Cream)
             .statusBarsPadding()
     ) {
         // Header
@@ -113,7 +113,7 @@ fun ChatsScreen(
             }
         }
 
-        Spacer(Modifier.height(115.dp))
+        Spacer(Modifier.height(80.dp))
     }
 }
 
@@ -137,7 +137,7 @@ private fun ChatItem(
             modifier = Modifier
                 .size(44.dp)
                 .clip(CircleShape)
-                .background(HoneyTint),
+                .background(Honey),
             contentAlignment = Alignment.Center
         ) {
             Text(
@@ -201,7 +201,7 @@ private fun ChatItem(
             if (isCompleted) {
                 Button(
                     onClick = onReviewClick,
-                    colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
+                    colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
                     shape = RoundedCornerShape(8.dp),
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                     modifier = Modifier.height(24.dp)
@@ -213,14 +213,14 @@ private fun ChatItem(
                     modifier = Modifier
                         .size(18.dp)
                         .clip(CircleShape)
-                        .background(Charcoal),
+                        .background(Honey),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = chat.unreadCount.toString(),
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = CardWhite
+                        color = Charcoal
                     )
                 }
             }

@@ -26,10 +26,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.campushive.components.ServiceCategoryIconBox
 import com.example.campushive.model.Listing
+import com.example.campushive.model.getCategoryVisual
 import com.example.campushive.model.sampleListings
 import com.example.campushive.ui.theme.*
-import androidx.compose.runtime.collectAsState
-import com.example.campushive.data.FirestoreRepository
 
 private val popularSearchTags = listOf("Calculus Tutor", "Python", "Poster Design", "Dorm Move", "Proofreading", "Java", "Canva")
 private val priceFilters = listOf("All Prices", "Under RM20", "RM20 - RM50", "RM50+")
@@ -40,10 +39,9 @@ fun SearchScreen(
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedPriceFilter by remember { mutableStateOf("All Prices") }
-    val repository = remember { FirestoreRepository() }
-    val liveListings by repository.getListingsFlow().collectAsState(initial = sampleListings)
-    val searchResults = remember(searchQuery, selectedPriceFilter, liveListings) {
-        liveListings.filter { listing ->
+
+    val searchResults = remember(searchQuery, selectedPriceFilter) {
+        sampleListings.filter { listing ->
             val matchesQuery = searchQuery.isBlank() ||
                     listing.title.contains(searchQuery, ignoreCase = true) ||
                     listing.category.contains(searchQuery, ignoreCase = true) ||
@@ -64,11 +62,11 @@ fun SearchScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(AppBackgroundGradient)
+            .background(Cream)
             .statusBarsPadding()
     ) {
         LazyColumn(
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 90.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxSize()
         ) {
@@ -152,8 +150,8 @@ fun SearchScreen(
                                 onClick = { selectedPriceFilter = filter },
                                 label = { Text(filter, fontSize = 12.sp) },
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Charcoal,
-                                    selectedLabelColor = CardWhite,
+                                    selectedContainerColor = Honey,
+                                    selectedLabelColor = Charcoal,
                                     containerColor = CardWhite,
                                     labelColor = MutedText
                                 ),

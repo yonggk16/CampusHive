@@ -44,14 +44,14 @@ fun CreateServiceScreen(
 
     var title by remember { mutableStateOf("Weekend math tutoring") }
     var selectedCategory by remember { mutableStateOf("Tutoring") }
-    var priceText by remember { mutableStateOf("0.00") }
+    var priceText by remember { mutableStateOf("18") }
     var selectedPricingType by remember { mutableStateOf(PricingType.PER_HOUR) }
     var description by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(AppBackgroundGradient)
+            .background(Cream)
             .statusBarsPadding()
     ) {
         // Top Header
@@ -340,7 +340,7 @@ fun CreateServiceScreen(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                color = CardWhite,
+                color = Color(0xFFFFF9E6),
                 border = BorderStroke(1.dp, Color(0xFFF3E2C4))
             ) {
                 Row(
@@ -352,12 +352,12 @@ fun CreateServiceScreen(
                         text = "Listing goes live immediately after publishing",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Charcoal
+                        color = Color(0xFF8C6B10)
                     )
                     Icon(
                         imageVector = Icons.Outlined.Info,
                         contentDescription = "Info",
-                        tint = Charcoal,
+                        tint = Color(0xFF8C6B10),
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -383,17 +383,15 @@ fun CreateServiceScreen(
                     .bounceClick(scaleDown = 0.95f)
             ) {
                 Text(
-                    text = "Publish",
+                    text = "Publish listing",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    color = CardWhite
+                    fontSize = 15.sp
                 )
                 Spacer(Modifier.width(8.dp))
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                    tint = CardWhite
+                    modifier = Modifier.size(18.dp)
                 )
             }
 
