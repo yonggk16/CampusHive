@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ExitToApp
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.ChevronRight
@@ -22,13 +23,29 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campushive.ui.theme.*
+import com.example.campushive.viewmodel.AuthViewModel
 
 @Composable
 fun ProfileScreen(
-    onHelpdeskClick: () -> Unit = {}
+    authViewModel: AuthViewModel = viewModel(),
+    onHelpdeskClick: () -> Unit = {},
+    onSignOutClick: () -> Unit = {}
 ) {
     var selectedTab by remember { mutableStateOf("My listings") }
+    val currentUser = authViewModel.currentUser
+    val displayName = currentUser?.displayName ?: "Student User"
+    val email = currentUser?.email ?: "you@student.uni.edu.my"
+
+    val initials = remember(displayName) {
+        displayName.split(" ")
+            .filter { it.isNotBlank() }
+            .take(2)
+            .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+            .joinToString("")
+            .ifEmpty { "CH" }
+    }
 
     Column(
         modifier = Modifier
@@ -60,7 +77,7 @@ fun ProfileScreen(
                     .padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Avatar "DW"
+                // Avatar
                 Box(
                     modifier = Modifier
                         .size(72.dp)
@@ -69,7 +86,7 @@ fun ProfileScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "DW",
+                        text = initials,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = Charcoal,
@@ -82,7 +99,7 @@ fun ProfileScreen(
                 // Name & Verified Badge
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "Daniel Wong",
+                        text = displayName,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = Charcoal,
@@ -98,7 +115,7 @@ fun ProfileScreen(
                 }
 
                 Text(
-                    text = "@ Block B • Year 2",
+                    text = email,
                     fontSize = 12.sp,
                     color = MutedText,
                     modifier = Modifier.padding(top = 2.dp)
@@ -120,14 +137,14 @@ fun ProfileScreen(
                         Text("RATING", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MutedText)
                     }
 
-                    Divider(modifier = Modifier.height(28.dp).width(1.dp), color = Hairline)
+                    HorizontalDivider(modifier = Modifier.height(28.dp).width(1.dp), color = Hairline)
 
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("23", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Charcoal)
                         Text("JOBS DONE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MutedText)
                     }
 
-                    Divider(modifier = Modifier.height(28.dp).width(1.dp), color = Hairline)
+                    HorizontalDivider(modifier = Modifier.height(28.dp).width(1.dp), color = Hairline)
 
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("12", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Charcoal)
@@ -283,6 +300,37 @@ fun ProfileScreen(
                         Text("Helpdesk & FAQ", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Charcoal)
                         Text("Campus safety, reports & guidelines", fontSize = 11.sp, color = MutedText)
                     }
+                }
+                Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MutedText)
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // Log Out Card
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    authViewModel.signOut {
+                        onSignOutClick()
+                    }
+                },
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = CardWhite),
+            border = BorderStroke(1.dp, Hairline)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.AutoMirrored.Outlined.ExitToApp, contentDescription = null, tint = Color(0xFFD32F2F), modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Text("Log Out", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFFD32F2F))
                 }
                 Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MutedText)
             }

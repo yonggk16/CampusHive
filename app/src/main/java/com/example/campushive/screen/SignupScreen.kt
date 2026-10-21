@@ -27,19 +27,41 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campushive.R
 import com.example.campushive.ui.theme.*
+import com.example.campushive.viewmodel.AuthUiState
+import com.example.campushive.viewmodel.AuthViewModel
 
 @Composable
 fun SignUpScreen(
+    authViewModel: AuthViewModel = viewModel(),
     onSignUpSuccess: () -> Unit,
     onNavigateToLogin: () -> Unit
 ) {
     val context = LocalContext.current
+    val uiState by authViewModel.uiState.collectAsState()
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+
+    val isLoading = uiState is AuthUiState.Loading
+
+    // Observe UiState for messages
+    LaunchedEffect(uiState) {
+        when (val state = uiState) {
+            is AuthUiState.Error -> {
+                Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
+                authViewModel.clearUiState()
+            }
+            is AuthUiState.Success -> {
+                Toast.makeText(context, state.message, Toast.LENGTH_SHORT).show()
+                authViewModel.clearUiState()
+            }
+            else -> {}
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -193,15 +215,11 @@ fun SignUpScreen(
         // Create Account Button
         Button(
             onClick = {
-                if (fullName.isBlank() || email.isBlank() || password.isBlank() || confirmPassword.isBlank()) {
-                    Toast.makeText(context, "Please fill in all required fields", Toast.LENGTH_SHORT).show()
-                } else if (password != confirmPassword) {
-                    Toast.makeText(context, "Passwords do not match", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(context, "Account created successfully!", Toast.LENGTH_SHORT).show()
+                authViewModel.signUp(fullName, email, password, confirmPassword) {
                     onSignUpSuccess()
                 }
             },
+            enabled = !isLoading,
             shape = RoundedCornerShape(50),
             colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
             contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
@@ -209,17 +227,25 @@ fun SignUpScreen(
                 .wrapContentWidth()
                 .bounceClick(scaleDown = 0.95f)
         ) {
-            Text(
-                text = "Create account",
-                fontWeight = FontWeight.Bold,
-                fontSize = 15.sp
-            )
-            Spacer(Modifier.width(8.dp))
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    color = CardWhite,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text(
+                    text = "Create account",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
+                Spacer(Modifier.width(8.dp))
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
 
         Spacer(Modifier.height(16.dp))

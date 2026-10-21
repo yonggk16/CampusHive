@@ -11,11 +11,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Code
+import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Handyman
 import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.School
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -28,18 +34,37 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campushive.components.ServiceCategoryIconBox
-import com.example.campushive.model.sampleListings
+import com.example.campushive.model.Listing
+import com.example.campushive.model.PricingType
+import com.example.campushive.model.getCategoryVisual
 import com.example.campushive.ui.theme.*
+import com.example.campushive.viewmodel.ListingViewModel
 
 @Composable
 fun ServiceDetailScreen(
     listingId: String,
+    listingViewModel: ListingViewModel = viewModel(),
     onBackClick: () -> Unit,
     onChatClick: (studentName: String, serviceTitle: String) -> Unit
 ) {
     val context = LocalContext.current
-    val listing = sampleListings.find { it.id == listingId } ?: sampleListings.first()
+    val liveListings by listingViewModel.listings.collectAsState()
+    val listing = liveListings.find { it.id == listingId }
+        ?: Listing(
+            id = listingId,
+            title = "Campus Service Listing",
+            category = "Tutoring",
+            price = 20.0,
+            pricingType = PricingType.PER_HOUR,
+            providerName = "Daniel Wong",
+            rating = 5.0,
+            reviewCount = 1,
+            campusLocation = "Subang 2 Campus",
+            isVerifiedStudent = true,
+            description = "Campus service listing details."
+        )
     var isFavorite by remember { mutableStateOf(false) }
 
     val initials = listing.providerName.split(" ").mapNotNull { it.firstOrNull()?.toString() }.joinToString("")

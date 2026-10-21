@@ -5,6 +5,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -12,6 +13,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.campushive.components.BottomBar
 import com.example.campushive.screen.*
+import com.example.campushive.viewmodel.ListingViewModel
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
 
 sealed class Screen(val route: String, val title: String) {
     data object Login : Screen("login", "Log In")
@@ -26,6 +30,13 @@ sealed class Screen(val route: String, val title: String) {
 @Composable
 fun CampusHiveApp() {
     val navController = rememberNavController()
+    val listingViewModel: ListingViewModel = viewModel()
+    val auth = Firebase.auth
+    val currentUser = auth.currentUser
+
+    // Start destination is Home if user is signed in, else Login
+    val startDestination = if (currentUser != null) Screen.Home.route else Screen.Login.route
+
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
 
     // Show bottom bar only on main tabs (Home, Search, Chats, Profile)
@@ -42,7 +53,7 @@ fun CampusHiveApp() {
     ) { padding ->
         NavHost(
             navController = navController,
-            startDestination = Screen.Login.route,
+            startDestination = startDestination,
             modifier = Modifier.padding(padding)
         ) {
             // Login Screen
@@ -98,6 +109,7 @@ fun CampusHiveApp() {
             // Search Screen
             composable(Screen.Search.route) {
                 SearchScreen(
+                    listingViewModel = listingViewModel,
                     onListingClick = { listing ->
                         navController.navigate("service_detail/${listing.id}")
                     }
@@ -108,6 +120,7 @@ fun CampusHiveApp() {
                 val listingId = backStackEntry.arguments?.getString("listingId") ?: ""
                 ServiceDetailScreen(
                     listingId = listingId,
+                    listingViewModel = listingViewModel,
                     onBackClick = { navController.popBackStack() },
                     onChatClick = { providerName, serviceTitle ->
                         navController.navigate("chat_detail/chat_1/${providerName}/${serviceTitle}")
@@ -118,8 +131,16 @@ fun CampusHiveApp() {
             // Create Service Screen (New Listing)
             composable(Screen.Create.route) {
                 CreateServiceScreen(
-                    onServiceCreated = {
+                    listingViewModel = listingViewModel,
+                    onClose = {
                         navController.popBackStack()
+                    },
+                    onServiceCreated = {
+                        navController.navigate(Screen.Search.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
                 )
             }
@@ -167,7 +188,13 @@ fun CampusHiveApp() {
             composable(Screen.Profile.route) {
                 ProfileScreen(
                     onHelpdeskClick = {
-                        navController.navigate("helpdesk") }
+                        navController.navigate("helpdesk")
+                    },
+                    onSignOutClick = {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
                 )
             }
 

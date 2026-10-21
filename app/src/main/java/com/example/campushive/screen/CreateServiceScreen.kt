@@ -30,21 +30,29 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campushive.components.ServiceCategoryIconBox
+import com.example.campushive.model.Listing
 import com.example.campushive.model.PricingType
 import com.example.campushive.ui.theme.*
+import com.example.campushive.viewmodel.ListingViewModel
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
 
 private val categories = listOf("Tutoring", "Design", "Tech Help", "Errands")
 
 @Composable
 fun CreateServiceScreen(
+    listingViewModel: ListingViewModel = viewModel(),
+    onClose: () -> Unit = {},
     onServiceCreated: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    var isPublishing by remember { mutableStateOf(false) }
 
-    var title by remember { mutableStateOf("Weekend math tutoring") }
+    var title by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("Tutoring") }
-    var priceText by remember { mutableStateOf("18") }
+    var priceText by remember { mutableStateOf("") }
     var selectedPricingType by remember { mutableStateOf(PricingType.PER_HOUR) }
     var description by remember { mutableStateOf("") }
 
@@ -70,7 +78,7 @@ fun CreateServiceScreen(
             )
 
             IconButton(
-                onClick = onServiceCreated,
+                onClick = onClose,
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
@@ -161,17 +169,26 @@ fun CreateServiceScreen(
                         letterSpacing = 0.8.sp
                     )
                     Spacer(Modifier.height(6.dp))
-                    BasicTextField(
-                        value = title,
-                        onValueChange = { title = it },
-                        textStyle = TextStyle(
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Charcoal
-                        ),
-                        cursorBrush = SolidColor(Honey),
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        if (title.isEmpty()) {
+                            Text(
+                                text = "e.g., Weekend Calculus & Stats Tutoring",
+                                fontSize = 15.sp,
+                                color = MutedText.copy(alpha = 0.6f)
+                            )
+                        }
+                        BasicTextField(
+                            value = title,
+                            onValueChange = { title = it },
+                            textStyle = TextStyle(
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Charcoal
+                            ),
+                            cursorBrush = SolidColor(Honey),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             }
 
@@ -365,16 +382,36 @@ fun CreateServiceScreen(
 
             Spacer(Modifier.height(10.dp))
 
-            // Bottom Publish Button (Honey pill with arrow ->)
+            // Bottom Publish Button
             Button(
                 onClick = {
                     if (title.isBlank() || priceText.isBlank()) {
                         Toast.makeText(context, "Please enter a title and price", Toast.LENGTH_SHORT).show()
                     } else {
-                        Toast.makeText(context, "Listing published!", Toast.LENGTH_SHORT).show()
+                        isPublishing = true
+                        val parsedPrice = priceText.toDoubleOrNull() ?: 18.0
+                        val currentUserName = Firebase.auth.currentUser?.displayName
+                            ?.takeIf { it.isNotBlank() } ?: "Daniel Wong"
+                        val newListing = Listing(
+                            id = "srv_${System.currentTimeMillis()}",
+                            title = title.trim(),
+                            category = selectedCategory,
+                            price = parsedPrice,
+                            pricingType = selectedPricingType,
+                            providerName = currentUserName,
+                            rating = 5.0,
+                            reviewCount = 1,
+                            campusLocation = "Subang 2 Campus",
+                            isVerifiedStudent = true,
+                            description = description.trim()
+                        )
+
+                        listingViewModel.addListing(newListing)
+                        Toast.makeText(context, "Listing published live to Cloud Firestore!", Toast.LENGTH_SHORT).show()
                         onServiceCreated()
                     }
                 },
+                enabled = !isPublishing,
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
@@ -383,7 +420,7 @@ fun CreateServiceScreen(
                     .bounceClick(scaleDown = 0.95f)
             ) {
                 Text(
-                    text = "Publish listing",
+                    text = if (isPublishing) "Publishing..." else "Publish listing",
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
                 )

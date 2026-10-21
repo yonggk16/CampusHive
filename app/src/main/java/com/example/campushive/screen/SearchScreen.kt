@@ -24,23 +24,29 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campushive.components.ServiceCategoryIconBox
+import com.example.campushive.data.FirestoreRepository
 import com.example.campushive.model.Listing
-import com.example.campushive.model.sampleListings
 import com.example.campushive.ui.theme.*
+import com.example.campushive.viewmodel.ListingViewModel
 
 private val popularSearchTags = listOf("Calculus Tutor", "Python", "Poster Design", "Dorm Move", "Proofreading", "Java", "Canva")
 private val priceFilters = listOf("All Prices", "Under RM20", "RM20 - RM50", "RM50+")
 
 @Composable
 fun SearchScreen(
+    listingViewModel: ListingViewModel = viewModel(),
     onListingClick: (Listing) -> Unit = {}
 ) {
+    val liveListings by listingViewModel.listings.collectAsState()
+
     var searchQuery by remember { mutableStateOf("") }
     var selectedPriceFilter by remember { mutableStateOf("All Prices") }
 
-    val searchResults = remember(searchQuery, selectedPriceFilter) {
-        sampleListings.filter { listing ->
+    val searchResults = remember(searchQuery, selectedPriceFilter, liveListings) {
+        liveListings.filter { listing ->
             val matchesQuery = searchQuery.isBlank() ||
                     listing.title.contains(searchQuery, ignoreCase = true) ||
                     listing.category.contains(searchQuery, ignoreCase = true) ||
@@ -194,7 +200,7 @@ fun SearchScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No campus services matched your search.",
+                            text = if (liveListings.isEmpty()) "No campus services published yet. Be the first to list a skill!" else "No services matched your search.",
                             color = MutedText,
                             style = MaterialTheme.typography.bodyMedium
                         )
@@ -233,7 +239,7 @@ private fun SearchHorizontalListingBar(
                 .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Category Visual Box matching Home Page Style
+            // Category Visual Box
             ServiceCategoryIconBox(
                 category = listing.category,
                 size = 52.dp,
