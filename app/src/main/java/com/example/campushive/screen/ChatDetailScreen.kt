@@ -14,6 +14,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.CropSquare
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,9 +26,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.campushive.components.ReviewDialog
 import com.example.campushive.model.ChatMessage
 import com.example.campushive.ui.theme.*
 import com.example.campushive.viewmodel.ChatViewModel
+import com.example.campushive.viewmodel.ReviewViewModel
 
 @Composable
 fun ChatDetailScreen(
@@ -35,17 +38,35 @@ fun ChatDetailScreen(
     studentName: String,
     serviceTitle: String,
     chatViewModel: ChatViewModel = viewModel(),
+    reviewViewModel: ReviewViewModel = viewModel(),
     onBackClick: () -> Unit
 ) {
     var messageText by remember { mutableStateOf("") }
+    var showReviewDialog by remember { mutableStateOf(false) }
     val liveMessages by chatViewModel.getMessagesFlow(chatId).collectAsState(initial = emptyList())
     val listState = rememberLazyListState()
+
+    // Extract listingId if available from chatId (e.g., chat_listing123 -> listing123)
+    val extractedListingId = remember(chatId) {
+        if (chatId.startsWith("chat_")) chatId.removePrefix("chat_") else chatId
+    }
 
     // Scroll to bottom when new messages arrive
     LaunchedEffect(liveMessages.size) {
         if (liveMessages.isNotEmpty()) {
             listState.animateScrollToItem(liveMessages.lastIndex)
         }
+    }
+
+    if (showReviewDialog) {
+        ReviewDialog(
+            listingId = extractedListingId,
+            providerName = studentName,
+            serviceTitle = serviceTitle,
+            reviewViewModel = reviewViewModel,
+            onDismiss = { showReviewDialog = false },
+            onSubmit = { showReviewDialog = false }
+        )
     }
 
     Column(
@@ -109,6 +130,15 @@ fun ChatDetailScreen(
                         )
                     }
 
+                    // Leave Review Star Button in Top Bar
+                    IconButton(onClick = { showReviewDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Filled.Star,
+                            contentDescription = "Leave Review",
+                            tint = Color(0xFFFFB800)
+                        )
+                    }
+
                     IconButton(onClick = {}) {
                         Icon(Icons.Filled.MoreVert, contentDescription = "More options", tint = Charcoal)
                     }
@@ -128,7 +158,10 @@ fun ChatDetailScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
                             Box(
                                 modifier = Modifier
                                     .size(32.dp)
@@ -147,15 +180,27 @@ fun ChatDetailScreen(
 
                         Surface(
                             color = Color(0xFFFFF7DB),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.clickable { showReviewDialog = true }
                         ) {
-                            Text(
-                                text = "VIEW",
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF8C6B10)
-                            )
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Star,
+                                    contentDescription = null,
+                                    tint = Color(0xFF8C6B10),
+                                    modifier = Modifier.size(11.dp)
+                                )
+                                Spacer(Modifier.width(3.dp))
+                                Text(
+                                    text = "LEAVE REVIEW",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF8C6B10)
+                                )
+                            }
                         }
                     }
                 }

@@ -125,7 +125,7 @@ fun ChatsScreen(
                 Icon(Icons.Outlined.Info, contentDescription = null, tint = MutedText, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = "Chats start from a listing • Tap 'Chat' on any service to open a 1-on-1 conversation.",
+                    text = "Chats start from a listing • Tap 'Chat' on any service or tap 'REVIEW' to leave feedback.",
                     fontSize = 11.sp,
                     color = MutedText,
                     lineHeight = 15.sp
@@ -143,8 +143,6 @@ private fun ChatItem(
     onClick: () -> Unit,
     onReviewClick: () -> Unit
 ) {
-    val isCompleted = chat.id == "chat_3"
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -208,7 +206,7 @@ private fun ChatItem(
 
         Spacer(Modifier.width(8.dp))
 
-        // Timestamp, Unread Badge, or Review Button
+        // Timestamp & Action Button
         Column(horizontalAlignment = Alignment.End) {
             Text(
                 text = chat.timestamp,
@@ -216,33 +214,16 @@ private fun ChatItem(
                 color = MutedText
             )
 
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(6.dp))
 
-            if (isCompleted) {
-                Button(
-                    onClick = onReviewClick,
-                    colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                    modifier = Modifier.height(24.dp)
-                ) {
-                    Text("REVIEW", fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                }
-            } else if (chat.unreadCount > 0) {
-                Box(
-                    modifier = Modifier
-                        .size(18.dp)
-                        .clip(CircleShape)
-                        .background(Honey),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = chat.unreadCount.toString(),
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Charcoal
-                    )
-                }
+            Button(
+                onClick = onReviewClick,
+                colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                modifier = Modifier.height(24.dp)
+            ) {
+                Text("REVIEW", fontSize = 9.sp, fontWeight = FontWeight.Bold)
             }
         }
     }

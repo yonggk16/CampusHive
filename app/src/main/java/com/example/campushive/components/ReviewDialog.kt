@@ -20,21 +20,26 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campushive.ui.theme.*
+import com.example.campushive.viewmodel.ReviewViewModel
 
 private val tagOptions = listOf("Clear explanations", "Punctual", "Fair price")
 
 @Composable
 fun ReviewDialog(
+    listingId: String = "",
     providerName: String = "Amina",
     serviceTitle: String = "Calculus & Stats Tutoring",
+    reviewViewModel: ReviewViewModel = viewModel(),
     onDismiss: () -> Unit,
     onSubmit: () -> Unit
 ) {
     val context = LocalContext.current
-    var rating by remember { mutableStateOf(5) }
+    var rating by remember { mutableIntStateOf(5) }
     var reviewText by remember { mutableStateOf("") }
     val selectedTags = remember { mutableStateListOf<String>() }
+    val isSubmitting by reviewViewModel.isSubmitting.collectAsState()
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -165,14 +170,32 @@ fun ReviewDialog(
                 // Buttons: Submit review | Maybe later
                 Button(
                     onClick = {
-                        Toast.makeText(context, "Review submitted! Thank you.", Toast.LENGTH_SHORT).show()
-                        onSubmit()
+                        reviewViewModel.submitReview(
+                            listingId = listingId,
+                            providerName = providerName,
+                            serviceTitle = serviceTitle,
+                            rating = rating,
+                            comment = reviewText,
+                            tags = selectedTags.toList()
+                        ) {
+                            Toast.makeText(context, "Review submitted! Thank you.", Toast.LENGTH_SHORT).show()
+                            onSubmit()
+                        }
                     },
+                    enabled = !isSubmitting,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Submit review", fontWeight = FontWeight.Bold)
+                    if (isSubmitting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = Charcoal,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("Submit review", fontWeight = FontWeight.Bold)
+                    }
                 }
 
                 Spacer(Modifier.height(4.dp))
