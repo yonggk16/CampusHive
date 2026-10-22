@@ -24,25 +24,29 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campushive.model.ChatMessage
-import com.example.campushive.model.sampleMessagesMap
 import com.example.campushive.ui.theme.*
+import com.example.campushive.viewmodel.ChatViewModel
 
 @Composable
 fun ChatDetailScreen(
     chatId: String,
     studentName: String,
     serviceTitle: String,
+    chatViewModel: ChatViewModel = viewModel(),
     onBackClick: () -> Unit
 ) {
     var messageText by remember { mutableStateOf("") }
-    val initialMessages = sampleMessagesMap[chatId] ?: listOf(
-        ChatMessage("1", "Hi Daniel! Thanks for reaching out. Which topics are you struggling with?", "9:35 AM", isFromMe = false),
-        ChatMessage("2", "Hi! Mostly integration by parts — exam is next Friday 😂", "9:38 AM", isFromMe = true),
-        ChatMessage("3", "No worries, we can cover that in one session. Saturday 10am at Library Level 3?", "9:40 AM", isFromMe = false)
-    )
-    val messages = remember { mutableStateListOf(*initialMessages.toTypedArray()) }
+    val liveMessages by chatViewModel.getMessagesFlow(chatId).collectAsState(initial = emptyList())
     val listState = rememberLazyListState()
+
+    // Scroll to bottom when new messages arrive
+    LaunchedEffect(liveMessages.size) {
+        if (liveMessages.isNotEmpty()) {
+            listState.animateScrollToItem(liveMessages.lastIndex)
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -79,7 +83,6 @@ fun ChatDetailScreen(
                             color = Charcoal,
                             fontSize = 14.sp
                         )
-                        // Online indicator dot
                         Box(
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
@@ -111,7 +114,7 @@ fun ChatDetailScreen(
                     }
                 }
 
-                // Service Context Banner Bar
+                // Service Context Banner
                 Surface(
                     color = CardWhite,
                     border = BorderStroke(1.dp, Hairline),
@@ -138,7 +141,7 @@ fun ChatDetailScreen(
                             Spacer(Modifier.width(10.dp))
                             Column {
                                 Text(serviceTitle, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Charcoal)
-                                Text("RM 18/hr • Active listing", fontSize = 10.sp, color = MutedText)
+                                Text("Active Campus Service", fontSize = 10.sp, color = MutedText)
                             }
                         }
 
@@ -194,35 +197,24 @@ fun ChatDetailScreen(
                 }
             }
 
-            items(messages) { msg ->
-                MessageBubble(message = msg)
-            }
-
-            // Session Proposal Card in Chat Feed
-            item {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 6.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    color = Color(0xFFFFF9E6),
-                    border = BorderStroke(1.dp, Color(0xFFF3E2C4))
-                ) {
-                    Column(Modifier.padding(14.dp)) {
+            if (liveMessages.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 30.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Text(
-                            text = "Session proposal",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF8C6B10)
-                        )
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            text = "Sat 10:00 • 2 hrs • RM 36 total",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Charcoal
+                            text = "Start your conversation with $studentName",
+                            color = MutedText,
+                            style = MaterialTheme.typography.bodyMedium
                         )
                     }
+                }
+            } else {
+                items(liveMessages) { msg ->
+                    MessageBubble(message = msg)
                 }
             }
         }
@@ -271,19 +263,18 @@ fun ChatDetailScreen(
 
                 Spacer(Modifier.width(8.dp))
 
-                // Yellow circular Send FAB
+                // Send FAB
                 FloatingActionButton(
                     onClick = {
                         if (messageText.isNotBlank()) {
-                            messages.add(
-                                ChatMessage(
-                                    id = System.currentTimeMillis().toString(),
-                                    text = messageText,
-                                    time = "9:41 AM",
-                                    isFromMe = true
-                                )
-                            )
+                            val textToSend = messageText.trim()
                             messageText = ""
+                            chatViewModel.sendMessage(
+                                conversationId = chatId,
+                                text = textToSend,
+                                studentName = studentName,
+                                serviceTitle = serviceTitle
+                            )
                         }
                     },
                     containerColor = Honey,
@@ -335,7 +326,7 @@ private fun MessageBubble(message: ChatMessage) {
             Spacer(Modifier.height(2.dp))
 
             Text(
-                text = if (isMe) "9:38 • Seen" else message.time,
+                text = message.time,
                 fontSize = 10.sp,
                 color = MutedText
             )

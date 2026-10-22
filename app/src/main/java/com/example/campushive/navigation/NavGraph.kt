@@ -123,7 +123,8 @@ fun CampusHiveApp() {
                     listingViewModel = listingViewModel,
                     onBackClick = { navController.popBackStack() },
                     onChatClick = { providerName, serviceTitle ->
-                        navController.navigate("chat_detail/chat_1/${providerName}/${serviceTitle}")
+                        val uniqueChatId = "chat_${listingId}"
+                        navController.navigate("chat_detail/$uniqueChatId/$providerName/$serviceTitle")
                     }
                 )
             }

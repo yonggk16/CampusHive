@@ -21,23 +21,26 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campushive.model.ChatConversation
-import com.example.campushive.model.sampleConversations
 import com.example.campushive.ui.theme.*
+import com.example.campushive.viewmodel.ChatViewModel
 
 @Composable
 fun ChatsScreen(
+    chatViewModel: ChatViewModel = viewModel(),
     onChatClick: (ChatConversation) -> Unit = {},
     onReviewClick: (ChatConversation) -> Unit = {}
 ) {
+    val conversations by chatViewModel.conversations.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
 
-    val filteredChats = remember(searchQuery) {
-        if (searchQuery.isBlank()) sampleConversations
-        else sampleConversations.filter {
+    val filteredChats = remember(searchQuery, conversations) {
+        if (searchQuery.isBlank()) conversations
+        else conversations.filter {
             it.studentName.contains(searchQuery, ignoreCase = true) ||
-            it.serviceTitle.contains(searchQuery, ignoreCase = true) ||
-            it.lastMessage.contains(searchQuery, ignoreCase = true)
+                    it.serviceTitle.contains(searchQuery, ignoreCase = true) ||
+                    it.lastMessage.contains(searchQuery, ignoreCase = true)
         }
     }
 
@@ -76,19 +79,36 @@ fun ChatsScreen(
             )
         }
 
-        Divider(color = Hairline)
+        HorizontalDivider(color = Hairline)
 
         LazyColumn(
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(vertical = 4.dp)
         ) {
-            items(filteredChats) { chat ->
-                ChatItem(
-                    chat = chat,
-                    onClick = { onChatClick(chat) },
-                    onReviewClick = { onReviewClick(chat) }
-                )
-                Divider(color = Hairline, modifier = Modifier.padding(horizontal = 16.dp))
+            if (filteredChats.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 40.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (conversations.isEmpty()) "No student chats yet. Tap 'Chat' on any listing to start!" else "No chats matched your search.",
+                            color = MutedText,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            } else {
+                items(filteredChats) { chat ->
+                    ChatItem(
+                        chat = chat,
+                        onClick = { onChatClick(chat) },
+                        onReviewClick = { onReviewClick(chat) }
+                    )
+                    HorizontalDivider(color = Hairline, modifier = Modifier.padding(horizontal = 16.dp))
+                }
             }
         }
 
