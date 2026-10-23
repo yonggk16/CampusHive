@@ -122,8 +122,11 @@ private fun DocumentSnapshot.toListingOrNull(): Listing? {
             ?: true
         val description = getString("description") ?: ""
 
+        val providerUID = getString("providerUID") ?: ""
+
         Listing(
             id = getString("listingId")?.takeIf { it.isNotBlank() } ?: id,
+            providerUID = providerUID,
             title = title,
             category = category,
             price = price,
@@ -145,6 +148,7 @@ private fun DocumentSnapshot.toListingOrNull(): Listing? {
 fun ListingEntity.toUIModel(): Listing {
     return Listing(
         id = listingId,
+        providerUID = providerUID,
         title = title,
         category = category,
         price = price,

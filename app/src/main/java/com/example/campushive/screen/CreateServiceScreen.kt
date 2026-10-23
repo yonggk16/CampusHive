@@ -392,8 +392,10 @@ fun CreateServiceScreen(
                         val parsedPrice = priceText.toDoubleOrNull() ?: 18.0
                         val currentUserName = Firebase.auth.currentUser?.displayName
                             ?.takeIf { it.isNotBlank() } ?: "Daniel Wong"
+                        val currentUid = Firebase.auth.currentUser?.uid ?: "usr_daniel"
                         val newListing = Listing(
                             id = "srv_${System.currentTimeMillis()}",
+                            providerUID = currentUid,
                             title = title.trim(),
                             category = selectedCategory,
                             price = parsedPrice,

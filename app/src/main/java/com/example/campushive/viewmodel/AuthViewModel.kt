@@ -2,9 +2,12 @@ package com.example.campushive.viewmodel
 
 import androidx.lifecycle.ViewModel
 import com.google.firebase.Firebase
+import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.auth.auth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,6 +21,7 @@ sealed interface AuthUiState {
 
 class AuthViewModel : ViewModel() {
     private val auth = Firebase.auth
+    private val db = FirebaseFirestore.getInstance()
 
     private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
@@ -27,6 +31,42 @@ class AuthViewModel : ViewModel() {
 
     val isLoggedIn: Boolean
         get() = currentUser != null
+
+    private fun syncUserToFirestore(user: FirebaseUser?, fallbackName: String = "") {
+        if (user == null) return
+        val resolvedName = fallbackName.trim().ifBlank {
+            user.displayName?.trim()?.takeIf { it.isNotBlank() }
+                ?: user.email?.substringBefore("@")?.trim()
+                ?: "Student"
+        }
+        val userData = hashMapOf(
+            "uid" to user.uid,
+            "fullName" to resolvedName,
+            "email" to (user.email ?: ""),
+            "isVerified" to true,
+            "createdAt" to Timestamp.now()
+        )
+        db.collection("users").document(user.uid)
+            .set(userData, SetOptions.merge())
+    }
+
+    /**
+     * Updates student's real-time online presence in Cloud Firestore
+     */
+    fun updateUserPresence(isOnline: Boolean) {
+        val user = auth.currentUser ?: return
+        val userDocRef = FirebaseFirestore.getInstance().collection("users").document(user.uid)
+
+        val presenceData = hashMapOf<String, Any>(
+            "uid" to user.uid,
+            "displayName" to (user.displayName ?: "Student"),
+            "email" to (user.email ?: ""),
+            "isOnline" to isOnline,
+            "lastSeen" to Timestamp.now()
+        )
+
+        userDocRef.set(presenceData, SetOptions.merge())
+    }
 
     fun login(email: String, password: String, onSuccess: () -> Unit) {
         if (email.isBlank() || password.isBlank()) {
@@ -38,6 +78,7 @@ class AuthViewModel : ViewModel() {
         auth.signInWithEmailAndPassword(email.trim(), password)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
+                    syncUserToFirestore(auth.currentUser)
                     _uiState.value = AuthUiState.Success("Welcome back!")
                     onSuccess()
                 } else {
@@ -77,9 +118,11 @@ class AuthViewModel : ViewModel() {
                         .build()
 
                     user?.updateProfile(profileUpdates)?.addOnCompleteListener {
+                        syncUserToFirestore(user, fullName.trim())
                         _uiState.value = AuthUiState.Success("Account created successfully!")
                         onSuccess()
                     } ?: run {
+                        syncUserToFirestore(user, fullName.trim())
                         _uiState.value = AuthUiState.Success("Account created successfully!")
                         onSuccess()
                     }
@@ -109,6 +152,7 @@ class AuthViewModel : ViewModel() {
     }
 
     fun signOut(onSignOutComplete: () -> Unit) {
+        updateUserPresence(isOnline = false)
         auth.signOut()
         _uiState.value = AuthUiState.Idle
         onSignOutComplete()

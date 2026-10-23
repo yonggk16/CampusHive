@@ -28,6 +28,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campushive.model.ChatMessage
 import com.example.campushive.ui.theme.*
 import com.example.campushive.viewmodel.ChatViewModel
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
 
 @Composable
 fun ChatDetailScreen(
@@ -39,7 +41,26 @@ fun ChatDetailScreen(
 ) {
     var messageText by remember { mutableStateOf("") }
     val liveMessages by chatViewModel.getMessagesFlow(chatId).collectAsState(initial = emptyList())
+    val conversations by chatViewModel.conversations.collectAsState()
     val listState = rememberLazyListState()
+
+    val myName = remember {
+        val user = Firebase.auth.currentUser
+        user?.displayName?.trim()?.takeIf { it.isNotBlank() }
+            ?: user?.email?.substringBefore("@")?.trim()
+            ?: ""
+    }
+
+    // Always resolve the counterpart's name from ChatViewModel so a Provider sees the Seeker's name (and never their own name)
+    val partnerName = remember(conversations, chatId, studentName, myName) {
+        val convName = conversations.find { it.id == chatId }?.studentName
+        when {
+            !convName.isNullOrBlank() && !convName.equals(myName, ignoreCase = true) -> convName
+            studentName.isNotBlank() && !studentName.equals(myName, ignoreCase = true) -> studentName
+            !convName.isNullOrBlank() -> convName
+            else -> "Student"
+        }
+    }
 
     // Scroll to bottom when new messages arrive
     LaunchedEffect(liveMessages.size) {
@@ -78,7 +99,7 @@ fun ChatDetailScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = studentName.take(1),
+                            text = partnerName.take(1).uppercase(),
                             fontWeight = FontWeight.Bold,
                             color = Charcoal,
                             fontSize = 14.sp
@@ -96,7 +117,7 @@ fun ChatDetailScreen(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = studentName,
+                            text = partnerName,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp,
                             color = Charcoal
@@ -206,7 +227,7 @@ fun ChatDetailScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Start your conversation with $studentName",
+                            text = "Start your conversation with $partnerName",
                             color = MutedText,
                             style = MaterialTheme.typography.bodyMedium
                         )
@@ -249,7 +270,7 @@ fun ChatDetailScreen(
                 OutlinedTextField(
                     value = messageText,
                     onValueChange = { messageText = it },
-                    placeholder = { Text("Message ${studentName.split(" ").firstOrNull() ?: studentName}...", fontSize = 13.sp, color = MutedText) },
+                    placeholder = { Text("Message ${partnerName.split(" ").firstOrNull() ?: partnerName}...", fontSize = 13.sp, color = MutedText) },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                     shape = RoundedCornerShape(24.dp),
@@ -272,7 +293,7 @@ fun ChatDetailScreen(
                             chatViewModel.sendMessage(
                                 conversationId = chatId,
                                 text = textToSend,
-                                studentName = studentName,
+                                studentName = partnerName,
                                 serviceTitle = serviceTitle
                             )
                         }
