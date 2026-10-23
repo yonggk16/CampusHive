@@ -3,6 +3,7 @@ package com.example.campushive.screen
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -11,17 +12,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.ChevronRight
-import androidx.compose.material.icons.outlined.Code
-import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.outlined.Handyman
 import androidx.compose.material.icons.outlined.LocationOn
-import androidx.compose.material.icons.outlined.Palette
-import androidx.compose.material.icons.outlined.School
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -35,22 +30,31 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.campushive.components.ReviewDialog
 import com.example.campushive.components.ServiceCategoryIconBox
 import com.example.campushive.model.Listing
 import com.example.campushive.model.PricingType
-import com.example.campushive.model.getCategoryVisual
 import com.example.campushive.ui.theme.*
 import com.example.campushive.viewmodel.ListingViewModel
+import com.example.campushive.viewmodel.ReviewViewModel
 
 @Composable
 fun ServiceDetailScreen(
     listingId: String,
     listingViewModel: ListingViewModel = viewModel(),
+    reviewViewModel: ReviewViewModel = viewModel(),
     onBackClick: () -> Unit,
     onChatClick: (studentName: String, serviceTitle: String) -> Unit
 ) {
     val context = LocalContext.current
     val liveListings by listingViewModel.listings.collectAsState()
+    val listingReviews by reviewViewModel.listingReviews.collectAsState()
+    var showReviewDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(listingId) {
+        reviewViewModel.loadReviewsForListing(listingId)
+    }
+
     val listing = liveListings.find { it.id == listingId }
         ?: Listing(
             id = listingId,
@@ -69,6 +73,17 @@ fun ServiceDetailScreen(
 
     val initials = listing.providerName.split(" ").mapNotNull { it.firstOrNull()?.toString() }.joinToString("")
     val firstName = listing.providerName.split(" ").firstOrNull() ?: listing.providerName
+
+    if (showReviewDialog) {
+        ReviewDialog(
+            listingId = listing.id,
+            providerName = listing.providerName,
+            serviceTitle = listing.title,
+            reviewViewModel = reviewViewModel,
+            onDismiss = { showReviewDialog = false },
+            onSubmit = { showReviewDialog = false }
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -239,7 +254,7 @@ fun ServiceDetailScreen(
                         )
                         Spacer(Modifier.width(4.dp))
                         Text(
-                            text = listing.rating.toString(),
+                            text = "%.1f".format(listing.rating),
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
                             color = Charcoal
@@ -391,6 +406,177 @@ fun ServiceDetailScreen(
                             fontWeight = FontWeight.Medium,
                             color = Charcoal
                         )
+                    }
+                }
+
+                // REVIEWS & FEEDBACK Section Header with Write Review Button
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "REVIEWS & FEEDBACK",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MutedText,
+                            letterSpacing = 0.8.sp
+                        )
+
+                        Surface(
+                            color = Honey,
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier
+                                .clickable { showReviewDialog = true }
+                                .bounceClick(scaleDown = 0.95f)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Star,
+                                    contentDescription = "Leave Review",
+                                    tint = Charcoal,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    text = "+ Write Review",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Charcoal
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(10.dp))
+
+                    if (listingReviews.isEmpty()) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = CardWhite),
+                            border = BorderStroke(1.dp, Hairline)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "No reviews written yet.",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Charcoal
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = "Be the first student to leave a review after your session!",
+                                    fontSize = 12.sp,
+                                    color = MutedText
+                                )
+                                Spacer(Modifier.height(10.dp))
+                                Button(
+                                    onClick = { showReviewDialog = true },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
+                                    shape = RoundedCornerShape(12.dp),
+                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
+                                ) {
+                                    Text("Write a Review", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            listingReviews.forEach { review ->
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(16.dp),
+                                    colors = CardDefaults.cardColors(containerColor = CardWhite),
+                                    border = BorderStroke(1.dp, Hairline)
+                                ) {
+                                    Column(Modifier.padding(14.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(28.dp)
+                                                        .clip(CircleShape)
+                                                        .background(HoneyTint),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text(
+                                                        text = review.reviewerName.take(2).uppercase(),
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 11.sp,
+                                                        color = Charcoal
+                                                    )
+                                                }
+                                                Spacer(Modifier.width(8.dp))
+                                                Text(
+                                                    text = review.reviewerName,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 13.sp,
+                                                    color = Charcoal
+                                                )
+                                            }
+
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.Star,
+                                                    contentDescription = null,
+                                                    tint = Color(0xFFFFB800),
+                                                    modifier = Modifier.size(13.dp)
+                                                )
+                                                Spacer(Modifier.width(2.dp))
+                                                Text(
+                                                    text = "%.1f".format(review.rating),
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 12.sp,
+                                                    color = Charcoal
+                                                )
+                                            }
+                                        }
+
+                                        if (review.tags.isNotEmpty()) {
+                                            Spacer(Modifier.height(6.dp))
+                                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                review.tags.forEach { tag ->
+                                                    Surface(
+                                                        color = HoneyTint,
+                                                        shape = RoundedCornerShape(10.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = tag,
+                                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                                            fontSize = 10.sp,
+                                                            fontWeight = FontWeight.SemiBold,
+                                                            color = Charcoal
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        if (review.comment.isNotBlank()) {
+                                            Spacer(Modifier.height(8.dp))
+                                            Text(
+                                                text = "\"${review.comment}\"",
+                                                fontSize = 12.sp,
+                                                color = Charcoal,
+                                                lineHeight = 17.sp
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 

@@ -77,7 +77,9 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val liveListings by listingViewModel.listings.collectAsState()
-    val currentUserName = authViewModel.currentUser?.displayName?.takeIf { it.isNotBlank() } ?: "Student"
+    val userProfile by authViewModel.userProfile.collectAsState()
+    val currentUserName = userProfile?.displayName?.takeIf { it.isNotBlank() } ?: authViewModel.currentUser?.displayName?.takeIf { it.isNotBlank() } ?: "Student"
+    val isVerified = authViewModel.isEmailVerified || userProfile?.isVerifiedStudent == true
     val firstName = currentUserName.split(" ").firstOrNull() ?: "Student"
     val initials = currentUserName.split(" ").mapNotNull { it.firstOrNull()?.toString() }.take(2).joinToString("").ifBlank { "CH" }
 
@@ -113,7 +115,8 @@ fun HomeScreen(
                     .clip(CircleShape)
                     .background(Honey)
                     .bounceClick(scaleDown = 0.90f) {
-                        Toast.makeText(context, "$currentUserName • Campus Verified", Toast.LENGTH_SHORT).show()
+                        val statusText = if (isVerified) "Campus Verified" else "Unverified Email"
+                        Toast.makeText(context, "$currentUserName • $statusText", Toast.LENGTH_SHORT).show()
                     },
                 contentAlignment = Alignment.Center
             ) {

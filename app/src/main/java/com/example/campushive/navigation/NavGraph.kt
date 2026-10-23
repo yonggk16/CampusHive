@@ -7,13 +7,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.campushive.components.BottomBar
 import com.example.campushive.screen.*
 import com.example.campushive.viewmodel.ListingViewModel
+import com.example.campushive.viewmodel.ReviewViewModel
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 
@@ -31,6 +34,7 @@ sealed class Screen(val route: String, val title: String) {
 fun CampusHiveApp() {
     val navController = rememberNavController()
     val listingViewModel: ListingViewModel = viewModel()
+    val reviewViewModel: ReviewViewModel = viewModel()
     val auth = Firebase.auth
     val currentUser = auth.currentUser
 
@@ -44,12 +48,12 @@ fun CampusHiveApp() {
         Screen.Home.route,
         Screen.Search.route,
         Screen.Chats.route,
-        Screen.Profile.route
+        Screen.Profile.route,
     )
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        bottomBar = { if (showBottomBar) BottomBar(navController) }
+        bottomBar = { if (showBottomBar) BottomBar(navController) },
     ) { padding ->
         NavHost(
             navController = navController,
@@ -115,15 +119,17 @@ fun CampusHiveApp() {
                     }
                 )
             }
+
             // Service Detail Destination
             composable("service_detail/{listingId}") { backStackEntry ->
                 val listingId = backStackEntry.arguments?.getString("listingId") ?: ""
                 ServiceDetailScreen(
                     listingId = listingId,
                     listingViewModel = listingViewModel,
+                    reviewViewModel = reviewViewModel,
                     onBackClick = { navController.popBackStack() },
                     onChatClick = { providerName, serviceTitle ->
-                        val uniqueChatId = "chat_${listingId}"
+                        val uniqueChatId = "chat_$listingId"
                         navController.navigate("chat_detail/$uniqueChatId/$providerName/$serviceTitle")
                     }
                 )
@@ -153,7 +159,8 @@ fun CampusHiveApp() {
                         navController.navigate("chat_detail/${chat.id}/${chat.studentName}/${chat.serviceTitle}")
                     },
                     onReviewClick = { chat ->
-                        navController.navigate("post_review/${chat.studentName}/${chat.serviceTitle}")
+                        val extractedListingId = if (chat.id.startsWith("chat_")) chat.id.removePrefix("chat_") else chat.id
+                        navController.navigate("post_review/${chat.studentName}/${chat.serviceTitle}?listingId=$extractedListingId")
                     }
                 )
             }
@@ -168,18 +175,30 @@ fun CampusHiveApp() {
                     chatId = chatId,
                     studentName = studentName,
                     serviceTitle = serviceTitle,
+                    reviewViewModel = reviewViewModel,
                     onBackClick = { navController.popBackStack() }
                 )
             }
 
             // Post Review Destination
-            composable("post_review/{providerName}/{serviceTitle}") { backStackEntry ->
+            composable(
+                route = "post_review/{providerName}/{serviceTitle}?listingId={listingId}",
+                arguments = listOf(
+                    navArgument("listingId") {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    }
+                )
+            ) { backStackEntry ->
                 val providerName = backStackEntry.arguments?.getString("providerName") ?: "Student Provider"
                 val serviceTitle = backStackEntry.arguments?.getString("serviceTitle") ?: "Campus Service"
+                val listingId = backStackEntry.arguments?.getString("listingId") ?: ""
 
                 PostReviewScreen(
+                    listingId = listingId,
                     providerName = providerName,
                     serviceTitle = serviceTitle,
+                    reviewViewModel = reviewViewModel,
                     onBackClick = { navController.popBackStack() },
                     onReviewSubmitted = { navController.popBackStack() }
                 )
@@ -188,8 +207,13 @@ fun CampusHiveApp() {
             // Profile Screen
             composable(Screen.Profile.route) {
                 ProfileScreen(
+                    listingViewModel = listingViewModel,
+                    reviewViewModel = reviewViewModel,
                     onHelpdeskClick = {
                         navController.navigate("helpdesk")
+                    },
+                    onCreateServiceClick = {
+                        navController.navigate(Screen.Create.route)
                     },
                     onSignOutClick = {
                         navController.navigate(Screen.Login.route) {

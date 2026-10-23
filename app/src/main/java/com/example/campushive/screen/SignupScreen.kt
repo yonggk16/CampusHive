@@ -37,7 +37,7 @@ import com.example.campushive.viewmodel.AuthViewModel
 fun SignUpScreen(
     authViewModel: AuthViewModel = viewModel(),
     onSignUpSuccess: () -> Unit,
-    onNavigateToLogin: () -> Unit
+    onNavigateToLogin: () -> Unit,
 ) {
     val context = LocalContext.current
     val uiState by authViewModel.uiState.collectAsState()

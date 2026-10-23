@@ -45,7 +45,7 @@ private val categories = listOf("Tutoring", "Design", "Tech Help", "Errands")
 fun CreateServiceScreen(
     listingViewModel: ListingViewModel = viewModel(),
     onClose: () -> Unit = {},
-    onServiceCreated: () -> Unit = {}
+    onServiceCreated: () -> Unit = {},
 ) {
     val context = LocalContext.current
     var isPublishing by remember { mutableStateOf(false) }

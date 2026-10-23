@@ -26,14 +26,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campushive.ui.theme.*
+import com.example.campushive.viewmodel.ReviewViewModel
 
 private val tagOptions = listOf("Clear explanations", "Punctual", "Fair price")
 
 @Composable
 fun PostReviewScreen(
+    listingId: String = "",
     providerName: String,
     serviceTitle: String,
+    reviewViewModel: ReviewViewModel = viewModel(),
     onBackClick: () -> Unit,
     onReviewSubmitted: () -> Unit
 ) {
@@ -41,6 +45,7 @@ fun PostReviewScreen(
     var rating by remember { mutableIntStateOf(5) }
     var reviewText by remember { mutableStateOf("") }
     val selectedTags = remember { mutableStateListOf("Clear explanations") }
+    val isSubmitting by reviewViewModel.isSubmitting.collectAsState()
 
     Column(
         modifier = Modifier
@@ -96,7 +101,7 @@ fun PostReviewScreen(
 
         // Subtitle Context
         Text(
-            text = "Calculus & Stats Tutoring • Sat 10:00 • 2 hrs",
+            text = "$serviceTitle • Sat 10:00 • 2 hrs",
             fontSize = 12.sp,
             color = MutedText,
             textAlign = TextAlign.Center
@@ -200,19 +205,42 @@ fun PostReviewScreen(
         // Submit Review Button (BLACK/CHARCOAL Background)
         Button(
             onClick = {
-                Toast.makeText(context, "Review published successfully!", Toast.LENGTH_SHORT).show()
-                onReviewSubmitted()
+                reviewViewModel.submitReview(
+                    listingId = listingId,
+                    providerName = providerName,
+                    serviceTitle = serviceTitle,
+                    rating = rating,
+                    comment = reviewText,
+                    tags = selectedTags.toList()
+                ) { success ->
+                    if (success) {
+                        Toast.makeText(context, "Review published successfully!", Toast.LENGTH_SHORT).show()
+                        onReviewSubmitted()
+                    } else {
+                        Toast.makeText(context, "Review saved locally!", Toast.LENGTH_SHORT).show()
+                        onReviewSubmitted()
+                    }
+                }
             },
+            enabled = !isSubmitting,
             shape = RoundedCornerShape(50),
             colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
             contentPadding = PaddingValues(horizontal = 32.dp, vertical = 14.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(
-                text = "Submit review",
-                fontWeight = FontWeight.Bold,
-                fontSize = 15.sp
-            )
+            if (isSubmitting) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = CardWhite,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text(
+                    text = "Submit review",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
+            }
         }
 
         Spacer(Modifier.height(12.dp))
