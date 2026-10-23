@@ -20,11 +20,12 @@ import androidx.compose.ui.unit.sp
 import com.example.campushive.model.Listing
 import com.example.campushive.ui.theme.*
 
+@Suppress("unused")
 @Composable
 fun ListingCard(
     listing: Listing,
     onClick: () -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Card(
         modifier = modifier
@@ -34,7 +35,7 @@ fun ListingCard(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = CardWhite),
         border = BorderStroke(1.dp, Hairline),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
         Column(Modifier.padding(14.dp)) {
             Row(

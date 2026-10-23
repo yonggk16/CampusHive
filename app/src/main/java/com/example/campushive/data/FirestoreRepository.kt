@@ -42,7 +42,7 @@ data class ListingEntity(
 )
 
 class FirestoreRepository(
-    private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
+    db: FirebaseFirestore = FirebaseFirestore.getInstance(),
 ) {
     private val listingsRef = db.collection("listings")
     private val reviewsRef = db.collection("reviews")
@@ -108,7 +108,7 @@ class FirestoreRepository(
      */
     suspend fun createListing(
         listing: Listing,
-        providerUID: String = Firebase.auth.currentUser?.uid ?: "usr_daniel"
+        providerUID: String = Firebase.auth.currentUser?.uid ?: "usr_daniel",
     ): Boolean {
         return try {
             val docRef = if (listing.id.isNotBlank() && !listing.id.startsWith("srv_")) {
@@ -352,11 +352,11 @@ class FirestoreRepository(
      * Save or update User Profile in Firestore
      */
     suspend fun saveUserProfile(profile: UserProfile): Boolean {
-        if (profile.uid.isBlank()) return false
+        val uid = profile.uid.ifBlank { return false }
         return try {
-            val docRef = usersRef.document(profile.uid)
+            val docRef = usersRef.document(uid)
             val data = hashMapOf(
-                "uid" to profile.uid,
+                "uid" to uid,
                 "displayName" to profile.displayName,
                 "email" to profile.email,
                 "bio" to profile.bio,
@@ -367,7 +367,7 @@ class FirestoreRepository(
                 "createdAt" to profile.createdAt
             )
             docRef.set(data).await()
-            Log.d("FirestoreRepository", "Successfully saved user profile: ${profile.uid}")
+            Log.d("FirestoreRepository", "Successfully saved user profile: $uid")
             true
         } catch (e: Exception) {
             Log.e("FirestoreRepository", "Failed to save user profile: ${e.message}", e)
@@ -378,6 +378,7 @@ class FirestoreRepository(
     /**
      * Fetch user profile once from Firestore
      */
+    @Suppress("unused")
     suspend fun getUserProfile(uid: String): UserProfile? {
         if (uid.isBlank()) return null
         return try {
@@ -430,6 +431,7 @@ private fun DocumentSnapshot.toListingOrNull(): Listing? {
     }
 }
 
+@Suppress("UNCHECKED_CAST")
 private fun DocumentSnapshot.toReviewOrNull(): Review? {
     return try {
         val rating = getDouble("rating") ?: (getLong("rating")?.toDouble() ?: 5.0)
@@ -487,6 +489,7 @@ private fun DocumentSnapshot.toUserProfileOrNull(): UserProfile? {
 }
 
 // Mapper Extension
+@Suppress("unused")
 fun ListingEntity.toUIModel(): Listing {
     return Listing(
         id = listingId,

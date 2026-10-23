@@ -23,7 +23,7 @@ import java.util.Date
 import java.util.Locale
 
 class ChatViewModel(
-    private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
+    db: FirebaseFirestore = FirebaseFirestore.getInstance(),
 ) : ViewModel() {
 
     private val conversationsRef = db.collection("conversations")
@@ -78,7 +78,7 @@ class ChatViewModel(
                             lastMessage = lastMessage,
                             timestamp = timeFormatted,
                             unreadCount = unreadCount,
-                            isVerifiedStudent = isVerified
+                            isVerifiedStudent = isVerified,
                         )
                     } catch (e: Exception) {
                         Log.e("ChatViewModel", "Error parsing conversation ${doc.id}", e)

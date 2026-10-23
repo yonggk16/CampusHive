@@ -21,7 +21,7 @@ sealed interface AuthUiState {
 }
 
 class AuthViewModel(
-    private val repository: FirestoreRepository = FirestoreRepository()
+    private val repository: FirestoreRepository = FirestoreRepository(),
 ) : ViewModel() {
     private val auth = Firebase.auth
 

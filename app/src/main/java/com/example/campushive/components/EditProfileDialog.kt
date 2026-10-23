@@ -21,7 +21,6 @@ import com.example.campushive.ui.theme.*
 fun EditProfileDialog(
     userProfile: UserProfile?,
     currentDisplayName: String,
-    currentEmail: String,
     onDismiss: () -> Unit,
     onSave: (displayName: String, bio: String, campusLocation: String, facultyOrMajor: String, phoneNumber: String) -> Unit
 ) {

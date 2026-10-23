@@ -42,7 +42,7 @@ fun EditListingDialog(
     listing: Listing,
     onDismiss: () -> Unit,
     onSave: (Listing) -> Unit,
-    onDelete: (String) -> Unit
+    onDelete: (String) -> Unit,
 ) {
     val context = LocalContext.current
     var title by remember { mutableStateOf(listing.title) }

@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class ReviewViewModel(
-    private val repository: FirestoreRepository = FirestoreRepository()
+    private val repository: FirestoreRepository = FirestoreRepository(),
 ) : ViewModel() {
 
     private val _listingReviews = MutableStateFlow<List<Review>>(emptyList())

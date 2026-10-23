@@ -27,7 +27,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campushive.components.ServiceCategoryIconBox
-import com.example.campushive.data.FirestoreRepository
 import com.example.campushive.model.Listing
 import com.example.campushive.ui.theme.*
 import com.example.campushive.viewmodel.ListingViewModel

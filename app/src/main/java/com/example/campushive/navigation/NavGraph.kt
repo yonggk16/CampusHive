@@ -48,12 +48,12 @@ fun CampusHiveApp() {
         Screen.Home.route,
         Screen.Search.route,
         Screen.Chats.route,
-        Screen.Profile.route
+        Screen.Profile.route,
     )
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        bottomBar = { if (showBottomBar) BottomBar(navController) }
+        bottomBar = { if (showBottomBar) BottomBar(navController) },
     ) { padding ->
         NavHost(
             navController = navController,
@@ -129,7 +129,7 @@ fun CampusHiveApp() {
                     reviewViewModel = reviewViewModel,
                     onBackClick = { navController.popBackStack() },
                     onChatClick = { providerName, serviceTitle ->
-                        val uniqueChatId = "chat_${listingId}"
+                        val uniqueChatId = "chat_$listingId"
                         navController.navigate("chat_detail/$uniqueChatId/$providerName/$serviceTitle")
                     }
                 )

@@ -52,7 +52,7 @@ fun ProfileScreen(
     reviewViewModel: ReviewViewModel = viewModel(),
     onHelpdeskClick: () -> Unit = {},
     onCreateServiceClick: () -> Unit = {},
-    onSignOutClick: () -> Unit = {}
+    onSignOutClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
     var selectedTab by remember { mutableStateOf("My listings") }
@@ -67,7 +67,7 @@ fun ProfileScreen(
     val major = userProfile?.facultyOrMajor ?: "School of Computing & IT"
     val phone = userProfile?.phoneNumber ?: ""
 
-    val isVerified = authViewModel.isEmailVerified || userProfile?.isVerifiedStudent == true
+    val isVerified = authViewModel.isEmailVerified || (userProfile?.isVerifiedStudent == true)
 
     val providerReviews by reviewViewModel.providerReviews.collectAsState()
     val myListings by listingViewModel.myListings.collectAsState()
@@ -120,7 +120,6 @@ fun ProfileScreen(
         EditProfileDialog(
             userProfile = userProfile,
             currentDisplayName = displayName,
-            currentEmail = email,
             onDismiss = { showEditProfileDialog = false },
             onSave = { updatedName, updatedBio, updatedCampus, updatedMajor, updatedPhone ->
                 authViewModel.updateUserProfile(
@@ -321,7 +320,7 @@ fun ProfileScreen(
                     HorizontalDivider(modifier = Modifier.height(28.dp).width(1.dp), color = Hairline)
 
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("${myListings.size * 3 + 12}", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Charcoal)
+                        Text((myListings.size * 3 + 12).toString(), fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Charcoal)
                         Text("JOBS DONE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MutedText)
                     }
 
