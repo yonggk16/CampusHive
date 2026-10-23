@@ -10,7 +10,10 @@ data class ChatConversation(
     val isVerifiedStudent: Boolean = true,
     val listingId: String = "",
     val seekerUid: String = "",
-    val providerUID: String = ""
+    val providerUID: String = "",
+    val providerName: String = "",
+    val seekerName: String = "",
+    val isProvider: Boolean = false
 )
 
 val sampleConversations = listOf(

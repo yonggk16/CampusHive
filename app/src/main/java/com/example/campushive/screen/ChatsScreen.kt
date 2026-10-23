@@ -25,14 +25,17 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campushive.model.ChatConversation
 import com.example.campushive.ui.theme.*
 import com.example.campushive.viewmodel.ChatViewModel
+import com.example.campushive.viewmodel.ReviewViewModel
 
 @Composable
 fun ChatsScreen(
     chatViewModel: ChatViewModel = viewModel(),
+    reviewViewModel: ReviewViewModel = viewModel(),
     onChatClick: (ChatConversation) -> Unit = {},
     onReviewClick: (ChatConversation) -> Unit = {}
 ) {
     val conversations by chatViewModel.conversations.collectAsState()
+    val providerReviews by reviewViewModel.providerReviews.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
 
     val filteredChats = remember(searchQuery, conversations) {
@@ -102,8 +105,15 @@ fun ChatsScreen(
                 }
             } else {
                 items(filteredChats) { chat ->
+                    val isReviewed = remember(providerReviews, chat) {
+                        providerReviews.any { r ->
+                            (r.listingId.isNotBlank() && chat.listingId.isNotBlank() && r.listingId == chat.listingId) ||
+                            (r.serviceTitle.equals(chat.serviceTitle, ignoreCase = true) && r.providerName.equals(chat.studentName, ignoreCase = true))
+                        }
+                    }
                     ChatItem(
                         chat = chat,
+                        isReviewed = isReviewed,
                         onClick = { onChatClick(chat) },
                         onReviewClick = { onReviewClick(chat) }
                     )
@@ -125,7 +135,7 @@ fun ChatsScreen(
                 Icon(Icons.Outlined.Info, contentDescription = null, tint = MutedText, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = "Chats start from a listing • Tap 'Chat' on any service or tap 'REVIEW' to leave feedback.",
+                    text = "Chats start from a listing • Service seekers can tap 'REVIEW' to rate the provider.",
                     fontSize = 11.sp,
                     color = MutedText,
                     lineHeight = 15.sp
@@ -140,6 +150,7 @@ fun ChatsScreen(
 @Composable
 private fun ChatItem(
     chat: ChatConversation,
+    isReviewed: Boolean = false,
     onClick: () -> Unit,
     onReviewClick: () -> Unit
 ) {
@@ -159,7 +170,7 @@ private fun ChatItem(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = chat.studentName.split(" ").mapNotNull { it.firstOrNull()?.toString() }.joinToString(""),
+                text = chat.studentName.split(" ").mapNotNull { it.firstOrNull()?.toString() }.take(2).joinToString("").uppercase().ifBlank { "S" },
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp,
                 color = Charcoal
@@ -168,7 +179,7 @@ private fun ChatItem(
 
         Spacer(Modifier.width(12.dp))
 
-        // Student Info & Message
+        // Counterpart Student Info & Last Message
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -206,7 +217,7 @@ private fun ChatItem(
 
         Spacer(Modifier.width(8.dp))
 
-        // Timestamp & Action Button
+        // Timestamp & Action Button (Only the Seeker can review the Provider's service)
         Column(horizontalAlignment = Alignment.End) {
             Text(
                 text = chat.timestamp,
@@ -214,16 +225,51 @@ private fun ChatItem(
                 color = MutedText
             )
 
-            Spacer(Modifier.height(6.dp))
+            if (!chat.isProvider) {
+                Spacer(Modifier.height(6.dp))
 
-            Button(
-                onClick = onReviewClick,
-                colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                modifier = Modifier.height(24.dp)
-            ) {
-                Text("REVIEW", fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                if (isReviewed) {
+                    Surface(
+                        color = CreamTint,
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, Hairline)
+                    ) {
+                        Text(
+                            text = "REVIEWED ✓",
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MutedText
+                        )
+                    }
+                } else {
+                    Button(
+                        onClick = onReviewClick,
+                        colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                        modifier = Modifier.height(24.dp)
+                    ) {
+                        Text("REVIEW", fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            } else if (chat.unreadCount > 0) {
+                Spacer(Modifier.height(4.dp))
+
+                Box(
+                    modifier = Modifier
+                        .size(18.dp)
+                        .clip(CircleShape)
+                        .background(Honey),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = chat.unreadCount.toString(),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Charcoal
+                    )
+                }
             }
         }
     }

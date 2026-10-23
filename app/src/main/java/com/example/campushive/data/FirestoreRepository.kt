@@ -92,8 +92,11 @@ class FirestoreRepository(
             val myListings = snapshot.documents
                 .mapNotNull { doc -> doc.toListingOrNull() }
                 .filter { listing ->
-                    (currentUid.isBlank() || listing.providerUID == currentUid || listing.providerUID.isBlank()) &&
-                            listing.status != "DELETED" && listing.title.isNotBlank()
+                    if (currentUid.isNotBlank()) {
+                        listing.providerUID == currentUid && listing.status != "DELETED" && listing.title.isNotBlank()
+                    } else {
+                        false
+                    }
                 }
                 .sortedByDescending { it.createdAt }
 
@@ -208,11 +211,28 @@ class FirestoreRepository(
             val currentUserId = Firebase.auth.currentUser?.uid ?: "usr_reviewer"
             val currentUserName = Firebase.auth.currentUser?.displayName.orEmpty().ifBlank { review.reviewerName.ifBlank { "Student Reviewer" } }
 
+            var resolvedProviderUID = review.providerUID
+            var resolvedProviderName = review.providerName
+
+            if (resolvedProviderUID.isBlank() && review.listingId.isNotBlank()) {
+                try {
+                    val listingSnap = listingsRef.document(review.listingId).get().await()
+                    if (listingSnap.exists()) {
+                        val pUid = listingSnap.getString("providerUID") ?: ""
+                        val pName = listingSnap.getString("providerName") ?: ""
+                        if (pUid.isNotBlank()) resolvedProviderUID = pUid
+                        if (pName.isNotBlank()) resolvedProviderName = pName
+                    }
+                } catch (e: Exception) {
+                    Log.e("FirestoreRepository", "Error resolving provider for review", e)
+                }
+            }
+
             val reviewData = hashMapOf(
                 "reviewId" to reviewDocRef.id,
                 "listingId" to review.listingId,
-                "providerUID" to review.providerUID,
-                "providerName" to review.providerName,
+                "providerUID" to resolvedProviderUID,
+                "providerName" to resolvedProviderName,
                 "reviewerUID" to currentUserId,
                 "reviewerName" to currentUserName,
                 "serviceTitle" to review.serviceTitle,
@@ -306,14 +326,16 @@ class FirestoreRepository(
             }
             if (snapshot == null) return@addSnapshotListener
 
+            val currentUid = providerUID.ifBlank { Firebase.auth.currentUser?.uid.orEmpty() }
+
             val allReviews = snapshot.documents
                 .mapNotNull { it.toReviewOrNull() }
                 .sortedByDescending { it.createdAt.toDate().time }
 
-            val filtered = if (providerUID.isNotBlank()) {
-                allReviews.filter { it.providerUID == providerUID }
+            val filtered = if (currentUid.isNotBlank()) {
+                allReviews.filter { it.providerUID == currentUid || it.reviewerUID == currentUid }
             } else {
-                allReviews
+                emptyList()
             }
 
             trySend(filtered)

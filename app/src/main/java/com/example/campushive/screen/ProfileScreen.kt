@@ -72,12 +72,32 @@ fun ProfileScreen(
     val providerReviews by reviewViewModel.providerReviews.collectAsState()
     val myListings by listingViewModel.myListings.collectAsState()
 
+    var selectedReviewType by remember { mutableStateOf("Received") }
+    val currentUid = currentUser?.uid ?: ""
+
+    val reviewsReceived = remember(providerReviews, currentUid, displayName) {
+        providerReviews.filter {
+            (currentUid.isNotBlank() && it.providerUID == currentUid) ||
+            (displayName.isNotBlank() && it.providerName.equals(displayName, ignoreCase = true)) ||
+            it.providerUID.isBlank()
+        }
+    }
+
+    val reviewsGiven = remember(providerReviews, currentUid, displayName) {
+        providerReviews.filter {
+            (currentUid.isNotBlank() && it.reviewerUID == currentUid) ||
+            (displayName.isNotBlank() && it.reviewerName.equals(displayName, ignoreCase = true))
+        }
+    }
+
     var editingListing by remember { mutableStateOf<Listing?>(null) }
     var showEditProfileDialog by remember { mutableStateOf(false) }
 
-    // Fetch latest user profile on composite load
+    // Fetch latest user profile, user's own listings, and user's own reviews on load/login
     LaunchedEffect(currentUser?.uid) {
         authViewModel.fetchUserProfile()
+        listingViewModel.refreshUserListings()
+        reviewViewModel.loadReviewsForProvider(currentUser?.uid.orEmpty())
     }
 
     // Toast listener for AuthUiState
@@ -626,51 +646,67 @@ fun ProfileScreen(
                 }
             }
         } else {
-            // Reviews Tab
-            if (providerReviews.isEmpty()) {
-                Card(
+            // Reviews Tab: Sub-pills (Received vs Given)
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = CardWhite),
-                    border = BorderStroke(1.dp, Hairline)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Column(Modifier.padding(14.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier.size(28.dp).clip(CircleShape).background(HoneyTint),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("PK", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Charcoal)
-                                }
-                                Spacer(Modifier.width(8.dp))
-                                Text("Priya K.", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Charcoal)
-                            }
-
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Filled.Star, contentDescription = null, tint = Honey, modifier = Modifier.size(13.dp))
-                                Spacer(Modifier.width(2.dp))
-                                Text("5.0", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Charcoal)
-                            }
-                        }
-
-                        Spacer(Modifier.height(8.dp))
-
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (selectedReviewType == "Received") Charcoal else CreamTint,
+                        modifier = Modifier.clickable { selectedReviewType = "Received" }
+                    ) {
                         Text(
-                            text = "\"Shot our club's annual dinner - super patient and the photos came out amazing. Highly recommend!\"",
-                            fontSize = 12.sp,
-                            color = Charcoal,
-                            lineHeight = 17.sp
+                            text = "Received (${reviewsReceived.size})",
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (selectedReviewType == "Received") CardWhite else Charcoal
+                        )
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (selectedReviewType == "Given") Charcoal else CreamTint,
+                        modifier = Modifier.clickable { selectedReviewType = "Given" }
+                    ) {
+                        Text(
+                            text = "Given (${reviewsGiven.size})",
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (selectedReviewType == "Given") CardWhite else Charcoal
                         )
                     }
                 }
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    providerReviews.forEach { review ->
+
+                val activeReviews = if (selectedReviewType == "Received") reviewsReceived else reviewsGiven
+
+                if (activeReviews.isEmpty()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = CardWhite),
+                        border = BorderStroke(1.dp, Hairline)
+                    ) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text(
+                                text = if (selectedReviewType == "Received")
+                                    "No reviews received yet. Reviews left by students for your services will appear here!"
+                                else
+                                    "No reviews submitted yet. Rate a service provider after completing a session to see your review history here!",
+                                fontSize = 12.sp,
+                                color = MutedText,
+                                lineHeight = 17.sp
+                            )
+                        }
+                    }
+                } else {
+                    activeReviews.forEach { review ->
+                        val isReceived = selectedReviewType == "Received"
+                        val displayNameInReview = if (isReceived) review.reviewerName else review.providerName
+
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
@@ -689,19 +725,28 @@ fun ProfileScreen(
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(
-                                                text = review.reviewerName.take(2).uppercase(),
+                                                text = displayNameInReview.take(2).uppercase().ifBlank { "ST" },
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 11.sp,
                                                 color = Charcoal
                                             )
                                         }
                                         Spacer(Modifier.width(8.dp))
-                                        Text(
-                                            text = review.reviewerName,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 13.sp,
-                                            color = Charcoal
-                                        )
+                                        Column {
+                                            Text(
+                                                text = displayNameInReview.ifBlank { "Student Peer" },
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.sp,
+                                                color = Charcoal
+                                            )
+                                            if (review.serviceTitle.isNotBlank()) {
+                                                Text(
+                                                    text = review.serviceTitle,
+                                                    fontSize = 10.sp,
+                                                    color = MutedText
+                                                )
+                                            }
+                                        }
                                     }
 
                                     Row(verticalAlignment = Alignment.CenterVertically) {

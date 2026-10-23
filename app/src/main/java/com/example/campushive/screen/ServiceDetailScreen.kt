@@ -37,6 +37,8 @@ import com.example.campushive.model.PricingType
 import com.example.campushive.ui.theme.*
 import com.example.campushive.viewmodel.ListingViewModel
 import com.example.campushive.viewmodel.ReviewViewModel
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
 
 @Composable
 fun ServiceDetailScreen(
@@ -71,10 +73,19 @@ fun ServiceDetailScreen(
         )
     var isFavorite by remember { mutableStateOf(false) }
 
+    val currentUser = Firebase.auth.currentUser
+    val currentUid = currentUser?.uid ?: ""
+    val currentUserName = currentUser?.displayName?.trim()?.takeIf { it.isNotBlank() }
+        ?: currentUser?.email?.substringBefore("@")?.trim()
+        ?: ""
+
+    val isOwnListing = (currentUid.isNotBlank() && listing.providerUID.isNotBlank() && currentUid == listing.providerUID) ||
+        (currentUserName.isNotBlank() && listing.providerName.isNotBlank() && currentUserName.equals(listing.providerName, ignoreCase = true))
+
     val initials = listing.providerName.split(" ").mapNotNull { it.firstOrNull()?.toString() }.joinToString("")
     val firstName = listing.providerName.split(" ").firstOrNull() ?: listing.providerName
 
-    if (showReviewDialog) {
+    if (showReviewDialog && !isOwnListing) {
         ReviewDialog(
             listingId = listing.id,
             providerName = listing.providerName,
@@ -409,7 +420,7 @@ fun ServiceDetailScreen(
                     }
                 }
 
-                // REVIEWS & FEEDBACK Section Header with Write Review Button
+                // REVIEWS & FEEDBACK Section Header with Write Review Button (Seekers only)
                 Column {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -424,30 +435,32 @@ fun ServiceDetailScreen(
                             letterSpacing = 0.8.sp
                         )
 
-                        Surface(
-                            color = Honey,
-                            shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier
-                                .clickable { showReviewDialog = true }
-                                .bounceClick(scaleDown = 0.95f)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                        if (!isOwnListing) {
+                            Surface(
+                                color = Honey,
+                                shape = RoundedCornerShape(16.dp),
+                                modifier = Modifier
+                                    .clickable { showReviewDialog = true }
+                                    .bounceClick(scaleDown = 0.95f)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Star,
-                                    contentDescription = "Leave Review",
-                                    tint = Charcoal,
-                                    modifier = Modifier.size(12.dp)
-                                )
-                                Spacer(Modifier.width(4.dp))
-                                Text(
-                                    text = "+ Write Review",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Charcoal
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Star,
+                                        contentDescription = "Leave Review",
+                                        tint = Charcoal,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(
+                                        text = "+ Write Review",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Charcoal
+                                    )
+                                }
                             }
                         }
                     }
@@ -473,18 +486,21 @@ fun ServiceDetailScreen(
                                 )
                                 Spacer(Modifier.height(4.dp))
                                 Text(
-                                    text = "Be the first student to leave a review after your session!",
+                                    text = if (isOwnListing) "Reviews from students who book your service will appear here."
+                                    else "Be the first student to leave a review after your session!",
                                     fontSize = 12.sp,
                                     color = MutedText
                                 )
-                                Spacer(Modifier.height(10.dp))
-                                Button(
-                                    onClick = { showReviewDialog = true },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
-                                    shape = RoundedCornerShape(12.dp),
-                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
-                                ) {
-                                    Text("Write a Review", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                if (!isOwnListing) {
+                                    Spacer(Modifier.height(10.dp))
+                                    Button(
+                                        onClick = { showReviewDialog = true },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
+                                        shape = RoundedCornerShape(12.dp),
+                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
+                                    ) {
+                                        Text("Write a Review", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    }
                                 }
                             }
                         }
@@ -621,7 +637,7 @@ fun ServiceDetailScreen(
                     modifier = Modifier.bounceClick(scaleDown = 0.95f)
                 ) {
                     Text(
-                        text = "Chat with $firstName",
+                        text = if (isOwnListing) "Open Service Chat" else "Chat with $firstName",
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
                     )

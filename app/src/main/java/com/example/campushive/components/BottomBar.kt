@@ -28,6 +28,13 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.campushive.navigation.Screen
 import com.example.campushive.ui.theme.*
 
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.Color
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.campushive.viewmodel.ChatViewModel
+
 private data class Tab(val screen: Screen, val icon: ImageVector)
 
 private val tabsLeft = listOf(
@@ -40,8 +47,13 @@ private val tabsRight = listOf(
 )
 
 @Composable
-fun BottomBar(nav: NavController) {
+fun BottomBar(
+    nav: NavController,
+    chatViewModel: ChatViewModel = viewModel()
+) {
     val current = nav.currentBackStackEntryAsState().value?.destination?.route
+    val conversations by chatViewModel.conversations.collectAsState()
+    val totalUnread = remember(conversations) { conversations.sumOf { it.unreadCount } }
 
     fun go(s: Screen) = nav.navigate(s.route) {
         popUpTo(nav.graph.findStartDestination().id) { saveState = true }
@@ -70,9 +82,9 @@ fun BottomBar(nav: NavController) {
                     .padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                tabsLeft.forEach { TabItem(it, current == it.screen.route, Modifier.weight(1f)) { go(it.screen) } }
+                tabsLeft.forEach { TabItem(it, current == it.screen.route, 0, Modifier.weight(1f)) { go(it.screen) } }
                 Spacer(Modifier.weight(1f)) // space for floating center "+" button
-                tabsRight.forEach { TabItem(it, current == it.screen.route, Modifier.weight(1f)) { go(it.screen) } }
+                tabsRight.forEach { TabItem(it, current == it.screen.route, if (it.screen == Screen.Chats) totalUnread else 0, Modifier.weight(1f)) { go(it.screen) } }
             }
         }
         // Floating Honey "+" Button with instant spring press feedback
@@ -92,7 +104,13 @@ fun BottomBar(nav: NavController) {
 }
 
 @Composable
-private fun TabItem(tab: Tab, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+private fun TabItem(
+    tab: Tab,
+    selected: Boolean,
+    unreadCount: Int = 0,
+    modifier: Modifier,
+    onClick: () -> Unit
+) {
     Column(
         modifier
             .clip(RoundedCornerShape(24.dp))
@@ -101,7 +119,22 @@ private fun TabItem(tab: Tab, selected: Boolean, modifier: Modifier, onClick: ()
             .padding(vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(tab.icon, null, tint = if (selected) Charcoal else MutedText, modifier = Modifier.size(22.dp))
+        Box(contentAlignment = Alignment.TopEnd) {
+            Icon(tab.icon, null, tint = if (selected) Charcoal else MutedText, modifier = Modifier.size(22.dp))
+
+            if (tab.screen == Screen.Chats && unreadCount > 0) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .offset(x = 3.dp, y = (-3).dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFD32F2F)) // Red Unread Message Dot Indicator
+                )
+            }
+        }
+
+        Spacer(Modifier.height(2.dp))
+
         Text(
             tab.screen.title,
             style = MaterialTheme.typography.labelSmall,

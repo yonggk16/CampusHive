@@ -3,6 +3,7 @@ package com.example.campushive.screen
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -15,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Code
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.School
 import androidx.compose.material.icons.outlined.Search
@@ -32,10 +34,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campushive.model.Listing
 import com.example.campushive.ui.theme.*
 import com.example.campushive.viewmodel.AuthViewModel
+import com.example.campushive.viewmodel.ChatViewModel
 import com.example.campushive.viewmodel.ListingViewModel
 
 private data class ServiceCategory(
@@ -70,6 +74,7 @@ private val quickHelpItems = listOf(
 fun HomeScreen(
     authViewModel: AuthViewModel = viewModel(),
     listingViewModel: ListingViewModel = viewModel(),
+    chatViewModel: ChatViewModel = viewModel(),
     onListingClick: (Listing) -> Unit = {},
     onNavigateToSearch: () -> Unit = {},
     onNavigateToCreateService: () -> Unit = {},
@@ -77,6 +82,8 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val liveListings by listingViewModel.listings.collectAsState()
+    val conversations by chatViewModel.conversations.collectAsState()
+    val upNextChat = remember(conversations) { conversations.firstOrNull() }
     val userProfile by authViewModel.userProfile.collectAsState()
     val currentUserName = userProfile?.displayName?.takeIf { it.isNotBlank() } ?: authViewModel.currentUser?.displayName?.takeIf { it.isNotBlank() } ?: "Student"
     val isVerified = authViewModel.isEmailVerified || userProfile?.isVerifiedStudent == true
@@ -93,7 +100,7 @@ fun HomeScreen(
     ) {
         Spacer(Modifier.height(10.dp))
 
-        // 1. Top Greeting Row ("Hi, $firstName" + Avatar Button)
+        // 1. Top Greeting Row ("Hi, $firstName" + Notification Bell Button)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -113,18 +120,18 @@ fun HomeScreen(
                 modifier = Modifier
                     .size(44.dp)
                     .clip(CircleShape)
-                    .background(Honey)
+                    .background(CardWhite)
+                    .border(BorderStroke(1.dp, Hairline), CircleShape)
                     .bounceClick(scaleDown = 0.90f) {
-                        val statusText = if (isVerified) "Campus Verified" else "Unverified Email"
-                        Toast.makeText(context, "$currentUserName • $statusText", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "You're all caught up! No new notifications.", Toast.LENGTH_SHORT).show()
                     },
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = initials,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Charcoal
+                Icon(
+                    imageVector = Icons.Outlined.Notifications,
+                    contentDescription = "Notifications",
+                    tint = Charcoal,
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
@@ -165,63 +172,66 @@ fun HomeScreen(
 
         Spacer(Modifier.height(12.dp))
 
-        // 3. Up Next Dark Card
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .bounceClick(scaleDown = 0.98f) {
-                    onOpenChat("chat_1", "Alex", "Calculus Tutoring")
-                },
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Charcoal),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-        ) {
-            Row(
+        // 3. Up Next Dark Card (Only rendered when engaged in an active service/chat)
+        if (upNextChat != null) {
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 20.dp)
+                    .bounceClick(scaleDown = 0.98f) {
+                        onOpenChat(upNextChat.id, upNextChat.studentName, upNextChat.serviceTitle)
+                    },
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Charcoal),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "UP NEXT · SAT 10:00",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Honey,
-                        letterSpacing = 0.6.sp
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = "Calculus with Alex",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = CardWhite,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                Spacer(Modifier.width(12.dp))
-
-                Button(
-                    onClick = { onOpenChat("chat_1", "Alex", "Calculus Tutoring") },
-                    shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                    modifier = Modifier.height(34.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Open",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "UP NEXT · ${upNextChat.timestamp.uppercase()}",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Honey,
+                            letterSpacing = 0.6.sp
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = "${upNextChat.serviceTitle} with ${upNextChat.studentName}",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = CardWhite,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    Spacer(Modifier.width(12.dp))
+
+                    Button(
+                        onClick = { onOpenChat(upNextChat.id, upNextChat.studentName, upNextChat.serviceTitle) },
+                        shape = RoundedCornerShape(50),
+                        colors = ButtonDefaults.buttonColors(containerColor = CardWhite, contentColor = Charcoal),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                        modifier = Modifier.height(34.dp)
+                    ) {
+                        Text(
+                            text = "Open",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Charcoal
+                        )
+                    }
                 }
             }
-        }
 
-        Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(18.dp))
+        }
 
         // 4. Section Header: "Browse services"
         Row(

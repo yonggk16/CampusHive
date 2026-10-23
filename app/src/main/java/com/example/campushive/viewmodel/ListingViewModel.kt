@@ -30,8 +30,12 @@ class ListingViewModel(
         }
 
         // Stream live managed listings for the currently logged in user
+        refreshUserListings()
+    }
+
+    fun refreshUserListings() {
+        val currentUid = Firebase.auth.currentUser?.uid.orEmpty()
         viewModelScope.launch {
-            val currentUid = Firebase.auth.currentUser?.uid.orEmpty()
             repository.getMyListingsFlow(currentUid).collect { userListings ->
                 _myListings.value = userListings
             }
