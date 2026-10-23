@@ -12,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Favorite
@@ -30,11 +31,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.campushive.components.ReportDialog
 import com.example.campushive.components.ReviewDialog
 import com.example.campushive.components.ServiceCategoryIconBox
 import com.example.campushive.model.Listing
 import com.example.campushive.model.PricingType
+import com.example.campushive.model.ReportType
 import com.example.campushive.ui.theme.*
+import com.example.campushive.viewmodel.HelpdeskViewModel
 import com.example.campushive.viewmodel.ListingViewModel
 import com.example.campushive.viewmodel.ReviewViewModel
 import com.google.firebase.Firebase
@@ -45,6 +49,7 @@ fun ServiceDetailScreen(
     listingId: String,
     listingViewModel: ListingViewModel = viewModel(),
     reviewViewModel: ReviewViewModel = viewModel(),
+    helpdeskViewModel: HelpdeskViewModel = viewModel(),
     onBackClick: () -> Unit,
     onChatClick: (studentName: String, serviceTitle: String) -> Unit
 ) {
@@ -52,6 +57,8 @@ fun ServiceDetailScreen(
     val liveListings by listingViewModel.listings.collectAsState()
     val listingReviews by reviewViewModel.listingReviews.collectAsState()
     var showReviewDialog by remember { mutableStateOf(false) }
+    var showReportDialog by remember { mutableStateOf(false) }
+    var reportSubmittedLocally by remember { mutableStateOf(false) }
 
     LaunchedEffect(listingId) {
         reviewViewModel.loadReviewsForListing(listingId)
@@ -96,6 +103,31 @@ fun ServiceDetailScreen(
         )
     }
 
+    if (showReportDialog) {
+        ReportDialog(
+            initialType = ReportType.LISTING_FLAG,
+            targetId = listing.id,
+            targetName = listing.title,
+            helpdeskViewModel = helpdeskViewModel,
+            onDismiss = { showReportDialog = false },
+            onSubmitSuccess = {
+                showReportDialog = false
+                reportSubmittedLocally = true
+            }
+        )
+    }
+
+    val userReports by helpdeskViewModel.userReports.collectAsState()
+    val listingReport = remember(userReports, listing.id, listing.title) {
+        userReports.find { report ->
+            report.targetId == listing.id ||
+            (listing.id.isNotBlank() && report.targetId.contains(listing.id)) ||
+            (report.targetName.isNotBlank() && report.targetName.equals(listing.title, ignoreCase = true))
+        }
+    }
+
+    val showReportBanner = listingReport != null || reportSubmittedLocally
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -106,6 +138,44 @@ fun ServiceDetailScreen(
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
         ) {
+            if (showReportBanner) {
+                Surface(
+                    color = Color(0xFFFFF3C4),
+                    shape = RoundedCornerShape(14.dp),
+                    border = BorderStroke(1.dp, Color(0xFFE5C158)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.WarningAmber,
+                            contentDescription = null,
+                            tint = Color(0xFF7A5800),
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Report Submitted (${listingReport?.status?.name ?: "OPEN"})",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = Color(0xFF7A5800)
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = if (listingReport != null) "Category: ${listingReport.category}. Our campus moderation team is investigating this listing." else "Your flag/report has been submitted and is under review.",
+                                fontSize = 11.sp,
+                                color = Color(0xFF7A5800),
+                                lineHeight = 15.sp
+                            )
+                        }
+                    }
+                }
+            }
             // Hero Image/Banner Box (Top Category Icon Showcase)
             Box(
                 modifier = Modifier
@@ -594,6 +664,25 @@ fun ServiceDetailScreen(
                             }
                         }
                     }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                // Flag / Report Listing Button
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showReportDialog = true }
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Flag or report this listing",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MutedText
+                    )
                 }
 
                 Spacer(Modifier.height(20.dp))
