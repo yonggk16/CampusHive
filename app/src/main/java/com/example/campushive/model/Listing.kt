@@ -69,7 +69,6 @@ data class Listing(
     val campusLocation: String,
     val isVerifiedStudent: Boolean = true,
     val description: String = "",
-    val providerUID: String = "",
     val status: String = "ACTIVE", // ACTIVE, INACTIVE, DELETED
     val createdAt: Long = System.currentTimeMillis()
 )

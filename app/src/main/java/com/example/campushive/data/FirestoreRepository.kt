@@ -409,8 +409,6 @@ private fun DocumentSnapshot.toListingOrNull(): Listing? {
         val description = getString("description") ?: ""
         val createdAt = getTimestamp("createdAt")?.toDate()?.time ?: System.currentTimeMillis()
 
-        val providerUID = getString("providerUID") ?: ""
-
         Listing(
             id = getString("listingId")?.takeIf { it.isNotBlank() } ?: id,
             providerUID = providerUID,
@@ -424,7 +422,6 @@ private fun DocumentSnapshot.toListingOrNull(): Listing? {
             campusLocation = campusLocation,
             isVerifiedStudent = isVerified,
             description = description,
-            providerUID = providerUID,
             status = status,
             createdAt = createdAt
         )
@@ -507,7 +504,6 @@ fun ListingEntity.toUIModel(): Listing {
         campusLocation = campusLocation,
         isVerifiedStudent = isVerifiedStudent,
         description = description,
-        providerUID = providerUID,
         status = status
     )
 }

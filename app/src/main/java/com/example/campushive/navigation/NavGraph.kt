@@ -175,7 +175,6 @@ fun CampusHiveApp() {
                     chatId = chatId,
                     studentName = studentName,
                     serviceTitle = serviceTitle,
-                    reviewViewModel = reviewViewModel,
                     onBackClick = { navController.popBackStack() }
                 )
             }

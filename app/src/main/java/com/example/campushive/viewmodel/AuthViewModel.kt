@@ -5,9 +5,12 @@ import androidx.lifecycle.viewModelScope
 import com.example.campushive.data.FirestoreRepository
 import com.example.campushive.model.UserProfile
 import com.google.firebase.Firebase
+import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.auth.auth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -261,10 +264,29 @@ class AuthViewModel(
     }
 
     fun signOut(onSignOutComplete: () -> Unit) {
+        updateUserPresence(isOnline = false)
         auth.signOut()
         _uiState.value = AuthUiState.Idle
         _userProfile.value = null
         onSignOutComplete()
+    }
+
+    /**
+     * Updates student's real-time online presence in Cloud Firestore
+     */
+    fun updateUserPresence(isOnline: Boolean) {
+        val user = auth.currentUser ?: return
+        val userDocRef = FirebaseFirestore.getInstance().collection("users").document(user.uid)
+
+        val presenceData = hashMapOf<String, Any>(
+            "uid" to user.uid,
+            "displayName" to (user.displayName ?: "Student"),
+            "email" to (user.email ?: ""),
+            "isOnline" to isOnline,
+            "lastSeen" to Timestamp.now()
+        )
+
+        userDocRef.set(presenceData, SetOptions.merge())
     }
 
     fun clearUiState() {
