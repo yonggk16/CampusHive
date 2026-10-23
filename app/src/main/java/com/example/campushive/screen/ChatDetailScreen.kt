@@ -26,10 +26,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.campushive.components.ReportDialog
 import com.example.campushive.components.ReviewDialog
 import com.example.campushive.model.ChatMessage
+import com.example.campushive.model.ReportType
 import com.example.campushive.ui.theme.*
 import com.example.campushive.viewmodel.ChatViewModel
+import com.example.campushive.viewmodel.HelpdeskViewModel
 import com.example.campushive.viewmodel.ReviewViewModel
 
 @Composable
@@ -39,10 +42,13 @@ fun ChatDetailScreen(
     serviceTitle: String,
     chatViewModel: ChatViewModel = viewModel(),
     reviewViewModel: ReviewViewModel = viewModel(),
+    helpdeskViewModel: HelpdeskViewModel = viewModel(),
     onBackClick: () -> Unit
 ) {
     var messageText by remember { mutableStateOf("") }
     var showReviewDialog by remember { mutableStateOf(false) }
+    var showReportDialog by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
     val liveMessages by chatViewModel.getMessagesFlow(chatId).collectAsState(initial = emptyList())
     val listState = rememberLazyListState()
 
@@ -66,6 +72,17 @@ fun ChatDetailScreen(
             reviewViewModel = reviewViewModel,
             onDismiss = { showReviewDialog = false },
             onSubmit = { showReviewDialog = false }
+        )
+    }
+
+    if (showReportDialog) {
+        ReportDialog(
+            initialType = ReportType.USER_SAFETY,
+            targetId = chatId,
+            targetName = studentName,
+            helpdeskViewModel = helpdeskViewModel,
+            onDismiss = { showReportDialog = false },
+            onSubmitSuccess = { showReportDialog = false }
         )
     }
 
@@ -139,8 +156,24 @@ fun ChatDetailScreen(
                         )
                     }
 
-                    IconButton(onClick = {}) {
-                        Icon(Icons.Filled.MoreVert, contentDescription = "More options", tint = Charcoal)
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Filled.MoreVert, contentDescription = "More options", tint = Charcoal)
+                        }
+
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false },
+                            modifier = Modifier.background(CardWhite)
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Report user safety concern", color = Charcoal, fontWeight = FontWeight.Medium) },
+                                onClick = {
+                                    showMenu = false
+                                    showReportDialog = true
+                                }
+                            )
+                        }
                     }
                 }
 

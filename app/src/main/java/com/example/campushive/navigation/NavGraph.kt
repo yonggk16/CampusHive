@@ -15,6 +15,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.campushive.components.BottomBar
 import com.example.campushive.screen.*
+import com.example.campushive.viewmodel.HelpdeskViewModel
 import com.example.campushive.viewmodel.ListingViewModel
 import com.example.campushive.viewmodel.ReviewViewModel
 import com.google.firebase.Firebase
@@ -35,6 +36,7 @@ fun CampusHiveApp() {
     val navController = rememberNavController()
     val listingViewModel: ListingViewModel = viewModel()
     val reviewViewModel: ReviewViewModel = viewModel()
+    val helpdeskViewModel: HelpdeskViewModel = viewModel()
     val auth = Firebase.auth
     val currentUser = auth.currentUser
 
@@ -127,6 +129,7 @@ fun CampusHiveApp() {
                     listingId = listingId,
                     listingViewModel = listingViewModel,
                     reviewViewModel = reviewViewModel,
+                    helpdeskViewModel = helpdeskViewModel,
                     onBackClick = { navController.popBackStack() },
                     onChatClick = { providerName, serviceTitle ->
                         val uniqueChatId = "chat_$listingId"
@@ -176,6 +179,7 @@ fun CampusHiveApp() {
                     studentName = studentName,
                     serviceTitle = serviceTitle,
                     reviewViewModel = reviewViewModel,
+                    helpdeskViewModel = helpdeskViewModel,
                     onBackClick = { navController.popBackStack() }
                 )
             }
@@ -226,7 +230,33 @@ fun CampusHiveApp() {
             // Helpdesk Destination
             composable("helpdesk") {
                 HelpdeskScreen(
-                    onBackClick = { navController.popBackStack() }
+                    helpdeskViewModel = helpdeskViewModel,
+                    onBackClick = { navController.popBackStack() },
+                    onNavigateToMyReports = {
+                        navController.navigate("my_reports")
+                    }
+                )
+            }
+
+            // My Reports & Tickets Destination
+            composable("my_reports") {
+                MyReportsScreen(
+                    helpdeskViewModel = helpdeskViewModel,
+                    onBackClick = { navController.popBackStack() },
+                    onReportClick = { reportId ->
+                        navController.navigate("report_detail/$reportId")
+                    }
+                )
+            }
+
+            // Report Detail Destination
+            composable("report_detail/{reportId}") { backStackEntry ->
+                val reportId = backStackEntry.arguments?.getString("reportId") ?: ""
+                ReportDetailScreen(
+                    reportId = reportId,
+                    helpdeskViewModel = helpdeskViewModel,
+                    onBackClick = { navController.popBackStack() },
+                    onDeleteOrUpdate = { navController.popBackStack() }
                 )
             }
         }

@@ -1,6 +1,5 @@
 package com.example.campushive.screen
 
-import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -14,18 +13,21 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.campushive.components.ReportDialog
+import com.example.campushive.model.ReportType
 import com.example.campushive.ui.theme.*
+import com.example.campushive.viewmodel.HelpdeskViewModel
 
 private data class FaqItem(val question: String, val answer: String)
 
@@ -50,9 +52,23 @@ private val faqList = listOf(
 
 @Composable
 fun HelpdeskScreen(
-    onBackClick: () -> Unit
+    helpdeskViewModel: HelpdeskViewModel = viewModel(),
+    onBackClick: () -> Unit,
+    onNavigateToMyReports: () -> Unit = {}
 ) {
-    val context = LocalContext.current
+    val userReports by helpdeskViewModel.userReports.collectAsState()
+
+    var showReportDialog by remember { mutableStateOf(false) }
+    var reportDialogType by remember { mutableStateOf(ReportType.PROBLEM) }
+
+    if (showReportDialog) {
+        ReportDialog(
+            initialType = reportDialogType,
+            helpdeskViewModel = helpdeskViewModel,
+            onDismiss = { showReportDialog = false },
+            onSubmitSuccess = { showReportDialog = false }
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -95,7 +111,7 @@ fun HelpdeskScreen(
             ) {
                 Column(Modifier.padding(18.dp)) {
                     Text(
-                        text = "CampusHive HelpDesk",
+                        text = "CAMPUSHIVE HELPDESK",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF8C6B10),
@@ -118,7 +134,8 @@ fun HelpdeskScreen(
                     Spacer(Modifier.height(12.dp))
                     Button(
                         onClick = {
-                            Toast.makeText(context, "Opening report problem form...", Toast.LENGTH_SHORT).show()
+                            reportDialogType = ReportType.PROBLEM
+                            showReportDialog = true
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
                         shape = RoundedCornerShape(12.dp),
@@ -129,9 +146,11 @@ fun HelpdeskScreen(
                 }
             }
 
-            // My Reports Ticket Tracker
+            // My Reports & Tickets Navigation Card
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onNavigateToMyReports() },
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = CardWhite),
                 border = BorderStroke(1.dp, Hairline)
@@ -143,14 +162,26 @@ fun HelpdeskScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text("My reports", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Charcoal)
-                        Text("1 ticket • under review", fontSize = 12.sp, color = MutedText)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Surface(
+                            color = HoneyTint,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Filled.SupportAgent, contentDescription = null, tint = Charcoal, modifier = Modifier.size(20.dp))
+                            }
+                        }
+                        Column {
+                            Text("My reports & tickets", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Charcoal)
+                            Text("${userReports.size} submitted ticket(s)", fontSize = 12.sp, color = MutedText)
+                        }
                     }
 
-                    Surface(color = HoneyTint, shape = RoundedCornerShape(10.dp)) {
-                        Text("OPEN", modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Charcoal)
-                    }
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = Charcoal, modifier = Modifier.size(16.dp))
                 }
             }
 
@@ -168,7 +199,8 @@ fun HelpdeskScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
-                        Toast.makeText(context, "Opening safety report form...", Toast.LENGTH_SHORT).show()
+                        reportDialogType = ReportType.USER_SAFETY
+                        showReportDialog = true
                     }
                     .padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,

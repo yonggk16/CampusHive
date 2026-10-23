@@ -1,8 +1,11 @@
 package com.example.campushive.data
 
 import android.util.Log
+import com.example.campushive.model.HelpReport
 import com.example.campushive.model.Listing
 import com.example.campushive.model.PricingType
+import com.example.campushive.model.ReportStatus
+import com.example.campushive.model.ReportType
 import com.example.campushive.model.Review
 import com.example.campushive.model.UserProfile
 import com.google.firebase.Firebase
@@ -47,6 +50,7 @@ class FirestoreRepository(
     private val listingsRef = db.collection("listings")
     private val reviewsRef = db.collection("reviews")
     private val usersRef = db.collection("users")
+    private val reportsRef = db.collection("reports")
 
     /**
      * Real-time Flow listener for Cloud Firestore Service Listings (ACTIVE ones)
@@ -389,6 +393,95 @@ class FirestoreRepository(
             null
         }
     }
+
+    /**
+     * Submit a Helpdesk / User Safety Report to Cloud Firestore
+     */
+    suspend fun submitReport(report: HelpReport): Boolean {
+        return try {
+            val docRef = if (report.reportId.isNotBlank()) {
+                reportsRef.document(report.reportId)
+            } else {
+                reportsRef.document()
+            }
+
+            val effectiveUid = report.reporterUid.ifBlank { Firebase.auth.currentUser?.uid ?: "" }
+
+            val data = hashMapOf(
+                "reportId" to docRef.id,
+                "reporterUid" to effectiveUid,
+                "reporterName" to report.reporterName.ifBlank { "Student User" },
+                "type" to report.type.name,
+                "category" to report.category,
+                "targetId" to report.targetId,
+                "targetName" to report.targetName,
+                "description" to report.description,
+                "status" to report.status.name,
+                "createdAt" to report.createdAt
+            )
+
+            docRef.set(data).await()
+            Log.d("FirestoreRepository", "Successfully submitted report: ${docRef.id}")
+            true
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Failed to submit report: ${e.message}", e)
+            false
+        }
+    }
+
+    /**
+     * Real-time Flow listener for user's submitted reports/tickets
+     */
+    fun getUserReportsFlow(reporterUid: String = ""): Flow<List<HelpReport>> = callbackFlow {
+        val listener = reportsRef.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                Log.e("FirestoreRepository", "Error listening to user reports", error)
+                return@addSnapshotListener
+            }
+            if (snapshot == null) return@addSnapshotListener
+
+            val reports = snapshot.documents
+                .mapNotNull { it.toHelpReportOrNull() }
+                .sortedByDescending { it.createdAt.toDate().time }
+
+            trySend(reports)
+        }
+
+        awaitClose { listener.remove() }
+    }
+
+    /**
+     * Update an existing Report in Firestore
+     */
+    suspend fun updateReport(reportId: String, category: String, description: String): Boolean {
+        return try {
+            reportsRef.document(reportId).update(
+                mapOf(
+                    "category" to category,
+                    "description" to description
+                )
+            ).await()
+            Log.d("FirestoreRepository", "Successfully updated report: $reportId")
+            true
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Failed to update report $reportId: ${e.message}", e)
+            false
+        }
+    }
+
+    /**
+     * Delete a Report in Firestore
+     */
+    suspend fun deleteReport(reportId: String): Boolean {
+        return try {
+            reportsRef.document(reportId).delete().await()
+            Log.d("FirestoreRepository", "Successfully deleted report: $reportId")
+            true
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Failed to delete report $reportId: ${e.message}", e)
+            false
+        }
+    }
 }
 
 private fun DocumentSnapshot.toListingOrNull(): Listing? {
@@ -484,6 +577,32 @@ private fun DocumentSnapshot.toUserProfileOrNull(): UserProfile? {
         )
     } catch (e: Exception) {
         Log.e("FirestoreRepository", "Error mapping document $id to UserProfile", e)
+        null
+    }
+}
+
+private fun DocumentSnapshot.toHelpReportOrNull(): HelpReport? {
+    return try {
+        val typeStr = getString("type") ?: "PROBLEM"
+        val statusStr = getString("status") ?: "OPEN"
+
+        val reportType = try { ReportType.valueOf(typeStr) } catch (e: Exception) { ReportType.PROBLEM }
+        val reportStatus = try { ReportStatus.valueOf(statusStr) } catch (e: Exception) { ReportStatus.OPEN }
+
+        HelpReport(
+            reportId = getString("reportId") ?: id,
+            reporterUid = getString("reporterUid") ?: "",
+            reporterName = getString("reporterName") ?: "Student User",
+            type = reportType,
+            category = getString("category") ?: "General",
+            targetId = getString("targetId") ?: "",
+            targetName = getString("targetName") ?: "",
+            description = getString("description") ?: "",
+            status = reportStatus,
+            createdAt = getTimestamp("createdAt") ?: Timestamp.now()
+        )
+    } catch (e: Exception) {
+        Log.e("FirestoreRepository", "Error mapping document $id to HelpReport", e)
         null
     }
 }
