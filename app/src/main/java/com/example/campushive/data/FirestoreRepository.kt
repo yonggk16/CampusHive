@@ -462,8 +462,17 @@ class FirestoreRepository(
             }
             if (snapshot == null) return@addSnapshotListener
 
+            val currentUid = reporterUid.ifBlank { Firebase.auth.currentUser?.uid.orEmpty() }
+
             val reports = snapshot.documents
                 .mapNotNull { it.toHelpReportOrNull() }
+                .filter { report ->
+                    if (currentUid.isNotBlank()) {
+                        report.reporterUid == currentUid
+                    } else {
+                        false
+                    }
+                }
                 .sortedByDescending { it.createdAt.toDate().time }
 
             trySend(reports)

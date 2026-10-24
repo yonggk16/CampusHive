@@ -21,6 +21,24 @@ class ListingViewModel(
     private val _myListings = MutableStateFlow<List<Listing>>(emptyList())
     val myListings: StateFlow<List<Listing>> = _myListings.asStateFlow()
 
+    private val _selectedCategory = MutableStateFlow("All Categories")
+    val selectedCategory: StateFlow<String> = _selectedCategory.asStateFlow()
+
+    private val _shouldFocusSearch = MutableStateFlow(false)
+    val shouldFocusSearch: StateFlow<Boolean> = _shouldFocusSearch.asStateFlow()
+
+    fun setSelectedCategory(category: String) {
+        _selectedCategory.value = normalizeCategoryFilter(category)
+    }
+
+    fun requestSearchFocus() {
+        _shouldFocusSearch.value = true
+    }
+
+    fun consumeSearchFocus() {
+        _shouldFocusSearch.value = false
+    }
+
     init {
         // Stream live active public listings from Cloud Firestore
         viewModelScope.launch {
@@ -104,5 +122,20 @@ class ListingViewModel(
 
     fun removeListing(listingId: String) {
         deleteListing(listingId)
+    }
+
+    companion object {
+        val CATEGORY_FILTERS = listOf("All Categories", "Tutoring", "Design", "Tech Help", "Errands")
+
+        fun normalizeCategoryFilter(raw: String): String {
+            val trimmed = raw.trim()
+            if (trimmed.isBlank()) return "All Categories"
+            return CATEGORY_FILTERS.firstOrNull { it.equals(trimmed, ignoreCase = true) }
+                ?: when (trimmed.lowercase()) {
+                    "coding", "tech", "tech help" -> "Tech Help"
+                    "campus services", "errand" -> "Errands"
+                    else -> trimmed
+                }
+        }
     }
 }

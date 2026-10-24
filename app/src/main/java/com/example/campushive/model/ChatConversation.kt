@@ -13,5 +13,7 @@ data class ChatConversation(
     val providerUID: String = "",
     val providerName: String = "",
     val seekerName: String = "",
-    val isProvider: Boolean = false
+    val isProvider: Boolean = false,
+    val isOnline: Boolean = false,
+    val lastSeenMillis: Long = 0L
 )

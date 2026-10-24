@@ -115,16 +115,20 @@ fun ProfileScreen(
         }
     }
 
-    val averageRating = remember(providerReviews) {
-        if (providerReviews.isNotEmpty()) {
-            providerReviews.map { it.rating }.average()
+    val averageRating = remember(reviewsReceived) {
+        if (reviewsReceived.isNotEmpty()) {
+            reviewsReceived.map { it.rating }.average()
         } else {
-            4.9
+            0.0
         }
     }
 
-    val totalReviewCount = remember(providerReviews) {
-        if (providerReviews.isNotEmpty()) providerReviews.size else 12
+    val jobsDoneCount = remember(myListings, reviewsReceived) {
+        myListings.size + reviewsReceived.size
+    }
+
+    val totalReviewCount = remember(reviewsReceived) {
+        reviewsReceived.size
     }
 
     val initials = remember(displayName) {
@@ -332,7 +336,12 @@ fun ProfileScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Filled.Star, contentDescription = null, tint = Honey, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(2.dp))
-                            Text("%.1f".format(averageRating), fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Charcoal)
+                            Text(
+                                text = if (reviewsReceived.isNotEmpty()) "%.1f".format(averageRating) else "0.0",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                color = Charcoal
+                            )
                         }
                         Text("RATING", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MutedText)
                     }
@@ -340,7 +349,7 @@ fun ProfileScreen(
                     HorizontalDivider(modifier = Modifier.height(28.dp).width(1.dp), color = Hairline)
 
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text((myListings.size * 3 + 12).toString(), fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Charcoal)
+                        Text(jobsDoneCount.toString(), fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Charcoal)
                         Text("JOBS DONE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MutedText)
                     }
 

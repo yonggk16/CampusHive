@@ -52,7 +52,7 @@ private data class ServiceCategory(
 private val homeCategories = listOf(
     ServiceCategory("tutoring", "Tutoring", Color(0xFFEFEBFF), Icons.Outlined.School, "Σ"),
     ServiceCategory("design", "Design", Color(0xFFFFEBDD), Icons.Outlined.Palette, "✎"),
-    ServiceCategory("tech", "Tech help", Color(0xFFE4F0FF), Icons.Outlined.Code, "</>"),
+    ServiceCategory("tech", "Tech Help", Color(0xFFE4F0FF), Icons.Outlined.Code, "</>"),
     ServiceCategory("errands", "Errands", Color(0xFFE3F7EC), Icons.Filled.Check, "✓")
 )
 
@@ -66,7 +66,7 @@ private data class QuickHelpItem(
 private val quickHelpItems = listOf(
     QuickHelpItem(Color(0xFFEFEBFF), "Σ", "Study for an exam", "Tutoring"),
     QuickHelpItem(Color(0xFFFFEBDD), "✎", "Design a poster", "Design"),
-    QuickHelpItem(Color(0xFFE4F0FF), "</>", "Fix my code or laptop", "Tech help")
+    QuickHelpItem(Color(0xFFE4F0FF), "</>", "Fix my code or laptop", "Tech Help")
 )
 
 @Composable
@@ -75,7 +75,8 @@ fun HomeScreen(
     listingViewModel: ListingViewModel = viewModel(),
     chatViewModel: ChatViewModel = viewModel(),
     onListingClick: (Listing) -> Unit = {},
-    onNavigateToSearch: () -> Unit = {},
+    onNavigateToSearch: (category: String) -> Unit = {},
+    onSearchBarClick: () -> Unit = { onNavigateToSearch("") },
     onNavigateToCreateService: () -> Unit = {},
     onOpenChat: (chatId: String, studentName: String, serviceTitle: String) -> Unit = { _, _, _ -> }
 ) {
@@ -137,15 +138,17 @@ fun HomeScreen(
 
         Spacer(Modifier.height(14.dp))
 
-        // 2. Search Services Bar
+        // 2. Search Services Bar (Seamless handoff to SearchScreen with instant keyboard focus)
         Surface(
             shape = RoundedCornerShape(50),
-            color = Color(0xFFEFEEEA),
+            color = CardWhite,
+            border = BorderStroke(1.dp, Hairline),
+            shadowElevation = 1.dp,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(46.dp)
+                .height(48.dp)
                 .padding(horizontal = 20.dp)
-                .bounceClick(scaleDown = 0.97f) { onNavigateToSearch() }
+                .bounceClick(scaleDown = 0.98f) { onSearchBarClick() }
         ) {
             Row(
                 modifier = Modifier
@@ -252,7 +255,7 @@ fun HomeScreen(
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF7B5800),
-                modifier = Modifier.bounceClick { onNavigateToSearch() }
+                modifier = Modifier.bounceClick { onNavigateToSearch("") }
             )
         }
 
@@ -269,7 +272,7 @@ fun HomeScreen(
                         .width(140.dp)
                         .height(120.dp)
                         .clip(RoundedCornerShape(24.dp))
-                        .bounceClick(scaleDown = 0.94f) { onNavigateToSearch() },
+                        .bounceClick(scaleDown = 0.94f) { onNavigateToSearch(cat.name) },
                     shape = RoundedCornerShape(24.dp),
                     colors = CardDefaults.cardColors(containerColor = cat.backgroundColor),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -306,7 +309,8 @@ fun HomeScreen(
 
                         val count = liveListings.count {
                             it.category.equals(cat.name, ignoreCase = true) ||
-                            (cat.name == "Tech help" && (it.category.equals("Coding", ignoreCase = true) || it.category.equals("Tech", ignoreCase = true)))
+                            (cat.name.equals("Tech Help", ignoreCase = true) && (it.category.equals("Coding", ignoreCase = true) || it.category.equals("Tech", ignoreCase = true))) ||
+                            (cat.name.equals("Errands", ignoreCase = true) && it.category.equals("Campus Services", ignoreCase = true))
                         }
                         val countText = "$count ${if (count == 1) "listing" else "listings"}"
 
@@ -359,7 +363,7 @@ fun HomeScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onNavigateToSearch() }
+                                .clickable { onNavigateToSearch(item.categoryQuery) }
                                 .padding(horizontal = 14.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -391,7 +395,7 @@ fun HomeScreen(
                             Surface(
                                 shape = RoundedCornerShape(50),
                                 color = Color(0xFFFFF1C9),
-                                modifier = Modifier.bounceClick(scaleDown = 0.92f) { onNavigateToSearch() }
+                                modifier = Modifier.bounceClick(scaleDown = 0.92f) { onNavigateToSearch(item.categoryQuery) }
                             ) {
                                 Box(
                                     modifier = Modifier

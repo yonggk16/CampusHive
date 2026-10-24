@@ -14,6 +14,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
@@ -28,11 +29,15 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.CropSquare
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.ReportProblem
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -50,13 +55,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.campushive.components.ReportDialog
 import com.example.campushive.model.ChatMessage
+import com.example.campushive.model.ReportType
 import com.example.campushive.ui.theme.*
 import com.example.campushive.viewmodel.ChatViewModel
+import com.example.campushive.viewmodel.HelpdeskViewModel
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 private data class PendingAttachment(
@@ -73,7 +83,9 @@ fun ChatDetailScreen(
     studentName: String,
     serviceTitle: String,
     chatViewModel: ChatViewModel = viewModel(),
-    onBackClick: () -> Unit
+    helpdeskViewModel: HelpdeskViewModel = viewModel(),
+    onBackClick: () -> Unit,
+    onViewServiceClick: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     var messageText by remember { mutableStateOf("") }
@@ -81,13 +93,22 @@ fun ChatDetailScreen(
     var pendingAttachment by remember { mutableStateOf<PendingAttachment?>(null) }
     var fullScreenImage by remember { mutableStateOf<ImageBitmap?>(null) }
 
+    // 3-dots header menu and ReportDialog state
+    var showMoreMenu by remember { mutableStateOf(false) }
+    var activeReportType by remember { mutableStateOf<ReportType?>(null) }
+    var activeReportTargetId by remember { mutableStateOf("") }
+    var activeReportTargetName by remember { mutableStateOf("") }
+
     // Message being edited
     var editingMessage by remember { mutableStateOf<ChatMessage?>(null) }
 
     val liveMessages by chatViewModel.getMessagesFlow(chatId).collectAsState(initial = emptyList())
     val conversations by chatViewModel.conversations.collectAsState()
+    val userOnlineStatus by chatViewModel.userOnlineStatus.collectAsState()
+    val userLastSeenMillis by chatViewModel.userLastSeenMillis.collectAsState()
     val listState = rememberLazyListState()
 
+    val currentUid = remember { Firebase.auth.currentUser?.uid ?: "" }
     val myName = remember {
         val user = Firebase.auth.currentUser
         user?.displayName?.trim()?.takeIf { it.isNotBlank() }
@@ -95,15 +116,81 @@ fun ChatDetailScreen(
             ?: ""
     }
 
+    val currentConversation = remember(conversations, chatId) {
+        conversations.find { it.id == chatId }
+    }
+
+    val resolvedListingId = remember(currentConversation, chatId) {
+        currentConversation?.listingId?.takeIf { it.isNotBlank() }
+            ?: chatId.removePrefix("chat_")
+    }
+
     // Always resolve the counterpart's name from ChatViewModel so a Provider sees the Seeker's name
-    val partnerName = remember(conversations, chatId, studentName, myName) {
-        val convName = conversations.find { it.id == chatId }?.studentName
+    val partnerName = remember(currentConversation, studentName, myName) {
+        val convName = currentConversation?.studentName
         when {
             !convName.isNullOrBlank() && !convName.equals(myName, ignoreCase = true) -> convName
             studentName.isNotBlank() && !studentName.equals(myName, ignoreCase = true) -> studentName
             !convName.isNullOrBlank() -> convName
             else -> "Student"
         }
+    }
+
+    val partnerUid = remember(currentConversation, currentUid) {
+        if (currentConversation == null) {
+            ""
+        } else if (currentConversation.isProvider) {
+            currentConversation.seekerUid
+        } else {
+            currentConversation.providerUID
+        }
+    }
+
+    val isPartnerOnline = remember(userOnlineStatus, currentConversation, partnerUid, partnerName, currentUid) {
+        val nameKey = partnerName.trim().lowercase()
+        when {
+            partnerUid.isNotBlank() && partnerUid != currentUid && userOnlineStatus.containsKey(partnerUid) ->
+                userOnlineStatus[partnerUid] == true
+            nameKey.isNotBlank() && !nameKey.equals(myName.trim(), ignoreCase = true) && userOnlineStatus.containsKey(nameKey) ->
+                userOnlineStatus[nameKey] == true
+            currentConversation != null -> currentConversation.isOnline
+            else -> false
+        }
+    }
+
+    val partnerLastSeenMillis = remember(userLastSeenMillis, currentConversation, partnerUid, partnerName) {
+        val nameKey = partnerName.trim().lowercase()
+        when {
+            partnerUid.isNotBlank() && (userLastSeenMillis[partnerUid] ?: 0L) > 0L ->
+                userLastSeenMillis[partnerUid] ?: 0L
+            nameKey.isNotBlank() && (userLastSeenMillis[nameKey] ?: 0L) > 0L ->
+                userLastSeenMillis[nameKey] ?: 0L
+            currentConversation != null -> currentConversation.lastSeenMillis
+            else -> 0L
+        }
+    }
+
+    val statusLabel = remember(isPartnerOnline, partnerLastSeenMillis) {
+        if (isPartnerOnline) {
+            "Online now"
+        } else if (partnerLastSeenMillis > 0L) {
+            val formattedTime = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(partnerLastSeenMillis))
+            "Offline • Last seen $formattedTime"
+        } else {
+            "Offline"
+        }
+    }
+
+    // Report Dialog triggered from the 3-dots menu
+    if (activeReportType != null) {
+        ReportDialog(
+            initialType = activeReportType!!,
+            targetId = activeReportTargetId,
+            targetName = activeReportTargetName,
+            helpdeskViewModel = helpdeskViewModel,
+            onDismiss = { activeReportType = null },
+            onSubmitSuccess = { activeReportType = null }
+        )
     }
 
     // Image picker launcher
@@ -205,25 +292,32 @@ fun ChatDetailScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Charcoal)
                     }
 
+                    // Avatar with properly positioned, unclipped presence badge dot
                     Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(Honey),
+                        modifier = Modifier.size(42.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = partnerName.take(1).uppercase(),
-                            fontWeight = FontWeight.Bold,
-                            color = Charcoal,
-                            fontSize = 14.sp
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                                .background(Honey),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = partnerName.take(1).uppercase(),
+                                fontWeight = FontWeight.Bold,
+                                color = Charcoal,
+                                fontSize = 15.sp
+                            )
+                        }
                         Box(
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
-                                .size(10.dp)
+                                .size(12.dp)
                                 .clip(CircleShape)
-                                .background(VerifiedGreen)
+                                .background(if (isPartnerOnline) VerifiedGreen else Color(0xFFB0ADA6))
+                                .border(2.dp, CardWhite, CircleShape)
                         )
                     }
 
@@ -236,16 +330,139 @@ fun ChatDetailScreen(
                             fontSize = 15.sp,
                             color = Charcoal
                         )
-                        Text(
-                            text = "Online now",
-                            fontSize = 11.sp,
-                            color = VerifiedGreen,
-                            fontWeight = FontWeight.Medium
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isPartnerOnline) VerifiedGreen else Color(0xFFB0ADA6))
+                            )
+                            Text(
+                                text = statusLabel,
+                                fontSize = 11.sp,
+                                color = if (isPartnerOnline) VerifiedGreen else MutedText,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
 
-                    IconButton(onClick = {}) {
-                        Icon(Icons.Filled.MoreVert, contentDescription = "More options", tint = Charcoal)
+                    // 3 vertical dots menu for reporting
+                    Box {
+                        IconButton(onClick = { showMoreMenu = true }) {
+                            Icon(Icons.Filled.MoreVert, contentDescription = "Report options", tint = Charcoal)
+                        }
+
+                        DropdownMenu(
+                            expanded = showMoreMenu,
+                            onDismissRequest = { showMoreMenu = false },
+                            containerColor = CardWhite,
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(
+                                            text = "Report User / Safety Concern",
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 13.sp,
+                                            color = Charcoal
+                                        )
+                                        Text(
+                                            text = "Harassment, spam, or unsafe behavior",
+                                            fontSize = 11.sp,
+                                            color = MutedText
+                                        )
+                                    }
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Outlined.ReportProblem,
+                                        contentDescription = null,
+                                        tint = Color(0xFFD32F2F),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                },
+                                onClick = {
+                                    showMoreMenu = false
+                                    activeReportTargetId = partnerUid.ifBlank { chatId }
+                                    activeReportTargetName = partnerName
+                                    activeReportType = ReportType.USER_SAFETY
+                                }
+                            )
+
+                            HorizontalDivider(color = Hairline, modifier = Modifier.padding(horizontal = 12.dp))
+
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(
+                                            text = "Flag Service Listing",
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 13.sp,
+                                            color = Charcoal
+                                        )
+                                        Text(
+                                            text = "Misleading or inappropriate service",
+                                            fontSize = 11.sp,
+                                            color = MutedText
+                                        )
+                                    }
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Flag,
+                                        contentDescription = null,
+                                        tint = Color(0xFF8C6B10),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                },
+                                onClick = {
+                                    showMoreMenu = false
+                                    activeReportTargetId = resolvedListingId.ifBlank { chatId }
+                                    activeReportTargetName = serviceTitle
+                                    activeReportType = ReportType.LISTING_FLAG
+                                }
+                            )
+
+                            HorizontalDivider(color = Hairline, modifier = Modifier.padding(horizontal = 12.dp))
+
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(
+                                            text = "Report a Problem",
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 13.sp,
+                                            color = Charcoal
+                                        )
+                                        Text(
+                                            text = "Technical issue or chat bug",
+                                            fontSize = 11.sp,
+                                            color = MutedText
+                                        )
+                                    }
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Outlined.BugReport,
+                                        contentDescription = null,
+                                        tint = Charcoal,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                },
+                                onClick = {
+                                    showMoreMenu = false
+                                    activeReportTargetId = chatId
+                                    activeReportTargetName = "Chat with $partnerName ($serviceTitle)"
+                                    activeReportType = ReportType.PROBLEM
+                                }
+                            )
+                        }
                     }
                 }
 
@@ -257,6 +474,9 @@ fun ChatDetailScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 6.dp)
+                        .clickable(enabled = resolvedListingId.isNotBlank()) {
+                            onViewServiceClick(resolvedListingId)
+                        }
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),

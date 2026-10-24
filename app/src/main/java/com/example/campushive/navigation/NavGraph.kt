@@ -1,5 +1,12 @@
 package com.example.campushive.navigation
 
+import android.net.Uri
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -45,12 +52,12 @@ fun CampusHiveApp() {
 
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
 
-    // Show bottom bar only on main tabs (Home, Search, Chats, Profile)
-    val showBottomBar = currentRoute in listOf(
-        Screen.Home.route,
-        Screen.Search.route,
-        Screen.Chats.route,
-        Screen.Profile.route,
+    // Show bottom bar on main tabs (Home, Search, Chats, Profile)
+    val showBottomBar = currentRoute != null && (
+        currentRoute == Screen.Home.route ||
+        currentRoute.startsWith("search") ||
+        currentRoute == Screen.Chats.route ||
+        currentRoute == Screen.Profile.route
     )
 
     Scaffold(
@@ -60,7 +67,26 @@ fun CampusHiveApp() {
         NavHost(
             navController = navController,
             startDestination = startDestination,
-            modifier = Modifier.padding(padding)
+            modifier = Modifier.padding(padding),
+            enterTransition = {
+                fadeIn(animationSpec = tween(180)) +
+                    scaleIn(
+                        initialScale = 0.985f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    )
+            },
+            exitTransition = {
+                fadeOut(animationSpec = tween(140))
+            },
+            popEnterTransition = {
+                fadeIn(animationSpec = tween(180))
+            },
+            popExitTransition = {
+                fadeOut(animationSpec = tween(140))
+            }
         ) {
             // Login Screen
             composable(Screen.Login.route) {
@@ -93,14 +119,31 @@ fun CampusHiveApp() {
             // Home Screen (New User Onboarding + Live Bounties)
             composable(Screen.Home.route) {
                 HomeScreen(
+                    listingViewModel = listingViewModel,
                     onListingClick = { listing ->
                         navController.navigate("service_detail/${listing.id}")
                     },
-                    onNavigateToSearch = {
-                        navController.navigate(Screen.Search.route) {
+                    onNavigateToSearch = { category ->
+                        listingViewModel.setSelectedCategory(category)
+                        val normalized = ListingViewModel.normalizeCategoryFilter(category)
+                        val route = if (category.isNotBlank() && normalized != "All Categories") {
+                            "search?category=${Uri.encode(normalized)}&focusSearch=false"
+                        } else {
+                            Screen.Search.route
+                        }
+                        navController.navigate(route) {
                             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                             launchSingleTop = true
-                            restoreState = true
+                            restoreState = false
+                        }
+                    },
+                    onSearchBarClick = {
+                        listingViewModel.setSelectedCategory("All Categories")
+                        listingViewModel.requestSearchFocus()
+                        navController.navigate("search?category=&focusSearch=true") {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = false
                         }
                     },
                     onNavigateToCreateService = {
@@ -112,9 +155,25 @@ fun CampusHiveApp() {
                 )
             }
 
-            // Search Screen
-            composable(Screen.Search.route) {
+            // Search Screen with Optional Category & Auto-Focus Parameters
+            composable(
+                route = "search?category={category}&focusSearch={focusSearch}",
+                arguments = listOf(
+                    navArgument("category") {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    },
+                    navArgument("focusSearch") {
+                        type = NavType.BoolType
+                        defaultValue = false
+                    }
+                )
+            ) { backStackEntry ->
+                val initialCategory = Uri.decode(backStackEntry.arguments?.getString("category") ?: "")
+                val focusSearch = backStackEntry.arguments?.getBoolean("focusSearch") ?: false
                 SearchScreen(
+                    initialCategory = initialCategory,
+                    autoFocusSearch = focusSearch,
                     listingViewModel = listingViewModel,
                     onListingClick = { listing ->
                         navController.navigate("service_detail/${listing.id}")
@@ -178,7 +237,13 @@ fun CampusHiveApp() {
                     chatId = chatId,
                     studentName = studentName,
                     serviceTitle = serviceTitle,
-                    onBackClick = { navController.popBackStack() }
+                    helpdeskViewModel = helpdeskViewModel,
+                    onBackClick = { navController.popBackStack() },
+                    onViewServiceClick = { targetListingId ->
+                        if (targetListingId.isNotBlank()) {
+                            navController.navigate("service_detail/$targetListingId")
+                        }
+                    }
                 )
             }
 

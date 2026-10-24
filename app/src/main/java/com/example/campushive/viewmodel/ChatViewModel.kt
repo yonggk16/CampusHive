@@ -38,6 +38,12 @@ class ChatViewModel(
     private val _conversations = MutableStateFlow<List<ChatConversation>>(emptyList())
     val conversations: StateFlow<List<ChatConversation>> = _conversations.asStateFlow()
 
+    private val _userOnlineStatus = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+    val userOnlineStatus: StateFlow<Map<String, Boolean>> = _userOnlineStatus.asStateFlow()
+
+    private val _userLastSeenMillis = MutableStateFlow<Map<String, Long>>(emptyMap())
+    val userLastSeenMillis: StateFlow<Map<String, Long>> = _userLastSeenMillis.asStateFlow()
+
     // Cached maps from Firestore to resolve providerUID, providerName, and user usernames
     private var listingsProviderUidMap = mapOf<String, String>()
     private var listingsProviderNameMap = mapOf<String, String>()
@@ -117,7 +123,9 @@ class ChatViewModel(
             "displayName" to name,
             "fullName" to name,
             "email" to (user.email ?: ""),
-            "isVerifiedStudent" to true
+            "isVerifiedStudent" to true,
+            "isOnline" to true,
+            "lastSeen" to Timestamp.now()
         )
         usersRef.document(user.uid).set(data, SetOptions.merge())
     }
@@ -146,15 +154,34 @@ class ChatViewModel(
         usersRegistration = usersRef.addSnapshotListener { snapshot, _ ->
             if (snapshot != null) {
                 val uMap = mutableMapOf<String, String>()
+                val onlineMap = mutableMapOf<String, Boolean>()
+                val lastSeenMap = mutableMapOf<String, Long>()
                 for (doc in snapshot.documents) {
                     val uid = doc.getString("uid")?.takeIf { it.isNotBlank() } ?: doc.id
                     val username = extractUsernameFromDoc(doc)
+                    val isOnline = doc.getBoolean("isOnline") ?: false
+                    val lastSeenMillis = doc.getTimestamp("lastSeen")?.toDate()?.time ?: 0L
+
+                    onlineMap[uid] = isOnline
+                    onlineMap[doc.id] = isOnline
+                    if (lastSeenMillis > 0L) {
+                        lastSeenMap[uid] = lastSeenMillis
+                        lastSeenMap[doc.id] = lastSeenMillis
+                    }
+
                     if (username.isNotBlank()) {
                         uMap[uid] = username
                         uMap[doc.id] = username
+                        val nameKey = username.trim().lowercase()
+                        onlineMap[nameKey] = (onlineMap[nameKey] == true) || isOnline
+                        if (lastSeenMillis > (lastSeenMap[nameKey] ?: 0L)) {
+                            lastSeenMap[nameKey] = lastSeenMillis
+                        }
                     }
                 }
                 usersNameMap = uMap
+                _userOnlineStatus.value = onlineMap
+                _userLastSeenMillis.value = lastSeenMap
                 rebuildConversationsList()
                 repairMissingConversationParticipants(latestConversationDocs)
             }
@@ -362,6 +389,20 @@ class ChatViewModel(
                     formatLocalTime(date)
                 } ?: "Just now"
 
+                val counterpartUid = if (amIProvider) seekerUid else providerUID
+                val onlineMap = _userOnlineStatus.value
+                val lastSeenMap = _userLastSeenMillis.value
+                val isCounterpartOnline = when {
+                    counterpartUid.isNotBlank() && onlineMap.containsKey(counterpartUid) -> onlineMap[counterpartUid] == true
+                    displayStudentName.isNotBlank() -> onlineMap[displayStudentName.trim().lowercase()] == true
+                    else -> false
+                }
+                val counterpartLastSeen = when {
+                    counterpartUid.isNotBlank() && (lastSeenMap[counterpartUid] ?: 0L) > 0L -> lastSeenMap[counterpartUid] ?: 0L
+                    displayStudentName.isNotBlank() -> lastSeenMap[displayStudentName.trim().lowercase()] ?: 0L
+                    else -> doc.getTimestamp("lasttimestamp")?.toDate()?.time ?: 0L
+                }
+
                 ChatConversation(
                     id = convId,
                     studentName = displayStudentName,
@@ -375,7 +416,9 @@ class ChatViewModel(
                     providerUID = providerUID,
                     providerName = providerName.ifBlank { displayStudentName },
                     seekerName = seekerName,
-                    isProvider = amIProvider
+                    isProvider = amIProvider,
+                    isOnline = isCounterpartOnline,
+                    lastSeenMillis = counterpartLastSeen
                 )
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Error parsing conversation ${doc.id}", e)

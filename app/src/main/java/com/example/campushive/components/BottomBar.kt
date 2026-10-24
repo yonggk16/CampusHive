@@ -61,6 +61,17 @@ fun BottomBar(
         restoreState = true
     }
 
+    fun isTabSelected(tab: Tab, currentRoute: String?): Boolean {
+        if (currentRoute == null) return false
+        return when (tab.screen) {
+            Screen.Home -> currentRoute == Screen.Home.route
+            Screen.Search -> currentRoute.startsWith("search") || currentRoute == Screen.Search.route
+            Screen.Chats -> currentRoute.startsWith("chats") || currentRoute == Screen.Chats.route
+            Screen.Profile -> currentRoute.startsWith("profile") || currentRoute == Screen.Profile.route
+            else -> currentRoute == tab.screen.route
+        }
+    }
+
     Box(
         Modifier
             .fillMaxWidth()
@@ -82,9 +93,9 @@ fun BottomBar(
                     .padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                tabsLeft.forEach { TabItem(it, current == it.screen.route, 0, Modifier.weight(1f)) { go(it.screen) } }
+                tabsLeft.forEach { TabItem(it, isTabSelected(it, current), 0, Modifier.weight(1f)) { go(it.screen) } }
                 Spacer(Modifier.weight(1f)) // space for floating center "+" button
-                tabsRight.forEach { TabItem(it, current == it.screen.route, if (it.screen == Screen.Chats) totalUnread else 0, Modifier.weight(1f)) { go(it.screen) } }
+                tabsRight.forEach { TabItem(it, isTabSelected(it, current), if (it.screen == Screen.Chats) totalUnread else 0, Modifier.weight(1f)) { go(it.screen) } }
             }
         }
         // Floating Honey "+" Button with instant spring press feedback

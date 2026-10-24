@@ -81,6 +81,7 @@ class AuthViewModel(
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     _uiState.value = AuthUiState.Success("Welcome back!")
+                    updateUserPresence(isOnline = true)
                     fetchUserProfile()
                     onSuccess()
                 } else {
@@ -132,11 +133,13 @@ class AuthViewModel(
                         )
                         viewModelScope.launch {
                             repository.saveUserProfile(initialProfile)
+                            updateUserPresence(isOnline = true)
                             _uiState.value = AuthUiState.Success("Account created! A verification email has been sent.")
                             fetchUserProfile()
                             onSuccess()
                         }
                     } ?: run {
+                        updateUserPresence(isOnline = true)
                         _uiState.value = AuthUiState.Success("Account created successfully!")
                         onSuccess()
                     }

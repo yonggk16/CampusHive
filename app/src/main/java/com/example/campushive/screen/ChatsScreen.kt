@@ -2,8 +2,10 @@ package com.example.campushive.screen
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -161,19 +163,32 @@ private fun ChatItem(
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Initials Avatar
+        // Initials Avatar with Online/Offline Presence Badge
         Box(
-            modifier = Modifier
-                .size(44.dp)
-                .clip(CircleShape)
-                .background(Honey),
+            modifier = Modifier.size(44.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = chat.studentName.split(" ").mapNotNull { it.firstOrNull()?.toString() }.take(2).joinToString("").uppercase().ifBlank { "S" },
-                fontWeight = FontWeight.Bold,
-                fontSize = 15.sp,
-                color = Charcoal
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape)
+                    .background(Honey),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = chat.studentName.split(" ").mapNotNull { it.firstOrNull()?.toString() }.take(2).joinToString("").uppercase().ifBlank { "S" },
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = Charcoal
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .size(12.dp)
+                    .clip(CircleShape)
+                    .background(if (chat.isOnline) VerifiedGreen else Color(0xFFB0ADA6))
+                    .border(2.dp, Cream, CircleShape)
             )
         }
 

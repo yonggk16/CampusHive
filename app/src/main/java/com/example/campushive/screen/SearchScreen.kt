@@ -1,5 +1,9 @@
 package com.example.campushive.screen
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -7,6 +11,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Star
@@ -19,33 +25,114 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campushive.components.ServiceCategoryIconBox
 import com.example.campushive.model.Listing
 import com.example.campushive.ui.theme.*
 import com.example.campushive.viewmodel.ListingViewModel
+import kotlinx.coroutines.delay
 
 private val popularSearchTags = listOf("Calculus Tutor", "Python", "Poster Design", "Dorm Move", "Proofreading", "Java", "Canva")
 private val priceFilters = listOf("All Prices", "Under RM20", "RM20 - RM50", "RM50+")
+private val categoryFilters = ListingViewModel.CATEGORY_FILTERS
 
 @Composable
 fun SearchScreen(
+    initialCategory: String = "",
+    autoFocusSearch: Boolean = false,
     listingViewModel: ListingViewModel = viewModel(),
     onListingClick: (Listing) -> Unit = {}
 ) {
     val liveListings by listingViewModel.listings.collectAsState()
+    val selectedCategoryFilter by listingViewModel.selectedCategory.collectAsState()
+    val shouldFocusSearch by listingViewModel.shouldFocusSearch.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedPriceFilter by remember { mutableStateOf("All Prices") }
 
-    val searchResults = remember(searchQuery, selectedPriceFilter, liveListings) {
+    val searchFocusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+    var isSearchFocused by remember { mutableStateOf(false) }
+
+    // Critically-damped spring morph from Home Screen pill (24.dp corner radius) to active Search input (18.dp corner radius + subtle lift)
+    val searchCornerRadius by animateDpAsState(
+        targetValue = if (isSearchFocused) 18.dp else 24.dp,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "searchCornerRadius"
+    )
+    val searchShadowElevation by animateDpAsState(
+        targetValue = if (isSearchFocused) 6.dp else 1.dp,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "searchShadowElevation"
+    )
+    val searchScale by animateFloatAsState(
+        targetValue = if (isSearchFocused) 1.0f else 0.99f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "searchScale"
+    )
+
+    LaunchedEffect(initialCategory) {
+        if (initialCategory.isNotBlank()) {
+            listingViewModel.setSelectedCategory(initialCategory)
+            searchQuery = ""
+            selectedPriceFilter = "All Prices"
+        }
+    }
+
+    // Automatically focus the search input and show the soft keyboard when transitioning from the Home Screen search bar
+    LaunchedEffect(autoFocusSearch, shouldFocusSearch) {
+        if (autoFocusSearch || shouldFocusSearch) {
+            listingViewModel.consumeSearchFocus()
+            // Request focus immediately on composition and show keyboard so user can type right away
+            runCatching {
+                searchFocusRequester.requestFocus()
+                keyboardController?.show()
+            }
+            delay(60)
+            runCatching {
+                searchFocusRequester.requestFocus()
+                keyboardController?.show()
+            }
+        }
+    }
+
+    val searchResults = remember(searchQuery, selectedPriceFilter, selectedCategoryFilter, liveListings) {
         liveListings.filter { listing ->
+            val matchesCategory = when {
+                selectedCategoryFilter.isBlank() || selectedCategoryFilter.equals("All Categories", ignoreCase = true) -> true
+                selectedCategoryFilter.equals("Tech Help", ignoreCase = true) ->
+                    listing.category.equals("Tech Help", ignoreCase = true) ||
+                        listing.category.equals("Coding", ignoreCase = true) ||
+                        listing.category.equals("Tech", ignoreCase = true)
+                selectedCategoryFilter.equals("Errands", ignoreCase = true) ->
+                    listing.category.equals("Errands", ignoreCase = true) ||
+                        listing.category.equals("Campus Services", ignoreCase = true)
+                else -> listing.category.equals(selectedCategoryFilter, ignoreCase = true)
+            }
+
             val matchesQuery = searchQuery.isBlank() ||
                     listing.title.contains(searchQuery, ignoreCase = true) ||
                     listing.category.contains(searchQuery, ignoreCase = true) ||
@@ -59,7 +146,7 @@ fun SearchScreen(
                 else -> true
             }
 
-            matchesQuery && matchesPrice
+            matchesCategory && matchesQuery && matchesPrice
         }
     }
 
@@ -74,7 +161,7 @@ fun SearchScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            // Header, Search Field, Tags & Filters
+            // Header, Search Field, Category Chips, Price Chips, Tags
             item {
                 Column {
                     Text(
@@ -85,13 +172,34 @@ fun SearchScreen(
 
                     Spacer(Modifier.height(14.dp))
 
-                    // Search Field
+                    // Seamless Search Field with Auto-Focus & Critically-Damped Spring Morph
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Search by skill, major, or course name...", fontSize = 13.sp, color = MutedText) },
-                        leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = "Search", tint = Charcoal) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .graphicsLayer {
+                                scaleX = searchScale
+                                scaleY = searchScale
+                            }
+                            .shadow(
+                                elevation = searchShadowElevation,
+                                shape = RoundedCornerShape(searchCornerRadius),
+                                ambientColor = Charcoal.copy(alpha = 0.08f),
+                                spotColor = Charcoal.copy(alpha = 0.12f)
+                            )
+                            .focusRequester(searchFocusRequester)
+                            .onFocusChanged { focusState ->
+                                isSearchFocused = focusState.isFocused
+                            },
+                        placeholder = { Text("Search services, skills, or courses...", fontSize = 14.sp, color = MutedText) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Outlined.Search,
+                                contentDescription = "Search",
+                                tint = if (isSearchFocused) Charcoal else MutedText
+                            )
+                        },
                         trailingIcon = {
                             if (searchQuery.isNotEmpty()) {
                                 IconButton(
@@ -103,7 +211,14 @@ fun SearchScreen(
                             }
                         },
                         singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        keyboardActions = KeyboardActions(
+                            onSearch = {
+                                keyboardController?.hide()
+                                focusManager.clearFocus()
+                            }
+                        ),
+                        shape = RoundedCornerShape(searchCornerRadius),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = CardWhite,
                             unfocusedContainerColor = CardWhite,
@@ -112,7 +227,42 @@ fun SearchScreen(
                         )
                     )
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(14.dp))
+
+                    // Category Filter Chips
+                    Text(
+                        text = "Categories",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Charcoal
+                    )
+
+                    Spacer(Modifier.height(8.dp))
+
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(categoryFilters) { catFilter ->
+                            val isSelected = catFilter.equals(selectedCategoryFilter, ignoreCase = true) ||
+                                    (catFilter == "All Categories" && (selectedCategoryFilter.isBlank() || selectedCategoryFilter.equals("All Categories", ignoreCase = true)))
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    val nextCategory = if (isSelected && catFilter != "All Categories") "All Categories" else catFilter
+                                    listingViewModel.setSelectedCategory(nextCategory)
+                                },
+                                label = { Text(catFilter, fontSize = 12.sp) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = Charcoal,
+                                    selectedLabelColor = CardWhite,
+                                    containerColor = CardWhite,
+                                    labelColor = MutedText
+                                ),
+                                shape = RoundedCornerShape(20.dp),
+                                modifier = Modifier.bounceClick(scaleDown = 0.92f)
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(14.dp))
 
                     // Popular Searches Tags
                     Text(
@@ -144,7 +294,7 @@ fun SearchScreen(
                         }
                     }
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(14.dp))
 
                     // Price Filter Chips
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -172,8 +322,13 @@ fun SearchScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        val headerLabel = when {
+                            selectedCategoryFilter.isNotBlank() && selectedCategoryFilter != "All Categories" -> "$selectedCategoryFilter Services"
+                            searchQuery.isNotBlank() -> "Results for '$searchQuery'"
+                            else -> "All Available Gigs"
+                        }
                         Text(
-                            text = if (searchQuery.isBlank()) "All Available Gigs" else "Results for '$searchQuery'",
+                            text = headerLabel,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = Charcoal
@@ -199,7 +354,7 @@ fun SearchScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = if (liveListings.isEmpty()) "No campus services published yet. Be the first to list a skill!" else "No services matched your search.",
+                            text = if (liveListings.isEmpty()) "No campus services published yet. Be the first to list a skill!" else "No services matched your category or search.",
                             color = MutedText,
                             style = MaterialTheme.typography.bodyMedium
                         )
@@ -339,25 +494,40 @@ private fun SearchHorizontalListingBar(
 
                 Spacer(Modifier.height(6.dp))
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Filled.Star,
-                        contentDescription = null,
-                        tint = Color(0xFFFFB800),
-                        modifier = Modifier.size(13.dp)
-                    )
-                    Spacer(Modifier.width(2.dp))
-                    Text(
-                        text = "${listing.rating}",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Charcoal
-                    )
-                    Text(
-                        text = " (${listing.reviewCount})",
-                        fontSize = 10.sp,
-                        color = MutedText
-                    )
+                if (listing.reviewCount > 0) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Filled.Star,
+                            contentDescription = null,
+                            tint = Color(0xFFFFB800),
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(Modifier.width(2.dp))
+                        Text(
+                            text = "%.1f".format(listing.rating),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Charcoal
+                        )
+                        Text(
+                            text = " (${listing.reviewCount})",
+                            fontSize = 10.sp,
+                            color = MutedText
+                        )
+                    }
+                } else {
+                    Surface(
+                        color = HoneyTint,
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text(
+                            text = "NEW",
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Charcoal
+                        )
+                    }
                 }
             }
         }
