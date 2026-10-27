@@ -1,5 +1,7 @@
 package com.example.campushive.viewmodel
 
+import android.app.Activity
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.campushive.data.FirestoreRepository
@@ -7,6 +9,7 @@ import com.example.campushive.model.UserProfile
 import com.google.firebase.Firebase
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.OAuthProvider
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -40,6 +43,9 @@ class AuthViewModel(
     val isLoggedIn: Boolean
         get() = currentUser != null
 
+    val isMicrosoftUser: Boolean
+        get() = currentUser?.providerData?.any { it.providerId == "microsoft.com" } == true
+
     val isEmailVerified: Boolean
         get() = currentUser?.isEmailVerified == true
 
@@ -50,17 +56,24 @@ class AuthViewModel(
     fun fetchUserProfile() {
         val user = currentUser
         if (user != null) {
+            val isMicrosoft = isMicrosoftUser
             viewModelScope.launch {
                 repository.getUserProfileFlow(user.uid).collect { profile ->
                     if (profile != null) {
-                        _userProfile.value = profile
+                        if (isMicrosoft && !profile.isVerifiedStudent) {
+                            val updated = profile.copy(isVerifiedStudent = true)
+                            repository.saveUserProfile(updated)
+                            _userProfile.value = updated
+                        } else {
+                            _userProfile.value = profile
+                        }
                     } else {
                         // Create a default initial user profile state if not found in Firestore yet
                         _userProfile.value = UserProfile(
                             uid = user.uid,
                             displayName = user.displayName.orEmpty().ifBlank { "Student User" },
                             email = user.email.orEmpty(),
-                            isVerifiedStudent = user.isEmailVerified
+                            isVerifiedStudent = isMicrosoft
                         )
                     }
                 }
@@ -89,6 +102,68 @@ class AuthViewModel(
                     _uiState.value = AuthUiState.Error(errorMsg)
                 }
             }
+    }
+
+    /**
+     * Signs in student via Microsoft Account / Azure AD (OAuthProvider)
+     * allows students to log in without typing a password.
+     */
+    fun loginWithMicrosoft(activity: Activity, onSuccess: () -> Unit) {
+        _uiState.value = AuthUiState.Loading
+
+        val provider = OAuthProvider.newBuilder("microsoft.com")
+        provider.addCustomParameter("prompt", "select_account")
+
+        val pendingResultTask = auth.pendingAuthResult
+        if (pendingResultTask != null) {
+            pendingResultTask
+                .addOnSuccessListener { authResult ->
+                    handleMicrosoftSignInSuccess(authResult.user, onSuccess)
+                }
+                .addOnFailureListener { e ->
+                    Log.e("AuthViewModel", "Microsoft sign-in error (pending task): ${e.message}", e)
+                    val errorMsg = e.localizedMessage ?: "Microsoft sign-in failed."
+                    _uiState.value = AuthUiState.Error(errorMsg)
+                }
+        } else {
+            auth.startActivityForSignInWithProvider(activity, provider.build())
+                .addOnSuccessListener { authResult ->
+                    handleMicrosoftSignInSuccess(authResult.user, onSuccess)
+                }
+                .addOnFailureListener { e ->
+                    Log.e("AuthViewModel", "Microsoft sign-in error: ${e.message}", e)
+                    val errorMsg = e.localizedMessage ?: "Microsoft sign-in failed."
+                    _uiState.value = AuthUiState.Error(errorMsg)
+                }
+        }
+    }
+
+    private fun handleMicrosoftSignInSuccess(user: FirebaseUser?, onSuccess: () -> Unit) {
+        if (user == null) {
+            _uiState.value = AuthUiState.Error("Failed to retrieve Microsoft account details.")
+            return
+        }
+
+        viewModelScope.launch {
+            val existingProfile = repository.getUserProfile(user.uid)
+            val updatedProfile = UserProfile(
+                uid = user.uid,
+                displayName = user.displayName.orEmpty().ifBlank { existingProfile?.displayName ?: "Student User" },
+                email = user.email.orEmpty().ifBlank { existingProfile?.email ?: "" },
+                bio = existingProfile?.bio.orEmpty().ifBlank { "CampusHive Member" },
+                campusLocation = existingProfile?.campusLocation.orEmpty().ifBlank { "Subang 2 Campus" },
+                facultyOrMajor = existingProfile?.facultyOrMajor.orEmpty().ifBlank { "General Student" },
+                phoneNumber = existingProfile?.phoneNumber.orEmpty(),
+                isVerifiedStudent = true,
+                isModerator = existingProfile?.isModerator ?: false
+            )
+
+            repository.saveUserProfile(updatedProfile)
+            updateUserPresence(isOnline = true)
+            _uiState.value = AuthUiState.Success("Signed in with Microsoft Student Account!")
+            fetchUserProfile()
+            onSuccess()
+        }
     }
 
     fun signUp(
@@ -180,15 +255,15 @@ class AuthViewModel(
         }
 
         user.reload().addOnCompleteListener { task ->
-            val isVerified = auth.currentUser?.isEmailVerified == true
-            if (isVerified) {
+            val isMicrosoft = isMicrosoftUser
+            if (isMicrosoft) {
                 val current = _userProfile.value ?: UserProfile(uid = user.uid, email = user.email ?: "")
                 val updated = current.copy(isVerifiedStudent = true)
                 viewModelScope.launch {
                     repository.saveUserProfile(updated)
                 }
             }
-            onComplete?.invoke(task.isSuccessful, isVerified)
+            onComplete?.invoke(task.isSuccessful, isMicrosoft)
         }
     }
 
@@ -219,6 +294,7 @@ class AuthViewModel(
                     uid = user.uid,
                     email = user.email.orEmpty()
                 )
+                val isMicrosoft = isMicrosoftUser
                 val updated = current.copy(
                     uid = user.uid,
                     displayName = displayName.trim(),
@@ -227,7 +303,7 @@ class AuthViewModel(
                     campusLocation = campusLocation.trim(),
                     facultyOrMajor = facultyOrMajor.trim(),
                     phoneNumber = phoneNumber.trim(),
-                    isVerifiedStudent = user.isEmailVerified
+                    isVerifiedStudent = isMicrosoft || current.isVerifiedStudent
                 )
 
                 viewModelScope.launch {
@@ -281,10 +357,12 @@ class AuthViewModel(
         val user = auth.currentUser ?: return
         val userDocRef = FirebaseFirestore.getInstance().collection("users").document(user.uid)
 
+        val isMicrosoft = isMicrosoftUser
         val presenceData = hashMapOf<String, Any>(
             "uid" to user.uid,
             "displayName" to (user.displayName ?: "Student"),
             "email" to (user.email ?: ""),
+            "isVerifiedStudent" to (isMicrosoft || (_userProfile.value?.isVerifiedStudent == true)),
             "isOnline" to isOnline,
             "lastSeen" to Timestamp.now()
         )

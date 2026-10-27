@@ -40,7 +40,7 @@ data class ListingEntity(
     var status: String = "ACTIVE",       // ACTIVE | INACTIVE | DELETED
     @get:PropertyName("isVerifiedStudent")
     @set:PropertyName("isVerifiedStudent")
-    var isVerifiedStudent: Boolean = true,
+    var isVerifiedStudent: Boolean = false,
     var createdAt: Timestamp = Timestamp.now()
 )
 
@@ -578,7 +578,7 @@ private fun DocumentSnapshot.toListingOrNull(): Listing? {
         val campusLocation = getString("campusLocation") ?: "Subang 2 Campus"
         val isVerified = getBoolean("isVerifiedStudent")
             ?: getBoolean("verifiedStudent")
-            ?: true
+            ?: false
         val description = getString("description") ?: ""
         val createdAt = getTimestamp("createdAt")?.toDate()?.time ?: System.currentTimeMillis()
 

@@ -67,7 +67,7 @@ fun ProfileScreen(
     val major = userProfile?.facultyOrMajor ?: "School of Computing & IT"
     val phone = userProfile?.phoneNumber ?: ""
 
-    val isVerified = authViewModel.isEmailVerified || (userProfile?.isVerifiedStudent == true)
+    val isVerified = userProfile?.isVerifiedStudent == true
 
     val providerReviews by reviewViewModel.providerReviews.collectAsState()
     val myListings by listingViewModel.myListings.collectAsState()

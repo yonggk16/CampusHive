@@ -7,7 +7,7 @@ data class ChatConversation(
     val lastMessage: String,
     val timestamp: String,
     val unreadCount: Int = 0,
-    val isVerifiedStudent: Boolean = true,
+    val isVerifiedStudent: Boolean = false,
     val listingId: String = "",
     val seekerUid: String = "",
     val providerUID: String = "",

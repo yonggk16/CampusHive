@@ -1,6 +1,10 @@
 package com.example.campushive.screen
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -225,6 +229,62 @@ fun LoginScreen(
 
         Spacer(Modifier.height(20.dp))
 
+        // Divider
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            HorizontalDivider(modifier = Modifier.weight(1f), color = MutedText.copy(alpha = 0.3f))
+            Text(
+                text = "  OR  ",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = MutedText
+            )
+            HorizontalDivider(modifier = Modifier.weight(1f), color = MutedText.copy(alpha = 0.3f))
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Microsoft ID Passwordless Student Login Button
+        OutlinedButton(
+            onClick = {
+                context.findActivity()?.let { activity ->
+                    authViewModel.loginWithMicrosoft(activity) {
+                        onLoginSuccess()
+                    }
+                } ?: Toast.makeText(context, "Could not launch Microsoft login", Toast.LENGTH_SHORT).show()
+            },
+            enabled = !isLoading,
+            shape = RoundedCornerShape(50),
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = CardWhite,
+                contentColor = Charcoal
+            ),
+            border = BorderStroke(1.dp, Charcoal.copy(alpha = 0.2f)),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.ic_microsoft_logo),
+                    contentDescription = "Microsoft Logo",
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    text = "Sign in with Microsoft ID",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
+            }
+        }
+
+        Spacer(Modifier.height(20.dp))
+
         // Create an account Link
         Text(
             text = "Create an account",
@@ -244,4 +304,10 @@ fun LoginScreen(
             modifier = Modifier.padding(bottom = 12.dp)
         )
     }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }

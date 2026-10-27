@@ -67,7 +67,7 @@ data class Listing(
     val rating: Double = 5.0,
     val reviewCount: Int = 0,
     val campusLocation: String,
-    val isVerifiedStudent: Boolean = true,
+    val isVerifiedStudent: Boolean = false,
     val description: String = "",
     val status: String = "ACTIVE", // ACTIVE, INACTIVE, DELETED
     val createdAt: Long = System.currentTimeMillis()

@@ -118,12 +118,13 @@ class ChatViewModel(
     private fun syncCurrentUserToFirestore(firebaseAuth: FirebaseAuth) {
         val user = firebaseAuth.currentUser ?: return
         val name = getCurrentUserName()
+        val isMicrosoft = user.providerData.any { it.providerId == "microsoft.com" }
         val data = hashMapOf(
             "uid" to user.uid,
             "displayName" to name,
             "fullName" to name,
             "email" to (user.email ?: ""),
-            "isVerifiedStudent" to true,
+            "isVerifiedStudent" to isMicrosoft,
             "isOnline" to true,
             "lastSeen" to Timestamp.now()
         )
@@ -752,6 +753,9 @@ class ChatViewModel(
                 }
                 msgRef.set(msgData).await()
 
+                val currentFirebaseUser = FirebaseAuth.getInstance().currentUser
+                val isMicrosoft = currentFirebaseUser?.providerData?.any { it.providerId == "microsoft.com" } == true
+
                 // 2. Update Conversation Parent Document with ERD fields + participant usernames
                 val convData = hashMapOf<String, Any>(
                     "conversationId" to convDoc.id,
@@ -763,7 +767,7 @@ class ChatViewModel(
                     "lastMessage" to lastMessagePreview,
                     "lasttimestamp" to nowTimestamp,
                     "unreadCount" to 0,
-                    "isVerifiedStudent" to true
+                    "isVerifiedStudent" to isMicrosoft
                 )
                 if (resolvedSeekerName.isNotBlank()) {
                     convData["seekerName"] = resolvedSeekerName

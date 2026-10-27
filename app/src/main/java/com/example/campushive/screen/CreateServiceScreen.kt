@@ -35,6 +35,7 @@ import com.example.campushive.components.ServiceCategoryIconBox
 import com.example.campushive.model.Listing
 import com.example.campushive.model.PricingType
 import com.example.campushive.ui.theme.*
+import com.example.campushive.viewmodel.AuthViewModel
 import com.example.campushive.viewmodel.ListingViewModel
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
@@ -44,10 +45,13 @@ private val categories = listOf("Tutoring", "Design", "Tech Help", "Errands")
 @Composable
 fun CreateServiceScreen(
     listingViewModel: ListingViewModel = viewModel(),
+    authViewModel: AuthViewModel = viewModel(),
     onClose: () -> Unit = {},
     onServiceCreated: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    val userProfile by authViewModel.userProfile.collectAsState()
+    val isVerified = userProfile?.isVerifiedStudent == true || authViewModel.isMicrosoftUser
     var isPublishing by remember { mutableStateOf(false) }
 
     var title by remember { mutableStateOf("") }
@@ -404,7 +408,7 @@ fun CreateServiceScreen(
                             rating = 5.0,
                             reviewCount = 1,
                             campusLocation = "Subang 2 Campus",
-                            isVerifiedStudent = true,
+                            isVerifiedStudent = isVerified,
                             description = description.trim()
                         )
 

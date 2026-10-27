@@ -86,7 +86,7 @@ fun HomeScreen(
     val upNextChat = remember(conversations) { conversations.firstOrNull() }
     val userProfile by authViewModel.userProfile.collectAsState()
     val currentUserName = userProfile?.displayName?.takeIf { it.isNotBlank() } ?: authViewModel.currentUser?.displayName?.takeIf { it.isNotBlank() } ?: "Student"
-    val isVerified = authViewModel.isEmailVerified || userProfile?.isVerifiedStudent == true
+    val isVerified = userProfile?.isVerifiedStudent == true
     val firstName = currentUserName.split(" ").firstOrNull() ?: "Student"
     val initials = currentUserName.split(" ").mapNotNull { it.firstOrNull()?.toString() }.take(2).joinToString("").ifBlank { "CH" }
 
