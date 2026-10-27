@@ -11,8 +11,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campushive.components.ReportDialog
+import com.example.campushive.model.ReportStatus
 import com.example.campushive.model.ReportType
 import com.example.campushive.ui.theme.*
 import com.example.campushive.viewmodel.HelpdeskViewModel
@@ -34,7 +37,7 @@ private data class FaqItem(val question: String, val answer: String)
 private val faqList = listOf(
     FaqItem(
         question = "How do payments work?",
-        answer = "CampusServe doesn't process payments directly. Agree a price in chat, then pay your peer directly (cash or bank transfer) after the service is done."
+        answer = "CampusHive doesn't process payments directly. Agree a price in chat, then pay your peer directly (cash or bank transfer) after the service is done."
     ),
     FaqItem(
         question = "How are ratings calculated?",
@@ -54,12 +57,29 @@ private val faqList = listOf(
 fun HelpdeskScreen(
     helpdeskViewModel: HelpdeskViewModel = viewModel(),
     onBackClick: () -> Unit,
-    onNavigateToMyReports: () -> Unit = {}
+    onNavigateToMyReports: () -> Unit = {},
+    onNavigateToModeratorQueue: () -> Unit = {}
 ) {
     val userReports by helpdeskViewModel.userReports.collectAsState()
+    val allReports by helpdeskViewModel.allReports.collectAsState()
+    val isModeratorMode by helpdeskViewModel.isModeratorMode.collectAsState()
+
+    LaunchedEffect(Unit) {
+        helpdeskViewModel.refreshModeratorAccess()
+    }
 
     var showReportDialog by remember { mutableStateOf(false) }
     var reportDialogType by remember { mutableStateOf(ReportType.PROBLEM) }
+
+    val openReportsCount = remember(allReports) {
+        allReports.count { it.status == ReportStatus.OPEN || it.status == ReportStatus.UNDER_REVIEW }
+    }
+    val flaggedListingsCount = remember(allReports) {
+        allReports.count { it.type == ReportType.LISTING_FLAG }
+    }
+    val safetyReportsCount = remember(allReports) {
+        allReports.count { it.type == ReportType.USER_SAFETY }
+    }
 
     if (showReportDialog) {
         ReportDialog(
@@ -76,22 +96,54 @@ fun HelpdeskScreen(
             .background(Cream)
             .statusBarsPadding()
     ) {
-        // Top Header
+        // Top Header with Moderator Mode Switch
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBackClick) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Charcoal)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBackClick) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Charcoal)
+                }
+                Text(
+                    text = "Help & Support",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Charcoal
+                )
             }
-            Text(
-                text = "Help & Support",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = Charcoal
-            )
+
+            // Moderator Role Pill Toggle
+            Surface(
+                color = if (isModeratorMode) Charcoal else CardWhite,
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.dp, if (isModeratorMode) Charcoal else Hairline),
+                modifier = Modifier
+                    .padding(end = 8.dp)
+                    .clickable { helpdeskViewModel.toggleModeratorMode() }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.AdminPanelSettings,
+                        contentDescription = "Moderator Mode",
+                        tint = if (isModeratorMode) Honey else MutedText,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Text(
+                        text = if (isModeratorMode) "Moderator ON" else "Moderator View",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isModeratorMode) CardWhite else Charcoal
+                    )
+                }
+            }
         }
 
         HorizontalDivider(color = Hairline)
@@ -103,6 +155,110 @@ fun HelpdeskScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Moderator Portal Card (Visible when Moderator Mode is active)
+            AnimatedVisibility(visible = isModeratorMode) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigateToModeratorQueue() },
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Charcoal)
+                ) {
+                    Column(Modifier.padding(18.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Security,
+                                    contentDescription = null,
+                                    tint = Honey,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = "CAMPUSHIVE MODERATOR PORTAL",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Honey,
+                                    letterSpacing = 0.8.sp
+                                )
+                            }
+
+                            Surface(
+                                color = Honey,
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text(
+                                    text = "$openReportsCount PENDING",
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Charcoal
+                                )
+                            }
+                        }
+
+                        Spacer(Modifier.height(8.dp))
+
+                        Text(
+                            text = "Campus Incident & Report Queue",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = CardWhite,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "Review student-reported listings, safety concerns, and technical tickets across campus.",
+                            fontSize = 12.sp,
+                            color = Color(0xFFD0D4DC),
+                            lineHeight = 16.sp
+                        )
+
+                        Spacer(Modifier.height(14.dp))
+
+                        // Quick Stats Row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            ModeratorStatChip(
+                                label = "Total",
+                                count = allReports.size,
+                                modifier = Modifier.weight(1f)
+                            )
+                            ModeratorStatChip(
+                                label = "Listing Flags",
+                                count = flaggedListingsCount,
+                                modifier = Modifier.weight(1f)
+                            )
+                            ModeratorStatChip(
+                                label = "User Safety",
+                                count = safetyReportsCount,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        Spacer(Modifier.height(14.dp))
+
+                        Button(
+                            onClick = onNavigateToModeratorQueue,
+                            colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Open Moderator Queue (${allReports.size})", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Spacer(Modifier.width(6.dp))
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+            }
+
             // CAMPUSHIVE HELPDESK Banner
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -211,6 +367,36 @@ fun HelpdeskScreen(
             }
 
             Spacer(Modifier.height(80.dp))
+        }
+    }
+}
+
+@Composable
+private fun ModeratorStatChip(
+    label: String,
+    count: Int,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        color = Color(0xFF2B2D33),
+        shape = RoundedCornerShape(12.dp),
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier.padding(vertical = 8.dp, horizontal = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = count.toString(),
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = Honey
+            )
+            Text(
+                text = label,
+                fontSize = 10.sp,
+                color = Color(0xFFD0D4DC)
+            )
         }
     }
 }

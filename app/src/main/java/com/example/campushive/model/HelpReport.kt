@@ -25,5 +25,7 @@ data class HelpReport(
     val targetName: String = "",
     val description: String = "",
     val status: ReportStatus = ReportStatus.OPEN,
+    val moderatorNote: String = "",
+    val resolvedBy: String = "",
     val createdAt: Timestamp = Timestamp.now()
 )

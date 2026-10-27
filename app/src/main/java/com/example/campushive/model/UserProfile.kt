@@ -11,5 +11,6 @@ data class UserProfile(
     val facultyOrMajor: String = "General Student",
     val phoneNumber: String = "",
     val isVerifiedStudent: Boolean = false,
+    val isModerator: Boolean = false,
     val createdAt: Timestamp = Timestamp.now()
 )

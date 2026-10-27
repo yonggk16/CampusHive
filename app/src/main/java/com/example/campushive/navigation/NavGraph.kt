@@ -297,6 +297,9 @@ fun CampusHiveApp() {
                     onBackClick = { navController.popBackStack() },
                     onNavigateToMyReports = {
                         navController.navigate("my_reports")
+                    },
+                    onNavigateToModeratorQueue = {
+                        navController.navigate("moderator_queue")
                     }
                 )
             }
@@ -305,6 +308,19 @@ fun CampusHiveApp() {
             composable("my_reports") {
                 MyReportsScreen(
                     helpdeskViewModel = helpdeskViewModel,
+                    initialModeratorTab = false,
+                    onBackClick = { navController.popBackStack() },
+                    onReportClick = { reportId ->
+                        navController.navigate("report_detail/$reportId")
+                    }
+                )
+            }
+
+            // Moderator Queue Destination
+            composable("moderator_queue") {
+                MyReportsScreen(
+                    helpdeskViewModel = helpdeskViewModel,
+                    initialModeratorTab = true,
                     onBackClick = { navController.popBackStack() },
                     onReportClick = { reportId ->
                         navController.navigate("report_detail/$reportId")
@@ -319,7 +335,12 @@ fun CampusHiveApp() {
                     reportId = reportId,
                     helpdeskViewModel = helpdeskViewModel,
                     onBackClick = { navController.popBackStack() },
-                    onDeleteOrUpdate = { navController.popBackStack() }
+                    onDeleteOrUpdate = { navController.popBackStack() },
+                    onViewListing = { listingId ->
+                        if (listingId.isNotBlank()) {
+                            navController.navigate("service_detail/$listingId")
+                        }
+                    }
                 )
             }
         }

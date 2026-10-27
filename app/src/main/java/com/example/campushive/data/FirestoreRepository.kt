@@ -390,6 +390,7 @@ class FirestoreRepository(
                 "facultyOrMajor" to profile.facultyOrMajor,
                 "phoneNumber" to profile.phoneNumber,
                 "isVerifiedStudent" to profile.isVerifiedStudent,
+                "isModerator" to profile.isModerator,
                 "createdAt" to profile.createdAt
             )
             docRef.set(data).await()
@@ -439,6 +440,8 @@ class FirestoreRepository(
                 "targetName" to report.targetName,
                 "description" to report.description,
                 "status" to report.status.name,
+                "moderatorNote" to report.moderatorNote,
+                "resolvedBy" to report.resolvedBy,
                 "createdAt" to report.createdAt
             )
 
@@ -479,6 +482,52 @@ class FirestoreRepository(
         }
 
         awaitClose { listener.remove() }
+    }
+
+    /**
+     * Real-time Flow listener for ALL campus reports (for Platform Moderators)
+     */
+    fun getAllReportsFlow(): Flow<List<HelpReport>> = callbackFlow {
+        val listener = reportsRef.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                Log.e("FirestoreRepository", "Error listening to all reports", error)
+                return@addSnapshotListener
+            }
+            if (snapshot == null) return@addSnapshotListener
+
+            val reports = snapshot.documents
+                .mapNotNull { it.toHelpReportOrNull() }
+                .sortedByDescending { it.createdAt.toDate().time }
+
+            trySend(reports)
+        }
+
+        awaitClose { listener.remove() }
+    }
+
+    /**
+     * Update report moderation status and resolution note (Moderator action)
+     */
+    suspend fun updateReportModeration(
+        reportId: String,
+        status: ReportStatus,
+        moderatorNote: String,
+        resolvedBy: String
+    ): Boolean {
+        return try {
+            reportsRef.document(reportId).update(
+                mapOf(
+                    "status" to status.name,
+                    "moderatorNote" to moderatorNote,
+                    "resolvedBy" to resolvedBy
+                )
+            ).await()
+            Log.d("FirestoreRepository", "Successfully moderated report: $reportId -> ${status.name}")
+            true
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Failed to moderate report $reportId: ${e.message}", e)
+            false
+        }
     }
 
     /**
@@ -593,6 +642,7 @@ private fun DocumentSnapshot.toUserProfileOrNull(): UserProfile? {
         val facultyOrMajor = getString("facultyOrMajor") ?: "General Student"
         val phoneNumber = getString("phoneNumber") ?: ""
         val isVerified = getBoolean("isVerifiedStudent") ?: false
+        val isModerator = getBoolean("isModerator") ?: false
         val createdAt = getTimestamp("createdAt") ?: Timestamp.now()
 
         UserProfile(
@@ -604,6 +654,7 @@ private fun DocumentSnapshot.toUserProfileOrNull(): UserProfile? {
             facultyOrMajor = facultyOrMajor,
             phoneNumber = phoneNumber,
             isVerifiedStudent = isVerified,
+            isModerator = isModerator,
             createdAt = createdAt
         )
     } catch (e: Exception) {
@@ -630,6 +681,8 @@ private fun DocumentSnapshot.toHelpReportOrNull(): HelpReport? {
             targetName = getString("targetName") ?: "",
             description = getString("description") ?: "",
             status = reportStatus,
+            moderatorNote = getString("moderatorNote") ?: "",
+            resolvedBy = getString("resolvedBy") ?: "",
             createdAt = getTimestamp("createdAt") ?: Timestamp.now()
         )
     } catch (e: Exception) {
