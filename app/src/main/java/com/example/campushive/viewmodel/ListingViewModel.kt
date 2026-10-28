@@ -136,7 +136,7 @@ class ListingViewModel(
     }
 
     companion object {
-        val CATEGORY_FILTERS = listOf("All Categories", "Tutoring", "Design", "Tech Help", "Errands")
+        val CATEGORY_FILTERS = listOf("All Categories", "Tutoring", "Design", "Tech Help", "Errands", "Others")
 
         fun normalizeCategoryFilter(raw: String): String {
             val trimmed = raw.trim()
@@ -145,6 +145,7 @@ class ListingViewModel(
                 ?: when (trimmed.lowercase()) {
                     "coding", "tech", "tech help" -> "Tech Help"
                     "campus services", "errand" -> "Errands"
+                    "other", "others", "general" -> "Others"
                     else -> trimmed
                 }
         }

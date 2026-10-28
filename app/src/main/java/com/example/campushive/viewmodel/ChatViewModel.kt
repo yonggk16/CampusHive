@@ -45,11 +45,13 @@ class ChatViewModel(
     val userLastSeenMillis: StateFlow<Map<String, Long>> = _userLastSeenMillis.asStateFlow()
 
     // Cached maps from Firestore to resolve providerUID, providerName, and user usernames
+    private var allKnownListingIds = setOf<String>()
     private var listingsProviderUidMap = mapOf<String, String>()
     private var listingsProviderNameMap = mapOf<String, String>()
     private var usersNameMap = mapOf<String, String>()
     private val discoveredSeekerUidMap = mutableMapOf<String, String>()
     private val discoveredSeekerNameMap = mutableMapOf<String, String>()
+    private val optimisticConversations = mutableMapOf<String, ChatConversation>()
     private var latestConversationDocs = listOf<DocumentSnapshot>()
 
     private var conversationsRegistration: ListenerRegistration? = null
@@ -57,6 +59,7 @@ class ChatViewModel(
     private var usersRegistration: ListenerRegistration? = null
 
     private val authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+        optimisticConversations.clear()
         syncCurrentUserToFirestore(firebaseAuth)
         rebuildConversationsList()
         repairMissingConversationParticipants(latestConversationDocs)
@@ -133,10 +136,13 @@ class ChatViewModel(
     private fun startFirestoreListeners() {
         listingsRegistration = listingsRef.addSnapshotListener { snapshot, _ ->
             if (snapshot != null) {
+                val knownIds = mutableSetOf<String>()
                 val uidMap = mutableMapOf<String, String>()
                 val nameMap = mutableMapOf<String, String>()
                 for (doc in snapshot.documents) {
                     val id = doc.getString("listingId")?.takeIf { it.isNotBlank() } ?: doc.id
+                    knownIds.add(id)
+                    knownIds.add(doc.id)
                     val pUid = doc.getString("providerUID") ?: ""
                     val pName = doc.getString("providerName") ?: ""
                     if (pUid.isNotBlank()) uidMap[id] = pUid
@@ -144,6 +150,7 @@ class ChatViewModel(
                     if (pUid.isNotBlank()) uidMap[doc.id] = pUid
                     if (pName.isNotBlank()) nameMap[doc.id] = pName
                 }
+                allKnownListingIds = knownIds
                 listingsProviderUidMap = uidMap
                 listingsProviderNameMap = nameMap
                 rebuildConversationsList()
@@ -190,7 +197,6 @@ class ChatViewModel(
         conversationsRegistration = conversationsRef.addSnapshotListener { snapshot, error ->
             if (error != null) {
                 Log.e("ChatViewModel", "Error listening to conversations", error)
-                _conversations.value = emptyList()
                 return@addSnapshotListener
             }
             if (snapshot != null) {
@@ -209,11 +215,12 @@ class ChatViewModel(
         if (docs.isEmpty()) return
         val currentUid = auth.currentUser?.uid ?: ""
         val myName = getCurrentUserName()
+        val knownIds = allKnownListingIds + listingsProviderUidMap.keys
 
         for (doc in docs) {
             val convId = doc.id
             val listingId = doc.getString("listingId")?.takeIf { it.isNotBlank() }
-                ?: convId.removePrefix("chat_")
+                ?: extractListingIdFromChatId(convId, knownIds)
             val providerUID = doc.getString("providerUID")?.takeIf { it.isNotBlank() }
                 ?: listingsProviderUidMap[listingId]
                 ?: ""
@@ -225,6 +232,7 @@ class ChatViewModel(
             val storedSeekerUid = doc.getString("seekerUid")
                 ?.takeIf { it.isNotBlank() && it != providerUID }
                 ?: discoveredSeekerUidMap[convId]
+                ?: extractSeekerUidFromChatId(convId, knownIds).takeIf { it != providerUID }
                 ?: ""
             val storedSeekerName = doc.getString("seekerName")
                 ?.takeIf { !isGenericPlaceholderName(it) && !it.equals(providerName, ignoreCase = true) }
@@ -267,7 +275,8 @@ class ChatViewModel(
                         ?.takeIf { !isGenericPlaceholderName(it) && !it.equals(providerName, ignoreCase = true) }
                     val currentUserAsSeekerName = if (
                         currentUid.isNotBlank() &&
-                        (currentUid == resolvedSeekerUid || (providerUID.isNotBlank() && currentUid != providerUID)) &&
+                        resolvedSeekerUid.isNotBlank() &&
+                        currentUid == resolvedSeekerUid &&
                         !isGenericPlaceholderName(myName) &&
                         !myName.equals(providerName, ignoreCase = true)
                     ) {
@@ -308,36 +317,49 @@ class ChatViewModel(
     private fun rebuildConversationsList() {
         val currentUid = auth.currentUser?.uid ?: ""
         val myName = getCurrentUserName()
+        val knownIds = allKnownListingIds + listingsProviderUidMap.keys
 
         val myUserDocs = latestConversationDocs.filter { doc ->
-            if (currentUid.isBlank()) return@filter true
+            if (currentUid.isBlank()) return@filter false
             val convId = doc.id
             val listingId = doc.getString("listingId")?.takeIf { it.isNotBlank() }
-                ?: convId.removePrefix("chat_")
+                ?: extractListingIdFromChatId(convId, knownIds)
             val pUid = doc.getString("providerUID")?.takeIf { it.isNotBlank() }
                 ?: listingsProviderUidMap[listingId]
                 ?: ""
             val sUid = doc.getString("seekerUid")?.takeIf { it.isNotBlank() && it != pUid }
                 ?: discoveredSeekerUidMap[convId]
+                ?: extractSeekerUidFromChatId(convId, knownIds).takeIf { it != pUid }
                 ?: ""
             val pName = doc.getString("providerName") ?: ""
             val sName = doc.getString("seekerName") ?: ""
 
-            currentUid == pUid || currentUid == sUid ||
-            (myName.isNotBlank() && (myName.equals(pName, ignoreCase = true) || myName.equals(sName, ignoreCase = true)))
+            val matchesProvider = if (pUid.isNotBlank()) {
+                currentUid == pUid
+            } else {
+                !isGenericPlaceholderName(myName) && myName.equals(pName, ignoreCase = true)
+            }
+            val matchesSeeker = when {
+                convId.endsWith("_$currentUid") && currentUid != pUid -> true
+                sUid.isNotBlank() -> currentUid == sUid
+                else -> !isGenericPlaceholderName(myName) && myName.equals(sName, ignoreCase = true)
+            }
+
+            matchesProvider || matchesSeeker
         }
 
-        val chats = myUserDocs.mapNotNull { doc ->
+        val firestoreChats = myUserDocs.mapNotNull { doc ->
             try {
                 val convId = doc.id
                 val listingId = doc.getString("listingId")?.takeIf { it.isNotBlank() }
-                    ?: convId.removePrefix("chat_")
+                    ?: extractListingIdFromChatId(convId, knownIds)
 
                 val providerUID = doc.getString("providerUID")?.takeIf { it.isNotBlank() }
                     ?: listingsProviderUidMap[listingId]
                     ?: ""
                 val seekerUid = doc.getString("seekerUid")?.takeIf { it.isNotBlank() && it != providerUID }
                     ?: discoveredSeekerUidMap[convId]
+                    ?: extractSeekerUidFromChatId(convId, knownIds).takeIf { it != providerUID }
                     ?: ""
 
                 val providerName = doc.getString("providerName")?.takeIf { !isGenericPlaceholderName(it) }
@@ -403,11 +425,17 @@ class ChatViewModel(
                     else -> doc.getTimestamp("lasttimestamp")?.toDate()?.time ?: 0L
                 }
 
+                // Clear optimistic entry once Firestore has the conversation with its latest message
+                val opt = optimisticConversations[convId]
+                if (opt != null && (lastMessage.isNotBlank() || opt.lastMessage.isBlank())) {
+                    optimisticConversations.remove(convId)
+                }
+
                 ChatConversation(
                     id = convId,
                     studentName = displayStudentName,
                     serviceTitle = serviceTitle,
-                    lastMessage = lastMessage,
+                    lastMessage = if (lastMessage.isBlank() && opt != null) opt.lastMessage else lastMessage,
                     timestamp = timeFormatted,
                     unreadCount = unreadCount,
                     isVerifiedStudent = isVerified,
@@ -426,7 +454,88 @@ class ChatViewModel(
             }
         }
 
-        _conversations.value = chats
+        val firestoreIds = firestoreChats.map { it.id }.toSet()
+        val pendingOptimistic = optimisticConversations.values.filter { opt ->
+            currentUid.isNotBlank() &&
+                !firestoreIds.contains(opt.id) &&
+                (opt.seekerUid == currentUid || opt.providerUID == currentUid)
+        }
+
+        _conversations.value = pendingOptimistic + firestoreChats
+    }
+
+    /**
+     * Initializes or ensures a conversation exists when a Seeker clicks "Chat with Provider"
+     * on the Service Detail screen so it immediately appears in the Chats list.
+     */
+    fun startConversation(
+        conversationId: String,
+        listingId: String,
+        providerUID: String,
+        providerName: String,
+        serviceTitle: String
+    ) {
+        if (conversationId.isBlank()) return
+        val currentUid = auth.currentUser?.uid ?: return
+        val currentUserName = getCurrentUserName()
+
+        val resolvedProviderUid = providerUID.ifBlank { listingsProviderUidMap[listingId].orEmpty() }
+        val resolvedProviderName = providerName.ifBlank { listingsProviderNameMap[listingId].orEmpty().ifBlank { "Provider" } }
+
+        discoveredSeekerUidMap[conversationId] = currentUid
+        if (!isGenericPlaceholderName(currentUserName)) {
+            discoveredSeekerNameMap[conversationId] = currentUserName
+        }
+
+        // Add optimistic conversation if not already in Firestore conversations list
+        if (_conversations.value.none { it.id == conversationId }) {
+            optimisticConversations[conversationId] = ChatConversation(
+                id = conversationId,
+                studentName = resolvedProviderName,
+                serviceTitle = serviceTitle,
+                lastMessage = "Tap to start chatting",
+                timestamp = "Just now",
+                unreadCount = 0,
+                isVerifiedStudent = true,
+                listingId = listingId,
+                seekerUid = currentUid,
+                providerUID = resolvedProviderUid,
+                providerName = resolvedProviderName,
+                seekerName = currentUserName,
+                isProvider = false
+            )
+            rebuildConversationsList()
+        }
+
+        // Persist the parent conversation document in Firestore if it doesn't exist yet
+        val convDocRef = conversationsRef.document(conversationId)
+        convDocRef.get().addOnSuccessListener { snap ->
+            if (!snap.exists()) {
+                convDocRef.collection("messages").get().addOnSuccessListener { msgSnap ->
+                    val latestMsg = msgSnap.documents.maxByOrNull {
+                        it.getTimestamp("timestamp")?.toDate()?.time ?: 0L
+                    }
+                    val lastMsgText = latestMsg?.getString("text")?.takeIf { it.isNotBlank() } ?: "Started a conversation"
+                    val lastTs = latestMsg?.getTimestamp("timestamp") ?: Timestamp.now()
+
+                    val initData = hashMapOf<String, Any>(
+                        "conversationId" to conversationId,
+                        "listingId" to listingId,
+                        "seekerUid" to currentUid,
+                        "seekerName" to currentUserName,
+                        "studentName" to currentUserName,
+                        "providerUID" to resolvedProviderUid,
+                        "providerName" to resolvedProviderName,
+                        "serviceTitle" to serviceTitle,
+                        "lastMessage" to lastMsgText,
+                        "lasttimestamp" to lastTs,
+                        "unreadCount" to 0,
+                        "isVerifiedStudent" to true
+                    )
+                    convDocRef.set(initData, SetOptions.merge())
+                }
+            }
+        }
     }
 
     /**
@@ -439,9 +548,13 @@ class ChatViewModel(
         }
 
         val convDocRef = conversationsRef.document(conversationId)
-        val listingIdFromChatId = conversationId.removePrefix("chat_")
+        val knownIds = allKnownListingIds + listingsProviderUidMap.keys
+        val listingIdFromChatId = extractListingIdFromChatId(conversationId, knownIds)
+        val seekerUidFromChatId = extractSeekerUidFromChatId(conversationId, knownIds)
         var cachedProviderUid = listingsProviderUidMap[listingIdFromChatId] ?: ""
-        var cachedSeekerUid = discoveredSeekerUidMap[conversationId] ?: ""
+        var cachedSeekerUid = discoveredSeekerUidMap[conversationId]
+            ?.takeIf { it.isNotBlank() }
+            ?: seekerUidFromChatId
 
         // Keep conversation role metadata (seekerUid & providerUID) updated
         val convListener = convDocRef.addSnapshotListener { convSnap, _ ->
@@ -464,10 +577,12 @@ class ChatViewModel(
                                 if (pUid.isNotBlank()) {
                                     cachedProviderUid = pUid
                                 }
-                                // Backfill Seeker info if the currently logged-in user is the Seeker opening this chat
+                                // Only backfill Seeker info if this conversation does not already belong to another Seeker
                                 val currentUid = auth.currentUser?.uid ?: ""
                                 val myName = getCurrentUserName()
-                                if (currentUid.isNotBlank() && pUid.isNotBlank() && currentUid != pUid) {
+                                val canClaimSeeker = (sUid.isBlank() || sUid == currentUid) &&
+                                    (seekerUidFromChatId.isBlank() || seekerUidFromChatId == currentUid)
+                                if (currentUid.isNotBlank() && pUid.isNotBlank() && currentUid != pUid && canClaimSeeker) {
                                     discoveredSeekerUidMap[conversationId] = currentUid
                                     if (!isGenericPlaceholderName(myName)) {
                                         discoveredSeekerNameMap[conversationId] = myName
@@ -485,10 +600,12 @@ class ChatViewModel(
                     }
                 }
 
-                // Also backfill Seeker info immediately if cachedProviderUid is already known and current user is Seeker
+                // Only backfill Seeker info if cachedProviderUid is known and this conversation belongs to currentUid
                 val currentUid = auth.currentUser?.uid ?: ""
                 val myName = getCurrentUserName()
-                if (currentUid.isNotBlank() && cachedProviderUid.isNotBlank() && currentUid != cachedProviderUid) {
+                val canClaimSeeker = (sUid.isBlank() || sUid == currentUid) &&
+                    (seekerUidFromChatId.isBlank() || seekerUidFromChatId == currentUid)
+                if (currentUid.isNotBlank() && cachedProviderUid.isNotBlank() && currentUid != cachedProviderUid && canClaimSeeker) {
                     discoveredSeekerUidMap[conversationId] = currentUid
                     if (!isGenericPlaceholderName(myName)) {
                         discoveredSeekerNameMap[conversationId] = myName
@@ -524,9 +641,26 @@ class ChatViewModel(
                 }
 
                 val currentUid = auth.currentUser?.uid ?: ""
+
+                // Prevent leaking messages from a conversation that belongs to a different Seeker
+                val effectiveSeekerUid = cachedSeekerUid.ifBlank {
+                    snapshot.documents.firstOrNull { doc ->
+                        val sUid = doc.getString("senderUid") ?: ""
+                        sUid.isNotBlank() && cachedProviderUid.isNotBlank() && sUid != cachedProviderUid
+                    }?.getString("senderUid").orEmpty()
+                }
+                if (currentUid.isNotBlank() &&
+                    effectiveSeekerUid.isNotBlank() &&
+                    currentUid != cachedProviderUid &&
+                    currentUid != effectiveSeekerUid
+                ) {
+                    trySend(emptyList())
+                    return@addSnapshotListener
+                }
+
                 val myRole = when {
                     currentUid.isNotBlank() && currentUid == cachedProviderUid -> "PROVIDER"
-                    currentUid.isNotBlank() && currentUid == cachedSeekerUid -> "SEEKER"
+                    currentUid.isNotBlank() && currentUid == effectiveSeekerUid -> "SEEKER"
                     currentUid.isNotBlank() && cachedProviderUid.isNotBlank() && currentUid != cachedProviderUid -> "SEEKER"
                     else -> ""
                 }
@@ -586,6 +720,31 @@ class ChatViewModel(
                     }
                 }
 
+                // If messages exist in subcollection but parent conversation document is missing, repair parent doc
+                if (sortedDocs.isNotEmpty() && latestConversationDocs.none { it.id == conversationId }) {
+                    val lastDoc = sortedDocs.last()
+                    val lastText = lastDoc.getString("text").orEmpty().ifBlank { "[Attachment]" }
+                    val lastTs = lastDoc.getTimestamp("timestamp") ?: Timestamp.now()
+                    val sUid = effectiveSeekerUid.ifBlank { seekerUidFromChatId.ifBlank { currentUid } }
+                    val sName = discoveredSeekerNameMap[conversationId].orEmpty().ifBlank { getCurrentUserName() }
+                    val pUid = cachedProviderUid.ifBlank { listingsProviderUidMap[listingIdFromChatId].orEmpty() }
+                    val pName = listingsProviderNameMap[listingIdFromChatId].orEmpty()
+                    val repairData = hashMapOf<String, Any>(
+                        "conversationId" to conversationId,
+                        "listingId" to listingIdFromChatId,
+                        "seekerUid" to sUid,
+                        "seekerName" to sName,
+                        "studentName" to sName,
+                        "providerUID" to pUid,
+                        "lastMessage" to lastText,
+                        "lasttimestamp" to lastTs,
+                        "unreadCount" to 0,
+                        "isVerifiedStudent" to true
+                    )
+                    if (pName.isNotBlank()) repairData["providerName"] = pName
+                    convDocRef.set(repairData, SetOptions.merge())
+                }
+
                 rebuildConversationsList()
                 trySend(messages)
             }
@@ -626,18 +785,100 @@ class ChatViewModel(
             else -> ""
         }
 
+        val convDoc = if (conversationId.isBlank()) {
+            conversationsRef.document()
+        } else {
+            conversationsRef.document(conversationId)
+        }
+
+        val knownIds = allKnownListingIds + listingsProviderUidMap.keys
+        val initialListingId = extractListingIdFromChatId(convDoc.id, knownIds)
+        val initialProviderUid = listingsProviderUidMap[initialListingId].orEmpty()
+        val initialProviderName = listingsProviderNameMap[initialListingId]
+            ?.takeIf { !isGenericPlaceholderName(it) }
+            ?: studentName.takeIf { !isGenericPlaceholderName(it) && !it.equals(currentUserName, ignoreCase = true) }
+            ?: "Provider"
+        val initialAmIProvider = initialProviderUid.isNotBlank() && currentUid == initialProviderUid
+        val initialSeekerUid = if (!initialAmIProvider) {
+            currentUid
+        } else {
+            discoveredSeekerUidMap[convDoc.id]
+                ?: extractSeekerUidFromChatId(convDoc.id, knownIds).takeIf { it != initialProviderUid }
+                ?: ""
+        }
+        val initialSeekerName = if (!initialAmIProvider) {
+            currentUserName
+        } else {
+            discoveredSeekerNameMap[convDoc.id].orEmpty().ifBlank { studentName }
+        }
+
+        // Optimistically update conversations list and write parent conversation immediately (0ms lag, immune to back-navigation cancellation)
+        if (!initialAmIProvider) {
+            discoveredSeekerUidMap[convDoc.id] = currentUid
+            discoveredSeekerNameMap[convDoc.id] = currentUserName
+        }
+        optimisticConversations[convDoc.id] = ChatConversation(
+            id = convDoc.id,
+            studentName = if (initialAmIProvider) initialSeekerName.ifBlank { "Student" } else initialProviderName,
+            serviceTitle = serviceTitle,
+            lastMessage = lastMessagePreview,
+            timestamp = timeNow,
+            unreadCount = 0,
+            isVerifiedStudent = true,
+            listingId = initialListingId,
+            seekerUid = initialSeekerUid,
+            providerUID = initialProviderUid,
+            providerName = initialProviderName,
+            seekerName = initialSeekerName,
+            isProvider = initialAmIProvider
+        )
+        rebuildConversationsList()
+
+        // Queue immediate local write to parent conversation + message subcollection so neither can be lost if user presses Back
+        val msgRef = convDoc.collection("messages").document()
+        val initialSenderRole = if (initialAmIProvider) "PROVIDER" else "SEEKER"
+        val immediateMsgData = hashMapOf<String, Any>(
+            "messageId" to msgRef.id,
+            "conversationId" to convDoc.id,
+            "senderRole" to initialSenderRole,
+            "senderUid" to currentUid,
+            "senderName" to currentUserName,
+            "text" to text.trim(),
+            "time" to timeNow,
+            "timestamp" to nowTimestamp
+        )
+        if (attachmentType.isNotBlank()) {
+            immediateMsgData["attachmentType"] = attachmentType
+            immediateMsgData["attachmentName"] = attachmentName
+            immediateMsgData["attachmentSize"] = attachmentSize
+            immediateMsgData["attachmentBase64"] = attachmentBase64
+        }
+        msgRef.set(immediateMsgData)
+
+        val immediateConvData = hashMapOf<String, Any>(
+            "conversationId" to convDoc.id,
+            "listingId" to initialListingId,
+            "seekerUid" to initialSeekerUid,
+            "providerUID" to initialProviderUid,
+            "providerName" to initialProviderName,
+            "serviceTitle" to serviceTitle,
+            "lastMessage" to lastMessagePreview,
+            "lasttimestamp" to nowTimestamp,
+            "unreadCount" to 0,
+            "isVerifiedStudent" to true
+        )
+        if (initialSeekerName.isNotBlank()) {
+            immediateConvData["seekerName"] = initialSeekerName
+            immediateConvData["studentName"] = initialSeekerName
+        }
+        convDoc.set(immediateConvData, SetOptions.merge())
+
         viewModelScope.launch {
             try {
-                val convDoc = if (conversationId.isBlank()) {
-                    conversationsRef.document()
-                } else {
-                    conversationsRef.document(conversationId)
-                }
-
                 val existingConv = runCatching { convDoc.get().await() }.getOrNull()
                 val listingId = existingConv?.getString("listingId")
                     ?.takeIf { it.isNotBlank() }
-                    ?: convDoc.id.removePrefix("chat_")
+                    ?: initialListingId
 
                 // Resolve providerUID and providerName from conversation or LISTING document
                 var providerUID = existingConv?.getString("providerUID")
@@ -681,6 +922,7 @@ class ChatViewModel(
                 var resolvedSeekerUid = existingConv?.getString("seekerUid")
                     ?.takeIf { it.isNotBlank() && it != resolvedProviderUid }
                     ?: discoveredSeekerUidMap[convDoc.id]
+                    ?: extractSeekerUidFromChatId(convDoc.id, knownIds).takeIf { it != resolvedProviderUid }
                     ?: ""
                 var resolvedSeekerName = existingConv?.getString("seekerName")
                     ?.takeIf { !isGenericPlaceholderName(it) && !it.equals(resolvedProviderName, ignoreCase = true) }
@@ -732,27 +974,7 @@ class ChatViewModel(
                     }
                 }
 
-                // 1. Write Message Subcollection Document first so the message is delivered immediately
-                val msgRef = convDoc.collection("messages").document()
-                val msgData = hashMapOf<String, Any>(
-                    "messageId" to msgRef.id,
-                    "conversationId" to convDoc.id,
-                    "senderRole" to senderRole,
-                    "senderUid" to currentUid,
-                    "senderName" to currentUserName,
-                    "text" to text.trim(),
-                    "time" to timeNow,
-                    "timestamp" to nowTimestamp
-                )
-                if (attachmentType.isNotBlank()) {
-                    msgData["attachmentType"] = attachmentType
-                    msgData["attachmentName"] = attachmentName
-                    msgData["attachmentSize"] = attachmentSize
-                    msgData["attachmentBase64"] = attachmentBase64
-                }
-                msgRef.set(msgData).await()
-
-                // 2. Update Conversation Parent Document with ERD fields + participant usernames
+                // Update Conversation Parent Document with resolved ERD fields + participant usernames
                 val convData = hashMapOf<String, Any>(
                     "conversationId" to convDoc.id,
                     "listingId" to listingId,
@@ -826,6 +1048,76 @@ class ChatViewModel(
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Failed to delete message: ${e.message}", e)
             }
+        }
+    }
+
+    companion object {
+        /**
+         * Builds a unique conversation ID scoped to both the service listing and the seeker's UID
+         * so each seeker gets their own isolated conversation thread with the provider.
+         */
+        fun buildConversationId(listingId: String, seekerUid: String): String {
+            val cleanListingId = listingId.trim()
+            val cleanSeekerUid = seekerUid.trim()
+            return if (cleanSeekerUid.isNotBlank()) {
+                "chat_${cleanListingId}_${cleanSeekerUid}"
+            } else {
+                "chat_$cleanListingId"
+            }
+        }
+
+        /**
+         * Extracts the listingId from either a per-seeker chatId ("chat_<listingId>_<seekerUid>")
+         * or a legacy chatId ("chat_<listingId>").
+         */
+        fun extractListingIdFromChatId(
+            chatId: String,
+            knownListingIds: Set<String> = emptySet()
+        ): String {
+            val body = chatId.removePrefix("chat_")
+            if (body.isBlank()) return ""
+
+            if (knownListingIds.contains(body)) return body
+
+            val matchedKnown = knownListingIds
+                .filter { body.startsWith("${it}_") }
+                .maxByOrNull { it.length }
+            if (matchedKnown != null) return matchedKnown
+
+            // Legacy "chat_srv_<digits>" without a seekerUid suffix
+            val legacySrvOnlyRegex = Regex("^srv_\\d+$")
+            if (legacySrvOnlyRegex.matches(body)) {
+                return body
+            }
+
+            val srvRegex = Regex("^(srv_[^_]+)(?:_(.+))?$")
+            val srvMatch = srvRegex.matchEntire(body)
+            if (srvMatch != null) {
+                return srvMatch.groupValues[1]
+            }
+
+            if (body.contains("_")) {
+                return body.substringBeforeLast("_")
+            }
+
+            return body
+        }
+
+        /**
+         * Extracts the seekerUid from a per-seeker chatId ("chat_<listingId>_<seekerUid>"),
+         * or returns an empty string for legacy chatIds.
+         */
+        fun extractSeekerUidFromChatId(
+            chatId: String,
+            knownListingIds: Set<String> = emptySet()
+        ): String {
+            val body = chatId.removePrefix("chat_")
+            if (body.isBlank()) return ""
+            val listingId = extractListingIdFromChatId(chatId, knownListingIds)
+            if (listingId.isNotBlank() && body.startsWith("${listingId}_")) {
+                return body.removePrefix("${listingId}_")
+            }
+            return ""
         }
     }
 }

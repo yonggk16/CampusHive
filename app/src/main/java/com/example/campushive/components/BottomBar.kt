@@ -105,7 +105,6 @@ fun BottomBar(
             shape = CircleShape,
             color = Honey,
             shadowElevation = 10.dp,
-            border = BorderStroke(3.dp, CardWhite),
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .offset(y = (-14).dp)
@@ -119,7 +118,7 @@ fun BottomBar(
                 Icon(
                     imageVector = Icons.Filled.Add,
                     contentDescription = "New listing",
-                    tint = Charcoal,
+                    tint = CardWhite,
                     modifier = Modifier.size(26.dp)
                 )
             }

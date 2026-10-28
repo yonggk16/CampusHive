@@ -318,11 +318,11 @@ fun EditListingDialog(
                             onSave(updatedListing)
                             Toast.makeText(context, "Listing updated successfully!", Toast.LENGTH_SHORT).show()
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
+                        colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
                         shape = RoundedCornerShape(14.dp),
                         modifier = Modifier.weight(0.6f)
                     ) {
-                        Text("Save Changes", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text("Save Changes", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = CardWhite)
                     }
                 }
             }

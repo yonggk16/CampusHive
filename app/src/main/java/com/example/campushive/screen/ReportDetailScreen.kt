@@ -72,7 +72,7 @@ fun ReportDetailScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Cream)
+                .background(HoneyBottomGradient)
                 .statusBarsPadding()
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -80,8 +80,8 @@ fun ReportDetailScreen(
         ) {
             Text("Report ticket not found or deleted.", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Charcoal)
             Spacer(Modifier.height(16.dp))
-            Button(onClick = onBackClick, colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal)) {
-                Text("Go Back", fontWeight = FontWeight.Bold)
+            Button(onClick = onBackClick, colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite)) {
+                Text("Go Back", fontWeight = FontWeight.Bold, color = CardWhite)
             }
         }
         return
@@ -96,14 +96,14 @@ fun ReportDetailScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Cream)
+            .background(HoneyBottomGradient)
             .statusBarsPadding()
     ) {
         // Top Header
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
+                .padding(start = 8.dp, end = 8.dp, top = 18.dp, bottom = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -317,15 +317,16 @@ fun ReportDetailScreen(
                                 val isSelected = editedCategory.value == cat
                                 Surface(
                                     shape = RoundedCornerShape(20.dp),
-                                    color = if (isSelected) Honey else Cream,
-                                    border = BorderStroke(1.dp, if (isSelected) Honey else Hairline),
+                                    color = if (isSelected) Charcoal else CardWhite,
+                                    contentColor = if (isSelected) CardWhite else Charcoal,
+                                    border = BorderStroke(1.dp, if (isSelected) Charcoal else Hairline),
                                     modifier = Modifier.clickable { editedCategory.value = cat }
                                 ) {
                                     Text(
                                         text = cat,
                                         fontSize = 12.sp,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                        color = Charcoal,
+                                        color = if (isSelected) CardWhite else Charcoal,
                                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                                     )
                                 }
@@ -399,14 +400,14 @@ fun ReportDetailScreen(
                                 }
                             },
                             enabled = !isSaving,
-                            colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
+                            colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
                             shape = RoundedCornerShape(14.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(48.dp)
                         ) {
                             if (isSaving) {
-                                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Charcoal, strokeWidth = 2.dp)
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = CardWhite, strokeWidth = 2.dp)
                             } else {
                                 Text("Save Changes", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             }
@@ -494,7 +495,8 @@ fun ReportDetailScreen(
                                 val isSelected = selectedModStatus == statusOption
                                 Surface(
                                     shape = RoundedCornerShape(20.dp),
-                                    color = if (isSelected) Charcoal else Cream,
+                                    color = if (isSelected) Charcoal else CardWhite,
+                                    contentColor = if (isSelected) CardWhite else Charcoal,
                                     border = BorderStroke(1.dp, if (isSelected) Charcoal else Hairline),
                                     modifier = Modifier.clickable { selectedModStatus = statusOption }
                                 ) {
@@ -502,7 +504,7 @@ fun ReportDetailScreen(
                                         text = statusOption.name.replace("_", " "),
                                         fontSize = 11.sp,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (isSelected) Honey else Charcoal,
+                                        color = if (isSelected) CardWhite else Charcoal,
                                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
                                     )
                                 }

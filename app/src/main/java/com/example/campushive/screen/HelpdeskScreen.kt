@@ -93,14 +93,14 @@ fun HelpdeskScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Cream)
+            .background(HoneyBottomGradient)
             .statusBarsPadding()
     ) {
         // Top Header with Moderator Mode Switch
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 8.dp, end = 8.dp, top = 16.dp, bottom = 8.dp),
+                .padding(start = 8.dp, end = 8.dp, top = 26.dp, bottom = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -162,7 +162,8 @@ fun HelpdeskScreen(
                         .fillMaxWidth()
                         .clickable { onNavigateToModeratorQueue() },
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Charcoal)
+                    colors = CardDefaults.cardColors(containerColor = CardWhite),
+                    border = BorderStroke(1.dp, Hairline)
                 ) {
                     Column(Modifier.padding(18.dp)) {
                         Row(
@@ -177,20 +178,20 @@ fun HelpdeskScreen(
                                 Icon(
                                     imageVector = Icons.Filled.Security,
                                     contentDescription = null,
-                                    tint = Honey,
+                                    tint = Charcoal,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Text(
                                     text = "CAMPUSHIVE MODERATOR PORTAL",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Honey,
+                                    color = MutedText,
                                     letterSpacing = 0.8.sp
                                 )
                             }
 
                             Surface(
-                                color = Honey,
+                                color = HoneyTint,
                                 shape = RoundedCornerShape(8.dp)
                             ) {
                                 Text(
@@ -208,14 +209,14 @@ fun HelpdeskScreen(
                         Text(
                             text = "Campus Incident & Report Queue",
                             style = MaterialTheme.typography.titleMedium,
-                            color = CardWhite,
+                            color = Charcoal,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
                             text = "Review student-reported listings, safety concerns, and technical tickets across campus.",
                             fontSize = 12.sp,
-                            color = Color(0xFFD0D4DC),
+                            color = MutedText,
                             lineHeight = 16.sp
                         )
 
@@ -247,13 +248,13 @@ fun HelpdeskScreen(
 
                         Button(
                             onClick = onNavigateToModeratorQueue,
-                            colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
+                            colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Open Moderator Queue (${allReports.size})", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text("Open Moderator Queue (${allReports.size})", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = CardWhite)
                             Spacer(Modifier.width(6.dp))
-                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = CardWhite, modifier = Modifier.size(16.dp))
                         }
                     }
                 }
@@ -263,14 +264,15 @@ fun HelpdeskScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = HoneyTint)
+                colors = CardDefaults.cardColors(containerColor = CardWhite),
+                border = BorderStroke(1.dp, Hairline)
             ) {
                 Column(Modifier.padding(18.dp)) {
                     Text(
                         text = "CAMPUSHIVE HELPDESK",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF8C6B10),
+                        color = MutedText,
                         letterSpacing = 0.8.sp
                     )
                     Spacer(Modifier.height(4.dp))
@@ -293,11 +295,11 @@ fun HelpdeskScreen(
                             reportDialogType = ReportType.PROBLEM
                             showReportDialog = true
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
+                        colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
                         shape = RoundedCornerShape(12.dp),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                     ) {
-                        Text("Report a problem", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text("Report a problem", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = CardWhite)
                     }
                 }
             }
@@ -378,8 +380,9 @@ private fun ModeratorStatChip(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        color = Color(0xFF2B2D33),
+        color = HoneyTint,
         shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, Hairline),
         modifier = modifier
     ) {
         Column(
@@ -388,14 +391,15 @@ private fun ModeratorStatChip(
         ) {
             Text(
                 text = count.toString(),
-                fontSize = 15.sp,
+                fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Honey
+                color = Charcoal
             )
             Text(
                 text = label,
                 fontSize = 10.sp,
-                color = Color(0xFFD0D4DC)
+                fontWeight = FontWeight.Medium,
+                color = MutedText
             )
         }
     }

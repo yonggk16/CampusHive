@@ -150,15 +150,16 @@ fun ReportDialog(
                         val isSelected = selectedCategory == cat
                         Surface(
                             shape = RoundedCornerShape(20.dp),
-                            color = if (isSelected) Honey else Cream,
-                            border = BorderStroke(1.dp, if (isSelected) Honey else Hairline),
+                            color = if (isSelected) Charcoal else CardWhite,
+                            contentColor = if (isSelected) CardWhite else Charcoal,
+                            border = BorderStroke(1.dp, if (isSelected) Charcoal else Hairline),
                             modifier = Modifier.clickable { selectedCategory = cat }
                         ) {
                             Text(
                                 text = cat,
                                 fontSize = 12.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = Charcoal,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) CardWhite else Charcoal,
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                             )
                         }
@@ -226,14 +227,14 @@ fun ReportDialog(
                         }
                     },
                     enabled = !isSubmitting,
-                    colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
+                    colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp)
                 ) {
                     if (isSubmitting) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Charcoal, strokeWidth = 2.dp)
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = CardWhite, strokeWidth = 2.dp)
                     } else {
                         Text("Submit Report", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     }

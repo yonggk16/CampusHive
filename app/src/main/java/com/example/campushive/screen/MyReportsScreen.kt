@@ -11,8 +11,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AdminPanelSettings
-import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -68,14 +67,14 @@ fun MyReportsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Cream)
+            .background(HoneyBottomGradient)
             .statusBarsPadding()
     ) {
         // Top Header
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 8.dp, end = 8.dp, top = 16.dp, bottom = 8.dp),
+                .padding(start = 8.dp, end = 8.dp, top = 26.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBackClick) {
@@ -144,15 +143,15 @@ fun MyReportsScreen(
                             val selected = selectedFilter == filter
                             Surface(
                                 shape = RoundedCornerShape(20.dp),
-                                color = if (selected) Honey else CardWhite,
-                                border = BorderStroke(1.dp, if (selected) Honey else Hairline),
+                                color = if (selected) Charcoal else CardWhite,
+                                border = BorderStroke(1.dp, if (selected) Charcoal else Hairline),
                                 modifier = Modifier.clickable { selectedFilter = filter }
                             ) {
                                 Text(
                                     text = filter,
                                     fontSize = 11.sp,
                                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                                    color = Charcoal,
+                                    color = if (selected) CardWhite else Charcoal,
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                                 )
                             }
@@ -163,56 +162,37 @@ fun MyReportsScreen(
         }
 
         if (filteredReports.isEmpty()) {
-            Column(
+            Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                    .fillMaxWidth()
+                    .weight(1f)
             ) {
-                Surface(
-                    color = CardWhite,
-                    shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(1.dp, Hairline),
-                    modifier = Modifier.fillMaxWidth()
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopCenter)
+                        .padding(top = 80.dp, start = 32.dp, end = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(
-                            color = Cream,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.size(44.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = if (showAllCampusQueue) Icons.Filled.AdminPanelSettings else Icons.Filled.SupportAgent,
-                                    contentDescription = null,
-                                    tint = MutedText,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                        }
-                        Spacer(Modifier.width(14.dp))
-                        Column {
-                            Text(
-                                text = if (showAllCampusQueue) "No matching reports in queue" else "No active reports",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                                color = Charcoal
-                            )
-                            Spacer(Modifier.height(2.dp))
-                            Text(
-                                text = if (showAllCampusQueue) "No campus reports match the '$selectedFilter' filter right now."
-                                else "You haven't submitted any support or safety tickets yet.",
-                                fontSize = 12.sp,
-                                color = MutedText
-                            )
-                        }
-                    }
+                    Text(
+                        text = if (showAllCampusQueue) "No matching reports in queue" else "No active reports",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Charcoal,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(Modifier.height(10.dp))
+
+                    Text(
+                        text = if (showAllCampusQueue) "No campus reports match the '$selectedFilter' filter right now."
+                        else "You haven't submitted any support or safety tickets yet.",
+                        fontSize = 14.sp,
+                        color = MutedText,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 20.sp
+                    )
                 }
             }
         } else {

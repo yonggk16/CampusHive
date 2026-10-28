@@ -50,13 +50,13 @@ fun PostReviewScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Cream)
+            .background(HoneyBottomGradient)
             .statusBarsPadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(30.dp))
 
         // Checkmark Circle Icon Badge (Light Yellow Circle)
         Box(

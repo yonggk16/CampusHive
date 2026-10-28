@@ -17,7 +17,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
@@ -45,7 +44,6 @@ import com.example.campushive.ui.theme.*
 import com.example.campushive.viewmodel.ListingViewModel
 import kotlinx.coroutines.delay
 
-private val popularSearchTags = listOf("Calculus Tutor", "Python", "Poster Design", "Dorm Move", "Proofreading", "Java", "Canva")
 private val priceFilters = listOf("All Prices", "Under RM20", "RM20 - RM50", "RM50+")
 private val categoryFilters = ListingViewModel.CATEGORY_FILTERS
 
@@ -130,6 +128,9 @@ fun SearchScreen(
                 selectedCategoryFilter.equals("Errands", ignoreCase = true) ->
                     listing.category.equals("Errands", ignoreCase = true) ||
                         listing.category.equals("Campus Services", ignoreCase = true)
+                selectedCategoryFilter.equals("Others", ignoreCase = true) ->
+                    listing.category.equals("Others", ignoreCase = true) ||
+                        listing.category.equals("Other", ignoreCase = true)
                 else -> listing.category.equals(selectedCategoryFilter, ignoreCase = true)
             }
 
@@ -153,11 +154,11 @@ fun SearchScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Cream)
+            .background(HoneyBottomGradient)
             .statusBarsPadding()
     ) {
         LazyColumn(
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 90.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 90.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxSize()
         ) {
@@ -165,8 +166,9 @@ fun SearchScreen(
             item {
                 Column {
                     Text(
-                        text = "Explore Campus Services",
-                        style = MaterialTheme.typography.headlineMedium,
+                        text = "Explore Services",
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold,
                         color = Charcoal
                     )
 
@@ -264,38 +266,6 @@ fun SearchScreen(
 
                     Spacer(Modifier.height(14.dp))
 
-                    // Popular Searches Tags
-                    Text(
-                        text = "Popular Searches",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Charcoal
-                    )
-
-                    Spacer(Modifier.height(8.dp))
-
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(popularSearchTags) { tag ->
-                            Surface(
-                                color = CardWhite,
-                                shape = RoundedCornerShape(20.dp),
-                                border = BorderStroke(1.dp, Hairline),
-                                modifier = Modifier.bounceClick(scaleDown = 0.93f) { searchQuery = tag }
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Outlined.History, contentDescription = null, tint = MutedText, modifier = Modifier.size(14.dp))
-                                    Spacer(Modifier.width(4.dp))
-                                    Text(tag, fontSize = 12.sp, color = Charcoal)
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(Modifier.height(14.dp))
-
                     // Price Filter Chips
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(priceFilters) { filter ->
@@ -304,8 +274,8 @@ fun SearchScreen(
                                 onClick = { selectedPriceFilter = filter },
                                 label = { Text(filter, fontSize = 12.sp) },
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Honey,
-                                    selectedLabelColor = Charcoal,
+                                    selectedContainerColor = Charcoal,
+                                    selectedLabelColor = CardWhite,
                                     containerColor = CardWhite,
                                     labelColor = MutedText
                                 ),

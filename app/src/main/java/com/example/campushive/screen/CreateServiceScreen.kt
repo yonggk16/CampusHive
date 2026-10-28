@@ -3,6 +3,7 @@ package com.example.campushive.screen
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -28,6 +29,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -39,7 +41,7 @@ import com.example.campushive.viewmodel.ListingViewModel
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 
-private val categories = listOf("Tutoring", "Design", "Tech Help", "Errands")
+private val categories = listOf("Tutoring", "Design", "Tech Help", "Errands", "Others")
 
 @Composable
 fun CreateServiceScreen(
@@ -59,14 +61,14 @@ fun CreateServiceScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Cream)
+            .background(HoneyBottomGradient)
             .statusBarsPadding()
     ) {
         // Top Header
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 12.dp),
+                .padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -83,6 +85,7 @@ fun CreateServiceScreen(
                     .size(40.dp)
                     .clip(CircleShape)
                     .background(CardWhite)
+                    .border(BorderStroke(1.dp, Hairline), CircleShape)
                     .bounceClick(scaleDown = 0.90f)
             ) {
                 Icon(
@@ -94,112 +97,22 @@ fun CreateServiceScreen(
             }
         }
 
+        // Form Content
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
+                .weight(1f)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Category Icon Preview Card (Auto-assigned based on chosen category)
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = CardWhite),
-                border = BorderStroke(1.dp, Hairline)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    ServiceCategoryIconBox(
-                        category = selectedCategory,
-                        size = 68.dp,
-                        shape = RoundedCornerShape(20.dp),
-                        symbolFontSize = 26.sp,
-                        iconSize = 30.dp
-                    )
-
-                    Spacer(Modifier.width(16.dp))
-
-                    Column {
-                        Text(
-                            text = "CATEGORY PREVIEW",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MutedText,
-                            letterSpacing = 0.7.sp
-                        )
-
-                        Spacer(Modifier.height(2.dp))
-
-                        Text(
-                            text = selectedCategory,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Charcoal
-                        )
-
-                        Spacer(Modifier.height(2.dp))
-
-                        Text(
-                            text = "Icon auto-assigned based on selection",
-                            fontSize = 11.sp,
-                            color = MutedText
-                        )
-                    }
-                }
-            }
-
-            // SERVICE TITLE Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = CardWhite),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-            ) {
-                Column(Modifier.padding(16.dp)) {
-                    Text(
-                        text = "SERVICE TITLE",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MutedText,
-                        letterSpacing = 0.8.sp
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Box(modifier = Modifier.fillMaxWidth()) {
-                        if (title.isEmpty()) {
-                            Text(
-                                text = "e.g., Weekend Calculus & Stats Tutoring",
-                                fontSize = 15.sp,
-                                color = MutedText.copy(alpha = 0.6f)
-                            )
-                        }
-                        BasicTextField(
-                            value = title,
-                            onValueChange = { title = it },
-                            textStyle = TextStyle(
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Charcoal
-                            ),
-                            cursorBrush = SolidColor(Honey),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
-            }
-
-            // CATEGORY Selection
+            // 1. CATEGORY SECTION
             Column {
                 Text(
-                    text = "CATEGORY",
-                    fontSize = 11.sp,
+                    text = "Category",
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MutedText,
-                    letterSpacing = 0.8.sp,
+                    color = Charcoal,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
@@ -209,6 +122,7 @@ fun CreateServiceScreen(
                         Surface(
                             shape = RoundedCornerShape(20.dp),
                             color = if (isSelected) Charcoal else CardWhite,
+                            contentColor = if (isSelected) CardWhite else Charcoal,
                             border = if (isSelected) null else BorderStroke(1.dp, Hairline),
                             modifier = Modifier.bounceClick(scaleDown = 0.94f) { selectedCategory = cat }
                         ) {
@@ -216,7 +130,7 @@ fun CreateServiceScreen(
                                 text = cat,
                                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
                                 fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 color = if (isSelected) CardWhite else Charcoal
                             )
                         }
@@ -224,38 +138,105 @@ fun CreateServiceScreen(
                 }
             }
 
-            // DESCRIPTION Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = CardWhite),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
+            // 2. SERVICE TITLE SECTION
+            Column {
+                Text(
+                    text = "Service title",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Charcoal,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    color = CardWhite,
+                    border = BorderStroke(1.dp, Hairline)
                 ) {
-                    Text(
-                        text = "DESCRIPTION",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MutedText,
-                        letterSpacing = 0.8.sp
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Box(modifier = Modifier.height(80.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        ServiceCategoryIconBox(
+                            category = selectedCategory,
+                            size = 40.dp,
+                            shape = RoundedCornerShape(12.dp),
+                            symbolFontSize = 18.sp,
+                            iconSize = 20.dp
+                        )
+
+                        Spacer(Modifier.width(12.dp))
+
+                        Box(modifier = Modifier.weight(1f)) {
+                            if (title.isEmpty()) {
+                                Text(
+                                    text = "e.g. Weekend Calculus & Stats Tutoring",
+                                    fontSize = 14.sp,
+                                    color = MutedText.copy(alpha = 0.6f),
+                                    maxLines = 1
+                                )
+                            }
+                            BasicTextField(
+                                value = title,
+                                onValueChange = { title = it },
+                                textStyle = TextStyle(
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Charcoal
+                                ),
+                                cursorBrush = SolidColor(Honey),
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(4.dp))
+
+                Text(
+                    text = "The icon is set automatically from your category.",
+                    fontSize = 12.sp,
+                    color = MutedText
+                )
+            }
+
+            // 3. DESCRIPTION SECTION
+            Column {
+                Text(
+                    text = "Description",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Charcoal,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    color = CardWhite,
+                    border = BorderStroke(1.dp, Hairline)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 100.dp)
+                            .padding(16.dp)
+                    ) {
                         if (description.isEmpty()) {
                             Text(
-                                text = "What do you offer? Availability, what's included, experience...",
+                                text = "What you offer, when you're free, what's included",
                                 fontSize = 14.sp,
-                                color = MutedText.copy(alpha = 0.7f),
+                                color = MutedText.copy(alpha = 0.6f),
                                 lineHeight = 20.sp
                             )
                         }
                         BasicTextField(
                             value = description,
-                            onValueChange = { description = it },
+                            onValueChange = { if (it.length <= 300) description = it },
                             textStyle = TextStyle(
                                 fontSize = 14.sp,
                                 color = Charcoal,
@@ -266,176 +247,207 @@ fun CreateServiceScreen(
                         )
                     }
                 }
+
+                Spacer(Modifier.height(4.dp))
+
+                Text(
+                    text = "${description.length} / 300",
+                    fontSize = 12.sp,
+                    color = MutedText,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
 
-            // PRICE Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = CardWhite),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-            ) {
-                Column(Modifier.padding(16.dp)) {
-                    Text(
-                        text = "PRICE",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MutedText,
-                        letterSpacing = 0.8.sp
-                    )
-                    Spacer(Modifier.height(10.dp))
+            // 4. PRICE SECTION (Redesigned matching reference image)
+            Column {
+                Text(
+                    text = "Price",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Charcoal,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Left RM Amount Box
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(54.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        color = CardWhite,
+                        border = BorderStroke(1.dp, Hairline)
                     ) {
-                        // RM + Number Input with Honey underline
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(
                                 text = "RM ",
-                                fontSize = 18.sp,
+                                fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Charcoal
                             )
-                            Column {
+
+                            Box(modifier = Modifier.weight(1f)) {
+                                if (priceText.isEmpty()) {
+                                    Text(
+                                        text = "0",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MutedText.copy(alpha = 0.6f)
+                                    )
+                                }
                                 BasicTextField(
                                     value = priceText,
                                     onValueChange = { priceText = it },
                                     textStyle = TextStyle(
-                                        fontSize = 22.sp,
+                                        fontSize = 16.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Charcoal
                                     ),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                     cursorBrush = SolidColor(Honey),
                                     singleLine = true,
-                                    modifier = Modifier.width(60.dp)
-                                )
-                                Spacer(Modifier.height(2.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .width(40.dp)
-                                        .height(3.dp)
-                                        .background(Honey, shape = RoundedCornerShape(2.dp))
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                             }
                         }
+                    }
 
-                        // Segmented Toggle Pill (Per hour | Fixed)
-                        Surface(
-                            shape = RoundedCornerShape(20.dp),
-                            color = CreamTint,
-                            modifier = Modifier.padding(2.dp)
+                    // Right Pricing Type Segmented Toggle Pill (Per hour | Fixed)
+                    Surface(
+                        modifier = Modifier.height(54.dp),
+                        shape = RoundedCornerShape(50),
+                        color = CreamTint
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(modifier = Modifier.padding(3.dp)) {
-                                PricingType.entries.forEach { pType ->
-                                    val isSelected = selectedPricingType == pType
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(16.dp))
-                                            .background(if (isSelected) Charcoal else Color.Transparent)
-                                            .clickable { selectedPricingType = pType }
-                                            .padding(horizontal = 14.dp, vertical = 8.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = pType.label,
-                                            fontSize = 12.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            color = if (isSelected) CardWhite else Charcoal
-                                        )
-                                    }
+                            PricingType.entries.forEach { pType ->
+                                val isSelected = selectedPricingType == pType
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(50))
+                                        .background(if (isSelected) Charcoal else Color.Transparent)
+                                        .clickable { selectedPricingType = pType }
+                                        .padding(horizontal = 18.dp, vertical = 10.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = pType.label,
+                                        fontSize = 13.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) CardWhite else Charcoal
+                                    )
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            // Info Notice Banner
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                color = Color(0xFFFFF9E6),
-                border = BorderStroke(1.dp, Color(0xFFF3E2C4))
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Listing goes live immediately after publishing",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF8C6B10)
-                    )
+                Spacer(Modifier.height(10.dp))
+
+                // Info Note
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Outlined.Info,
                         contentDescription = "Info",
-                        tint = Color(0xFF8C6B10),
+                        tint = Charcoal,
                         modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = "Your listing goes live as soon as you publish.",
+                        fontSize = 12.sp,
+                        color = MutedText
                     )
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(20.dp))
+        }
 
-            // Bottom Publish Button
-            Button(
-                onClick = {
-                    if (title.isBlank() || priceText.isBlank()) {
-                        Toast.makeText(context, "Please enter a title and price", Toast.LENGTH_SHORT).show()
-                    } else {
-                        isPublishing = true
-                        val parsedPrice = priceText.toDoubleOrNull() ?: 18.0
-                        val currentUserName = Firebase.auth.currentUser?.displayName
-                            ?.takeIf { it.isNotBlank() } ?: "Daniel Wong"
-                        val currentUid = Firebase.auth.currentUser?.uid ?: "usr_daniel"
-                        val newListing = Listing(
-                            id = "srv_${System.currentTimeMillis()}",
-                            providerUID = currentUid,
-                            title = title.trim(),
-                            category = selectedCategory,
-                            price = parsedPrice,
-                            pricingType = selectedPricingType,
-                            providerName = currentUserName,
-                            rating = 5.0,
-                            reviewCount = 1,
-                            campusLocation = "Subang 2 Campus",
-                            isVerifiedStudent = true,
-                            description = description.trim()
-                        )
-
-                        listingViewModel.addListing(newListing)
-                        listingViewModel.setSelectedCategory("All Categories")
-                        Toast.makeText(context, "Listing published live to Cloud Firestore!", Toast.LENGTH_SHORT).show()
-                        onServiceCreated()
-                    }
-                },
-                enabled = !isPublishing,
-                shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
+        // Sticky Bottom Publish Button
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = Color.Transparent
+        ) {
+            Column(
                 modifier = Modifier
-                    .wrapContentWidth()
-                    .bounceClick(scaleDown = 0.95f)
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
             ) {
-                Text(
-                    text = if (isPublishing) "Publishing..." else "Publish listing",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
-                )
-                Spacer(Modifier.width(8.dp))
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
+                Button(
+                    onClick = {
+                        if (title.isBlank() || priceText.isBlank()) {
+                            Toast.makeText(context, "Please enter a title and price", Toast.LENGTH_SHORT).show()
+                        } else {
+                            isPublishing = true
+                            val parsedPrice = priceText.toDoubleOrNull() ?: 18.0
+                            val currentUserName = Firebase.auth.currentUser?.displayName
+                                ?.takeIf { it.isNotBlank() } ?: "Daniel Wong"
+                            val currentUid = Firebase.auth.currentUser?.uid ?: "usr_daniel"
+                            val newListing = Listing(
+                                id = "srv_${System.currentTimeMillis()}",
+                                providerUID = currentUid,
+                                title = title.trim(),
+                                category = selectedCategory,
+                                price = parsedPrice,
+                                pricingType = selectedPricingType,
+                                providerName = currentUserName,
+                                rating = 5.0,
+                                reviewCount = 1,
+                                campusLocation = "Subang 2 Campus",
+                                isVerifiedStudent = true,
+                                description = description.trim()
+                            )
 
-            Spacer(Modifier.height(80.dp))
+                            listingViewModel.addListing(newListing)
+                            listingViewModel.setSelectedCategory("All Categories")
+                            Toast.makeText(context, "Listing published live to Cloud Firestore!", Toast.LENGTH_SHORT).show()
+                            onServiceCreated()
+                        }
+                    },
+                    enabled = !isPublishing,
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(54.dp)
+                        .bounceClick(scaleDown = 0.96f)
+                ) {
+                    if (isPublishing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = CardWhite,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(
+                            text = "Publish",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = CardWhite
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = CardWhite,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
         }
     }
 }

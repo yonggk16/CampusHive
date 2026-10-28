@@ -3,15 +3,17 @@ package com.example.campushive.screen
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ExitToApp
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.ChevronRight
@@ -23,7 +25,8 @@ import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.outlined.School
 import androidx.compose.material.icons.outlined.Security
-import androidx.compose.material.icons.outlined.Warning
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.WorkOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,6 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -44,6 +48,8 @@ import com.example.campushive.viewmodel.AuthUiState
 import com.example.campushive.viewmodel.AuthViewModel
 import com.example.campushive.viewmodel.ListingViewModel
 import com.example.campushive.viewmodel.ReviewViewModel
+
+private val emptyStateCategories = listOf("Tutoring", "Design", "Tech Help", "Errands")
 
 @Composable
 fun ProfileScreen(
@@ -60,11 +66,11 @@ fun ProfileScreen(
     val userProfile by authViewModel.userProfile.collectAsState()
     val authUiState by authViewModel.uiState.collectAsState()
 
-    val displayName = userProfile?.displayName?.ifBlank { currentUser?.displayName ?: "Student User" } ?: "Student User"
-    val email = userProfile?.email?.ifBlank { currentUser?.email ?: "you@student.uni.edu.my" } ?: "you@student.uni.edu.my"
+    val displayName = userProfile?.displayName?.ifBlank { currentUser?.displayName ?: "ken" } ?: "ken"
+    val email = userProfile?.email?.ifBlank { currentUser?.email ?: "yonggk07@gmail.com" } ?: "yonggk07@gmail.com"
     val bio = userProfile?.bio ?: "CampusHive Member"
     val campus = userProfile?.campusLocation ?: "Subang 2 Campus"
-    val major = userProfile?.facultyOrMajor ?: "School of Computing & IT"
+    val major = userProfile?.facultyOrMajor ?: "General Student"
     val phone = userProfile?.phoneNumber ?: ""
 
     val isVerified = authViewModel.isEmailVerified || (userProfile?.isVerifiedStudent == true)
@@ -92,6 +98,7 @@ fun ProfileScreen(
 
     var editingListing by remember { mutableStateOf<Listing?>(null) }
     var showEditProfileDialog by remember { mutableStateOf(false) }
+    var showSignOutConfirmDialog by remember { mutableStateOf(false) }
 
     // Fetch latest user profile, user's own listings, and user's own reviews on load/login
     LaunchedEffect(currentUser?.uid) {
@@ -123,8 +130,8 @@ fun ProfileScreen(
         }
     }
 
-    val jobsDoneCount = remember(myListings, reviewsReceived) {
-        myListings.size + reviewsReceived.size
+    val jobsDoneCount = remember(myListings) {
+        myListings.size
     }
 
     val totalReviewCount = remember(reviewsReceived) {
@@ -137,7 +144,7 @@ fun ProfileScreen(
             .take(2)
             .mapNotNull { it.firstOrNull()?.uppercaseChar() }
             .joinToString("")
-            .ifEmpty { "CH" }
+            .ifEmpty { "K" }
     }
 
     if (showEditProfileDialog) {
@@ -177,14 +184,65 @@ fun ProfileScreen(
         )
     }
 
+    if (showSignOutConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showSignOutConfirmDialog = false },
+            title = {
+                Text(
+                    text = "Confirm Log Out",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = Charcoal
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to log out of your CampusHive account?",
+                    fontSize = 13.sp,
+                    color = Charcoal,
+                    lineHeight = 18.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showSignOutConfirmDialog = false
+                        authViewModel.signOut {
+                            onSignOutClick()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFD32F2F),
+                        contentColor = CardWhite
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Log Out", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = CardWhite)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { showSignOutConfirmDialog = false },
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Hairline)
+                ) {
+                    Text("Cancel", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Charcoal)
+                }
+            },
+            containerColor = CardWhite,
+            shape = RoundedCornerShape(20.dp)
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Cream)
+            .background(HoneyBottomGradient)
             .statusBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 96.dp)
+            .padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 96.dp)
     ) {
+        // Top Header (Title + Settings Icon)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -192,31 +250,34 @@ fun ProfileScreen(
         ) {
             Text(
                 text = "Profile",
-                style = MaterialTheme.typography.headlineMedium,
+                fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 color = Charcoal
             )
 
-            // Edit Profile Quick Button
             IconButton(
-                onClick = { showEditProfileDialog = true },
+                onClick = {
+                    Toast.makeText(context, "Settings feature coming in future update!", Toast.LENGTH_SHORT).show()
+                },
                 modifier = Modifier
-                    .size(38.dp)
+                    .size(40.dp)
                     .clip(CircleShape)
                     .background(CardWhite)
+                    .border(BorderStroke(1.dp, Hairline), CircleShape)
+                    .bounceClick(scaleDown = 0.90f)
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.Edit,
-                    contentDescription = "Edit Profile",
+                    imageVector = Icons.Outlined.Settings,
+                    contentDescription = "Settings",
                     tint = Charcoal,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
 
         Spacer(Modifier.height(16.dp))
 
-        // Profile Header Card
+        // Profile Header Card (Matching New Image Layout)
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
@@ -226,153 +287,263 @@ fun ProfileScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .padding(20.dp)
             ) {
-                // Avatar
-                Box(
-                    modifier = Modifier
-                        .size(72.dp)
-                        .clip(CircleShape)
-                        .background(Honey),
-                    contentAlignment = Alignment.Center
+                // Left Avatar + Right Student Info Stack
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = initials,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Charcoal,
-                        fontSize = 24.sp
-                    )
-                }
-
-                Spacer(Modifier.height(12.dp))
-
-                // Name & Verified Badge
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = displayName,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Charcoal,
-                        fontSize = 18.sp
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    if (isVerified) {
-                        Icon(
-                            imageVector = Icons.Filled.CheckCircle,
-                            contentDescription = "Campus Verified",
-                            tint = VerifiedGreen,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Outlined.Warning,
-                            contentDescription = "Unverified Email",
-                            tint = Color(0xFFE65100),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-
-                Text(
-                    text = email,
-                    fontSize = 12.sp,
-                    color = MutedText,
-                    modifier = Modifier.padding(top = 2.dp)
-                )
-
-                // Bio / Tagline
-                if (bio.isNotBlank()) {
-                    Spacer(Modifier.height(8.dp))
-                    Surface(
-                        color = HoneyTint,
-                        shape = RoundedCornerShape(10.dp)
+                    // Avatar Circle
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(CircleShape)
+                            .background(HoneyTint),
+                        contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = bio,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
+                            text = initials,
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Bold,
                             color = Charcoal
                         )
                     }
+
+                    Spacer(Modifier.width(16.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = displayName,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Charcoal
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            if (isVerified) {
+                                Icon(
+                                    imageVector = Icons.Filled.CheckCircle,
+                                    contentDescription = "Campus Verified",
+                                    tint = Charcoal,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = email,
+                            fontSize = 12.sp,
+                            color = MutedText,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+
+                        if (bio.isNotBlank()) {
+                            Spacer(Modifier.height(6.dp))
+                            Surface(
+                                color = HoneyTint,
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text(
+                                    text = bio,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Charcoal
+                                )
+                            }
+                        }
+                    }
                 }
 
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(16.dp))
 
-                // Detailed Info Chips: Campus, Major, Phone
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.LocationOn, contentDescription = null, tint = MutedText, modifier = Modifier.size(14.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text(campus, fontSize = 11.sp, color = Charcoal, fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.width(12.dp))
-                        Icon(Icons.Outlined.School, contentDescription = null, tint = MutedText, modifier = Modifier.size(14.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text(major, fontSize = 11.sp, color = Charcoal, fontWeight = FontWeight.SemiBold)
+                // Location & Major Info Pills (Stacked Vertically)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = CardWhite,
+                        border = BorderStroke(1.dp, Hairline)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Outlined.LocationOn,
+                                contentDescription = null,
+                                tint = Charcoal,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                campus,
+                                fontSize = 12.sp,
+                                color = Charcoal,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = CardWhite,
+                        border = BorderStroke(1.dp, Hairline)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Outlined.School,
+                                contentDescription = null,
+                                tint = Charcoal,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                major,
+                                fontSize = 12.sp,
+                                color = Charcoal,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
 
                     if (phone.isNotBlank()) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Outlined.Phone, contentDescription = null, tint = MutedText, modifier = Modifier.size(14.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text(phone, fontSize = 11.sp, color = Charcoal, fontWeight = FontWeight.SemiBold)
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = HoneyTint,
+                            border = BorderStroke(1.dp, Hairline)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Phone,
+                                    contentDescription = null,
+                                    tint = Charcoal,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    phone,
+                                    fontSize = 12.sp,
+                                    color = Charcoal,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
                         }
                     }
                 }
 
                 Spacer(Modifier.height(16.dp))
 
-                // Stats Row (Rating, Jobs Done, Reviews)
-                Row(
+                // Stats Row Card Box
+                Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
+                    shape = RoundedCornerShape(16.dp),
+                    color = CardWhite,
+                    border = BorderStroke(1.dp, Hairline)
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.Star, contentDescription = null, tint = Honey, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(2.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Filled.Star,
+                                    contentDescription = null,
+                                    tint = Charcoal,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(Modifier.width(2.dp))
+                                Text(
+                                    text = if (reviewsReceived.isNotEmpty()) "%.1f".format(averageRating) else "0.0",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp,
+                                    color = Charcoal
+                                )
+                            }
                             Text(
-                                text = if (reviewsReceived.isNotEmpty()) "%.1f".format(averageRating) else "0.0",
+                                "RATING",
+                                fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp,
                                 color = Charcoal
                             )
                         }
-                        Text("RATING", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MutedText)
-                    }
 
-                    HorizontalDivider(modifier = Modifier.height(28.dp).width(1.dp), color = Hairline)
+                        VerticalDivider(
+                            modifier = Modifier.height(32.dp),
+                            thickness = 2.dp,
+                            color = Hairline
+                        )
 
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(jobsDoneCount.toString(), fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Charcoal)
-                        Text("JOBS LISTED", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MutedText)
-                    }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                jobsDoneCount.toString(),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                color = Charcoal
+                            )
+                            Text(
+                                "JOBS LISTED",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Charcoal
+                            )
+                        }
 
-                    HorizontalDivider(modifier = Modifier.height(28.dp).width(1.dp), color = Hairline)
+                        VerticalDivider(
+                            modifier = Modifier.height(32.dp),
+                            thickness = 2.dp,
+                            color = Hairline
+                        )
 
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(totalReviewCount.toString(), fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Charcoal)
-                        Text("REVIEWS", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MutedText)
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                totalReviewCount.toString(),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                color = Charcoal
+                            )
+                            Text(
+                                "REVIEWS",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Charcoal
+                            )
+                        }
                     }
                 }
 
                 Spacer(Modifier.height(16.dp))
 
-                // Edit Profile Button inside Header Card
+                // Edit Profile Details Button
                 OutlinedButton(
                     onClick = { showEditProfileDialog = true },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     border = BorderStroke(1.dp, Hairline)
                 ) {
-                    Icon(Icons.Outlined.Edit, contentDescription = null, tint = Charcoal, modifier = Modifier.size(15.dp))
+                    Icon(
+                        Icons.Outlined.Edit,
+                        contentDescription = null,
+                        tint = Charcoal,
+                        modifier = Modifier.size(15.dp)
+                    )
                     Spacer(Modifier.width(6.dp))
-                    Text("Edit Profile Details", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Charcoal)
+                    Text(
+                        "Edit profile",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Charcoal
+                    )
                 }
             }
         }
@@ -447,7 +618,12 @@ fun ProfileScreen(
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("Check Status", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFFE65100))
+                            Text(
+                                "Check Status",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = Color(0xFFE65100)
+                            )
                         }
                     }
                 }
@@ -490,35 +666,12 @@ fun ProfileScreen(
 
         // Tab Content
         if (selectedTab == "My listings") {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Service Listings (${myListings.size})",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Charcoal
-                )
-
-                TextButton(
-                    onClick = onCreateServiceClick,
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                ) {
-                    Icon(Icons.Filled.Add, contentDescription = null, tint = Charcoal, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("Add New", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Charcoal)
-                }
-            }
-
             if (myListings.isEmpty()) {
-                Card(
+                // Empty State Box matching reference image
+                Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = CardWhite),
+                    shape = RoundedCornerShape(20.dp),
+                    color = CardWhite,
                     border = BorderStroke(1.dp, Hairline)
                 ) {
                     Column(
@@ -527,21 +680,83 @@ fun ProfileScreen(
                             .padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("No active service listings", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Charcoal)
-                        Spacer(Modifier.height(4.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(HoneyTint),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.WorkOutline,
+                                contentDescription = null,
+                                tint = Charcoal,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        Spacer(Modifier.height(12.dp))
+
                         Text(
-                            text = "Offer your skills (Tutoring, Design, Tech Help, Errands) to make income on campus!",
-                            fontSize = 12.sp,
-                            color = MutedText,
-                            modifier = Modifier.padding(horizontal = 8.dp)
+                            "No active service listings",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            color = Charcoal
                         )
+
+                        Spacer(Modifier.height(6.dp))
+
+                        Text(
+                            text = "Offer your skills to earn income on campus.\nPick a category to get started.",
+                            fontSize = 13.sp,
+                            color = MutedText,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 18.sp
+                        )
+
                         Spacer(Modifier.height(16.dp))
+
+                        // Category Quick Select Pills
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            items(emptyStateCategories) { cat ->
+                                Surface(
+                                    shape = RoundedCornerShape(20.dp),
+                                    color = CardWhite,
+                                    border = BorderStroke(1.dp, Hairline),
+                                    modifier = Modifier.bounceClick(scaleDown = 0.93f) { onCreateServiceClick() }
+                                ) {
+                                    Text(
+                                        text = cat,
+                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Charcoal
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(Modifier.height(20.dp))
+
+                        // Full-Width "+ Add a service" Button
                         Button(
                             onClick = onCreateServiceClick,
-                            colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
-                            shape = RoundedCornerShape(12.dp)
+                            colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
+                            shape = RoundedCornerShape(50),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .bounceClick(scaleDown = 0.95f)
                         ) {
-                            Text("+ Create a Service", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text(
+                                "+ Add a service",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                color = CardWhite
+                            )
                         }
                     }
                 }
@@ -576,10 +791,16 @@ fun ProfileScreen(
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Surface(color = HoneyTint, shape = RoundedCornerShape(6.dp)) {
+                                            Surface(
+                                                color = HoneyTint,
+                                                shape = RoundedCornerShape(6.dp)
+                                            ) {
                                                 Text(
                                                     text = listing.category.uppercase(),
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                    modifier = Modifier.padding(
+                                                        horizontal = 6.dp,
+                                                        vertical = 2.dp
+                                                    ),
                                                     fontSize = 9.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     color = Charcoal
@@ -622,7 +843,9 @@ fun ProfileScreen(
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         // Pause / Resume Toggle
                                         IconButton(
-                                            onClick = { listingViewModel.toggleListingStatus(listing.id) },
+                                            onClick = {
+                                                listingViewModel.toggleListingStatus(listing.id)
+                                            },
                                             modifier = Modifier
                                                 .size(32.dp)
                                                 .clip(CircleShape)
@@ -639,13 +862,29 @@ fun ProfileScreen(
                                         // Edit Button
                                         Button(
                                             onClick = { editingListing = listing },
-                                            colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = Charcoal,
+                                                contentColor = CardWhite
+                                            ),
                                             shape = RoundedCornerShape(10.dp),
-                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                                            contentPadding = PaddingValues(
+                                                horizontal = 12.dp,
+                                                vertical = 4.dp
+                                            )
                                         ) {
-                                            Icon(Icons.Outlined.Edit, contentDescription = "Edit", modifier = Modifier.size(13.dp))
+                                            Icon(
+                                                Icons.Outlined.Edit,
+                                                contentDescription = "Edit",
+                                                tint = CardWhite,
+                                                modifier = Modifier.size(13.dp)
+                                            )
                                             Spacer(Modifier.width(4.dp))
-                                            Text("EDIT", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                            Text(
+                                                "EDIT",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 11.sp,
+                                                color = CardWhite
+                                            )
                                         }
                                     }
                                 }
@@ -759,9 +998,19 @@ fun ProfileScreen(
                                     }
 
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Filled.Star, contentDescription = null, tint = Honey, modifier = Modifier.size(13.dp))
+                                        Icon(
+                                            Icons.Filled.Star,
+                                            contentDescription = null,
+                                            tint = Charcoal,
+                                            modifier = Modifier.size(13.dp)
+                                        )
                                         Spacer(Modifier.width(2.dp))
-                                        Text("%.1f".format(review.rating), fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Charcoal)
+                                        Text(
+                                            "%.1f".format(review.rating),
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.sp,
+                                            color = Charcoal
+                                        )
                                     }
                                 }
 
@@ -803,62 +1052,76 @@ fun ProfileScreen(
 
         Spacer(Modifier.height(20.dp))
 
-        // Helpdesk & Support Card
+        // Unified Bottom Menu Card (Helpdesk & FAQ + Log out)
         Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onHelpdeskClick),
+            modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = CardWhite),
             border = BorderStroke(1.dp, Hairline)
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.Security, contentDescription = null, tint = Charcoal, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(12.dp))
-                    Column {
-                        Text("Helpdesk & FAQ", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Charcoal)
-                        Text("Campus safety, reports & guidelines", fontSize = 11.sp, color = MutedText)
+            Column {
+                // Helpdesk Row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onHelpdeskClick)
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Outlined.Security,
+                            contentDescription = null,
+                            tint = Charcoal,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                "Helpdesk & FAQ",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = Charcoal
+                            )
+                            Text(
+                                "Campus safety, reports & guidelines",
+                                fontSize = 11.sp,
+                                color = MutedText
+                            )
+                        }
                     }
+                    Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MutedText)
                 }
-                Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MutedText)
-            }
-        }
 
-        Spacer(Modifier.height(12.dp))
+                HorizontalDivider(color = Hairline)
 
-        // Log Out Card
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable {
-                    authViewModel.signOut {
-                        onSignOutClick()
+                // Log out Row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showSignOutConfirmDialog = true }
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.AutoMirrored.Outlined.ExitToApp,
+                            contentDescription = null,
+                            tint = Color(0xFFD32F2F),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            "Log out",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = Color(0xFFD32F2F)
+                        )
                     }
-                },
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = CardWhite),
-            border = BorderStroke(1.dp, Hairline)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.AutoMirrored.Outlined.ExitToApp, contentDescription = null, tint = Color(0xFFD32F2F), modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(12.dp))
-                    Text("Log Out", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFFD32F2F))
+                    Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MutedText)
                 }
-                Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MutedText)
             }
         }
 

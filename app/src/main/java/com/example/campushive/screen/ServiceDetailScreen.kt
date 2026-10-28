@@ -131,7 +131,7 @@ fun ServiceDetailScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Cream)
+            .background(CardWhite)
     ) {
         Column(
             modifier = Modifier
@@ -192,7 +192,7 @@ fun ServiceDetailScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .statusBarsPadding()
-                        .padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 12.dp),
+                        .padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -275,7 +275,7 @@ fun ServiceDetailScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Surface(
-                        color = Color(0xFFFFF7DB),
+                        color = HoneyTint,
                         shape = RoundedCornerShape(20.dp)
                     ) {
                         Text(
@@ -283,12 +283,13 @@ fun ServiceDetailScreen(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF8C6B10)
+                            color = Charcoal
                         )
                     }
 
                     Surface(
-                        color = Color(0xFFF6F3EE),
+                        color = CardWhite,
+                        border = BorderStroke(1.dp, Hairline),
                         shape = RoundedCornerShape(20.dp)
                     ) {
                         Row(
@@ -393,7 +394,7 @@ fun ServiceDetailScreen(
                                 modifier = Modifier
                                     .size(44.dp)
                                     .clip(CircleShape)
-                                    .background(Honey),
+                                    .background(HoneyTint),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
@@ -507,7 +508,7 @@ fun ServiceDetailScreen(
 
                         if (!isOwnListing) {
                             Surface(
-                                color = Honey,
+                                color = HoneyTint,
                                 shape = RoundedCornerShape(16.dp),
                                 modifier = Modifier
                                     .clickable { showReviewDialog = true }
@@ -565,11 +566,11 @@ fun ServiceDetailScreen(
                                     Spacer(Modifier.height(10.dp))
                                     Button(
                                         onClick = { showReviewDialog = true },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
                                         shape = RoundedCornerShape(12.dp),
                                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
                                     ) {
-                                        Text("Write a Review", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        Text("Write a Review", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = CardWhite)
                                     }
                                 }
                             }
@@ -734,7 +735,7 @@ fun ServiceDetailScreen(
                     Icon(
                         imageVector = Icons.Outlined.ChatBubbleOutline,
                         contentDescription = null,
-                        tint = Honey,
+                        tint = HoneyTint,
                         modifier = Modifier.size(16.dp)
                     )
                 }

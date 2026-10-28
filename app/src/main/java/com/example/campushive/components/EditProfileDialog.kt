@@ -173,11 +173,11 @@ fun EditProfileDialog(
                                 onSave(displayName, bio, campusLocation, facultyOrMajor, phoneNumber)
                             }
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
+                        colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
                         shape = RoundedCornerShape(12.dp),
                         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
                     ) {
-                        Text("Save Profile", fontWeight = FontWeight.Bold)
+                        Text("Save Profile", fontWeight = FontWeight.Bold, color = CardWhite)
                     }
                 }
             }

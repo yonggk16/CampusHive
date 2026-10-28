@@ -107,13 +107,13 @@ fun SignUpScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Cream)
+            .background(HoneyBottomGradient)
             .statusBarsPadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 20.dp),
         horizontalAlignment = Alignment.Start
     ) {
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(30.dp))
 
         // App Logo
         Image(

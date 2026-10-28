@@ -56,11 +56,13 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campushive.components.ReportDialog
+import com.example.campushive.components.ServiceCategoryIconBox
 import com.example.campushive.model.ChatMessage
 import com.example.campushive.model.ReportType
 import com.example.campushive.ui.theme.*
 import com.example.campushive.viewmodel.ChatViewModel
 import com.example.campushive.viewmodel.HelpdeskViewModel
+import com.example.campushive.viewmodel.ListingViewModel
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import java.io.ByteArrayOutputStream
@@ -83,6 +85,7 @@ fun ChatDetailScreen(
     studentName: String,
     serviceTitle: String,
     chatViewModel: ChatViewModel = viewModel(),
+    listingViewModel: ListingViewModel = viewModel(),
     helpdeskViewModel: HelpdeskViewModel = viewModel(),
     onBackClick: () -> Unit,
     onViewServiceClick: (String) -> Unit = {}
@@ -108,8 +111,8 @@ fun ChatDetailScreen(
     val userLastSeenMillis by chatViewModel.userLastSeenMillis.collectAsState()
     val listState = rememberLazyListState()
 
-    val currentUid = remember { Firebase.auth.currentUser?.uid ?: "" }
-    val myName = remember {
+    val currentUid = Firebase.auth.currentUser?.uid ?: ""
+    val myName = run {
         val user = Firebase.auth.currentUser
         user?.displayName?.trim()?.takeIf { it.isNotBlank() }
             ?: user?.email?.substringBefore("@")?.trim()
@@ -122,7 +125,26 @@ fun ChatDetailScreen(
 
     val resolvedListingId = remember(currentConversation, chatId) {
         currentConversation?.listingId?.takeIf { it.isNotBlank() }
-            ?: chatId.removePrefix("chat_")
+            ?: ChatViewModel.extractListingIdFromChatId(chatId)
+    }
+
+    val allListings by listingViewModel.listings.collectAsState()
+
+    val matchedListing = remember(allListings, resolvedListingId, serviceTitle) {
+        allListings.find { it.id == resolvedListingId }
+            ?: allListings.find { it.title.equals(serviceTitle, ignoreCase = true) }
+            ?: allListings.find { it.title.contains(serviceTitle, ignoreCase = true) || serviceTitle.contains(it.title, ignoreCase = true) }
+    }
+
+    val resolvedCategory = remember(matchedListing, serviceTitle) {
+        matchedListing?.category?.takeIf { it.isNotBlank() }
+            ?: when {
+                serviceTitle.contains("tutor", ignoreCase = true) -> "Tutoring"
+                serviceTitle.contains("design", ignoreCase = true) -> "Design"
+                serviceTitle.contains("tech", ignoreCase = true) || serviceTitle.contains("laptop", ignoreCase = true) || serviceTitle.contains("code", ignoreCase = true) -> "Tech Help"
+                serviceTitle.contains("errand", ignoreCase = true) -> "Errands"
+                else -> "Errands"
+            }
     }
 
     // Always resolve the counterpart's name from ChatViewModel so a Provider sees the Seeker's name
@@ -273,7 +295,7 @@ fun ChatDetailScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Cream)
+            .background(CardWhite)
             .statusBarsPadding()
     ) {
         // Top Header Bar
@@ -285,7 +307,7 @@ fun ChatDetailScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 8.dp, end = 8.dp, top = 14.dp, bottom = 8.dp),
+                        .padding(start = 8.dp, end = 8.dp, top = 24.dp, bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onBackClick) {
@@ -301,7 +323,7 @@ fun ChatDetailScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .clip(CircleShape)
-                                .background(Honey),
+                                .background(HoneyTint),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -316,7 +338,7 @@ fun ChatDetailScreen(
                                 .align(Alignment.BottomEnd)
                                 .size(12.dp)
                                 .clip(CircleShape)
-                                .background(if (isPartnerOnline) VerifiedGreen else Color(0xFFB0ADA6))
+                                .background(if (isPartnerOnline) OnlineGreen else OfflineGrey)
                                 .border(2.dp, CardWhite, CircleShape)
                         )
                     }
@@ -330,25 +352,14 @@ fun ChatDetailScreen(
                             fontSize = 15.sp,
                             color = Charcoal
                         )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(CircleShape)
-                                    .background(if (isPartnerOnline) VerifiedGreen else Color(0xFFB0ADA6))
-                            )
-                            Text(
-                                text = statusLabel,
-                                fontSize = 11.sp,
-                                color = if (isPartnerOnline) VerifiedGreen else MutedText,
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
+                        Text(
+                            text = statusLabel,
+                            fontSize = 11.sp,
+                            color = if (isPartnerOnline) OnlineGreen else MutedText,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
 
                     // 3 vertical dots menu for reporting
@@ -417,7 +428,7 @@ fun ChatDetailScreen(
                                     Icon(
                                         imageVector = Icons.Outlined.Flag,
                                         contentDescription = null,
-                                        tint = Color(0xFF8C6B10),
+                                        tint = HoneyTint,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 },
@@ -484,15 +495,13 @@ fun ChatDetailScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFFEFEBFF)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Outlined.CropSquare, contentDescription = null, tint = Color(0xFF6C5CE7), modifier = Modifier.size(16.dp))
-                            }
+                            ServiceCategoryIconBox(
+                                category = resolvedCategory,
+                                size = 36.dp,
+                                shape = RoundedCornerShape(10.dp),
+                                symbolFontSize = 14.sp,
+                                iconSize = 18.dp
+                            )
                             Spacer(Modifier.width(10.dp))
                             Column {
                                 Text(serviceTitle, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Charcoal)
@@ -501,7 +510,7 @@ fun ChatDetailScreen(
                         }
 
                         Surface(
-                            color = Color(0xFFFFF7DB),
+                            color = HoneyTint,
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Text(
@@ -509,7 +518,7 @@ fun ChatDetailScreen(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF8C6B10)
+                                color = Charcoal
                             )
                         }
                     }
@@ -599,8 +608,8 @@ fun ChatDetailScreen(
                 // Inline Editing Message Banner Bar
                 editingMessage?.let { editing ->
                     Surface(
-                        color = Color(0xFFFFF7DB),
-                        border = BorderStroke(1.dp, Honey),
+                        color = CardWhite,
+                        border = BorderStroke(1.dp, Hairline),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -626,7 +635,7 @@ fun ChatDetailScreen(
                                         text = "Editing message",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF8C6B10)
+                                        color = MutedText
                                     )
                                     Text(
                                         text = editing.text,
@@ -665,12 +674,12 @@ fun ChatDetailScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = Color(0xFFFFF7DB),
-                            border = BorderStroke(1.dp, Honey),
+                            shape = RoundedCornerShape(20.dp),
+                            color = HoneyTint,
+                            border = BorderStroke(1.dp, Hairline),
                             modifier = Modifier
                                 .weight(1f)
-                                .clickable { imagePickerLauncher.launch("image/*") }
+                                .bounceClick(scaleDown = 0.94f) { imagePickerLauncher.launch("image/*") }
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
@@ -694,12 +703,12 @@ fun ChatDetailScreen(
                         }
 
                         Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = Color(0xFFEFEBFF),
-                            border = BorderStroke(1.dp, Color(0xFFD0C6FF)),
+                            shape = RoundedCornerShape(20.dp),
+                            color = CardWhite,
+                            border = BorderStroke(1.dp, Hairline),
                             modifier = Modifier
                                 .weight(1f)
-                                .clickable { filePickerLauncher.launch("*/*") }
+                                .bounceClick(scaleDown = 0.94f) { filePickerLauncher.launch("*/*") }
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
@@ -709,7 +718,7 @@ fun ChatDetailScreen(
                                 Icon(
                                     imageVector = Icons.Outlined.Description,
                                     contentDescription = "Attach File",
-                                    tint = Color(0xFF4834D4),
+                                    tint = Charcoal,
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Spacer(Modifier.width(8.dp))
@@ -727,7 +736,7 @@ fun ChatDetailScreen(
                 // Staged Attachment Preview Bar before sending
                 pendingAttachment?.let { staged ->
                     Surface(
-                        color = Cream,
+                        color = CardWhite,
                         shape = RoundedCornerShape(14.dp),
                         border = BorderStroke(1.dp, Hairline),
                         modifier = Modifier
@@ -808,7 +817,7 @@ fun ChatDetailScreen(
                         modifier = Modifier
                             .size(38.dp)
                             .clip(CircleShape)
-                            .background(if (showAttachMenu) Honey else Cream)
+                            .background(if (showAttachMenu) Honey else CardWhite)
                             .clickable { showAttachMenu = !showAttachMenu },
                         contentAlignment = Alignment.Center
                     ) {
@@ -879,8 +888,8 @@ fun ChatDetailScreen(
                                 }
                             }
                         },
-                        containerColor = Honey,
-                        contentColor = Charcoal,
+                        containerColor = Charcoal,
+                        contentColor = CardWhite,
                         modifier = Modifier.size(42.dp),
                         shape = CircleShape
                     ) {

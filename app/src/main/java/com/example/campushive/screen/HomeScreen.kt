@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Palette
@@ -21,6 +22,9 @@ import androidx.compose.material.icons.outlined.School
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,9 +35,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campushive.model.Listing
 import com.example.campushive.ui.theme.*
@@ -50,55 +51,61 @@ private data class ServiceCategory(
 )
 
 private val homeCategories = listOf(
-    ServiceCategory("tutoring", "Tutoring", Color(0xFFEFEBFF), Icons.Outlined.School, "Σ"),
-    ServiceCategory("design", "Design", Color(0xFFFFEBDD), Icons.Outlined.Palette, "✎"),
-    ServiceCategory("tech", "Tech Help", Color(0xFFE4F0FF), Icons.Outlined.Code, "</>"),
-    ServiceCategory("errands", "Errands", Color(0xFFE3F7EC), Icons.Filled.Check, "✓")
+    ServiceCategory("tutoring", "Tutoring", CardWhite, Icons.Outlined.School, "Σ"),
+    ServiceCategory("design", "Design", CardWhite, Icons.Outlined.Palette, "✎"),
+    ServiceCategory("tech", "Tech Help", CardWhite, Icons.Outlined.Code, "</>"),
+    ServiceCategory("errands", "Errands", CardWhite, Icons.Filled.Check, "✓"),
+    ServiceCategory("others", "Others", CardWhite, Icons.Outlined.Category, "✦")
 )
 
 private data class QuickHelpItem(
-    val iconBg: Color,
-    val iconSymbol: String,
     val title: String,
     val categoryQuery: String
 )
 
 private val quickHelpItems = listOf(
-    QuickHelpItem(Color(0xFFEFEBFF), "Σ", "Study for an exam", "Tutoring"),
-    QuickHelpItem(Color(0xFFFFEBDD), "✎", "Design a poster", "Design"),
-    QuickHelpItem(Color(0xFFE4F0FF), "</>", "Fix my code or laptop", "Tech Help")
+    QuickHelpItem( "Study for an exam", "Tutoring"),
+    QuickHelpItem( "Design a poster", "Design"),
+    QuickHelpItem( "Fix my code or laptop", "Tech Help")
 )
 
 @Composable
 fun HomeScreen(
-    authViewModel: AuthViewModel = viewModel(),
     listingViewModel: ListingViewModel = viewModel(),
+    authViewModel: AuthViewModel = viewModel(),
     chatViewModel: ChatViewModel = viewModel(),
     onListingClick: (Listing) -> Unit = {},
-    onNavigateToSearch: (category: String) -> Unit = {},
-    onSearchBarClick: () -> Unit = { onNavigateToSearch("") },
+    onNavigateToSearch: (String) -> Unit = {},
+    onSearchBarClick: () -> Unit = {},
     onNavigateToCreateService: () -> Unit = {},
-    onOpenChat: (chatId: String, studentName: String, serviceTitle: String) -> Unit = { _, _, _ -> }
+    onOpenChat: (String, String, String) -> Unit = { _, _, _ -> }
 ) {
     val context = LocalContext.current
     val liveListings by listingViewModel.listings.collectAsState()
-    val conversations by chatViewModel.conversations.collectAsState()
-    val upNextChat = remember(conversations) { conversations.firstOrNull() }
     val userProfile by authViewModel.userProfile.collectAsState()
-    val currentUserName = userProfile?.displayName?.takeIf { it.isNotBlank() } ?: authViewModel.currentUser?.displayName?.takeIf { it.isNotBlank() } ?: "Student"
-    val isVerified = authViewModel.isEmailVerified || userProfile?.isVerifiedStudent == true
+    val conversations by chatViewModel.conversations.collectAsState()
+
+    val upNextChat = remember(conversations) {
+        conversations.firstOrNull { it.unreadCount > 0 || it.lastMessage.isNotBlank() }
+    }
+
+    val currentUserName = userProfile?.displayName.orEmpty().ifBlank {
+        authViewModel.currentUser?.displayName.orEmpty().ifBlank {
+            authViewModel.currentUser?.email?.substringBefore("@").orEmpty().ifBlank { "Student" }
+        }
+    }
+
     val firstName = currentUserName.split(" ").firstOrNull() ?: "Student"
-    val initials = currentUserName.split(" ").mapNotNull { it.firstOrNull()?.toString() }.take(2).joinToString("").ifBlank { "CH" }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Cream)
+            .background(HoneyBottomGradient)
             .statusBarsPadding()
             .verticalScroll(rememberScrollState())
             .padding(bottom = 96.dp)
     ) {
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(28.dp))
 
         // 1. Top Greeting Row ("Hi, $firstName" + Notification Bell Button)
         Row(
@@ -138,7 +145,7 @@ fun HomeScreen(
 
         Spacer(Modifier.height(14.dp))
 
-        // 2. Search Services Bar (Seamless handoff to SearchScreen with instant keyboard focus)
+        // 2. Search Services Bar
         Surface(
             shape = RoundedCornerShape(50),
             color = CardWhite,
@@ -174,7 +181,7 @@ fun HomeScreen(
 
         Spacer(Modifier.height(12.dp))
 
-        // 3. Up Next Dark Card (Only rendered when engaged in an active service/chat)
+        // 3. Up Next Card
         if (upNextChat != null) {
             Card(
                 modifier = Modifier
@@ -199,7 +206,7 @@ fun HomeScreen(
                             text = "UP NEXT · ${upNextChat.timestamp.uppercase()}",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Honey,
+                            color = CardWhite.copy(alpha = 0.7f),
                             letterSpacing = 0.6.sp
                         )
                         Spacer(Modifier.height(2.dp))
@@ -254,7 +261,7 @@ fun HomeScreen(
                 text = "See all",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF7B5800),
+                color = MutedText,
                 modifier = Modifier.bounceClick { onNavigateToSearch("") }
             )
         }
@@ -274,7 +281,8 @@ fun HomeScreen(
                         .clip(RoundedCornerShape(24.dp))
                         .bounceClick(scaleDown = 0.94f) { onNavigateToSearch(cat.name) },
                     shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = cat.backgroundColor),
+                    colors = CardDefaults.cardColors(containerColor = CardWhite),
+                    border = BorderStroke(1.dp, Hairline),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Column(
@@ -287,7 +295,7 @@ fun HomeScreen(
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(RoundedCornerShape(13.dp))
-                                .background(CardWhite.copy(alpha = 0.75f)),
+                                .background(HoneyTint),
                             contentAlignment = Alignment.Center
                         ) {
                             if (cat.symbolText != null) {
@@ -326,7 +334,7 @@ fun HomeScreen(
                             Text(
                                 text = countText,
                                 fontSize = 12.sp,
-                                color = Charcoal.copy(alpha = 0.75f),
+                                color = MutedText,
                                 letterSpacing = 0.2.sp
                             )
                         }
@@ -367,22 +375,8 @@ fun HomeScreen(
                                 .padding(horizontal = 14.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(38.dp)
-                                    .clip(RoundedCornerShape(13.dp))
-                                    .background(item.iconBg),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = item.iconSymbol,
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = Charcoal
-                                )
-                            }
 
-                            Spacer(Modifier.width(12.dp))
+                            Spacer(Modifier.width(4.dp))
 
                             Text(
                                 text = item.title,
@@ -394,20 +388,23 @@ fun HomeScreen(
 
                             Surface(
                                 shape = RoundedCornerShape(50),
-                                color = Color(0xFFFFF1C9),
+                                color = Charcoal,
+                                border = BorderStroke(1.dp, Color(0xFF8C6B10)),
                                 modifier = Modifier.bounceClick(scaleDown = 0.92f) { onNavigateToSearch(item.categoryQuery) }
                             ) {
                                 Box(
+
                                     modifier = Modifier
                                         .height(32.dp)
                                         .padding(horizontal = 16.dp),
                                     contentAlignment = Alignment.Center
+
                                 ) {
                                     Text(
                                         text = "Find",
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFF5D4200)
+                                        color = CardWhite
                                     )
                                 }
                             }
@@ -434,7 +431,8 @@ fun HomeScreen(
                 .padding(horizontal = 20.dp)
                 .bounceClick(scaleDown = 0.98f) { onNavigateToCreateService() },
             shape = RoundedCornerShape(22.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF1C9)),
+            colors = CardDefaults.cardColors(containerColor = CardWhite),
+            border = BorderStroke(1.dp, Hairline),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column(
@@ -444,7 +442,7 @@ fun HomeScreen(
                     text = "WHAT'S NEW",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF7B5800),
+                    color = MutedText,
                     letterSpacing = 0.6.sp
                 )
 
