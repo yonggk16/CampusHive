@@ -7,7 +7,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -62,12 +63,13 @@ fun CampusHiveApp() {
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = { if (showBottomBar) BottomBar(navController) },
-    ) { padding ->
+    ) { _ ->
         NavHost(
             navController = navController,
             startDestination = startDestination,
-            modifier = Modifier.padding(padding),
+            modifier = Modifier.fillMaxSize(),
             enterTransition = {
                 fadeIn(animationSpec = tween(180)) +
                     scaleIn(
@@ -205,10 +207,11 @@ fun CampusHiveApp() {
                         navController.popBackStack()
                     },
                     onServiceCreated = {
-                        navController.navigate(Screen.Search.route) {
+                        listingViewModel.setSelectedCategory("All Categories")
+                        navController.navigate("search?category=All%20Categories&focusSearch=false") {
                             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                             launchSingleTop = true
-                            restoreState = true
+                            restoreState = false
                         }
                     }
                 )

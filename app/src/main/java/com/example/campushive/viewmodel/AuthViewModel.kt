@@ -7,6 +7,7 @@ import com.example.campushive.model.UserProfile
 import com.google.firebase.Firebase
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -60,7 +61,8 @@ class AuthViewModel(
                             uid = user.uid,
                             displayName = user.displayName.orEmpty().ifBlank { "Student User" },
                             email = user.email.orEmpty(),
-                            isVerifiedStudent = user.isEmailVerified
+                            isVerifiedStudent = user.isEmailVerified,
+                            isModerator = HelpdeskViewModel.isModeratorEmail(user.email)
                         )
                     }
                 }
@@ -73,6 +75,12 @@ class AuthViewModel(
     fun login(email: String, password: String, onSuccess: () -> Unit) {
         if (email.isBlank() || password.isBlank()) {
             _uiState.value = AuthUiState.Error("Please enter your student email and password.")
+            return
+        }
+
+        val emailError = validateEmail(email)
+        if (emailError != null) {
+            _uiState.value = AuthUiState.Error(emailError)
             return
         }
 
@@ -102,12 +110,21 @@ class AuthViewModel(
             _uiState.value = AuthUiState.Error("Please fill in all required fields.")
             return
         }
+
+        val emailError = validateEmail(email)
+        if (emailError != null) {
+            _uiState.value = AuthUiState.Error(emailError)
+            return
+        }
+
         if (password != confirmPassword) {
             _uiState.value = AuthUiState.Error("Passwords do not match.")
             return
         }
-        if (password.length < 6) {
-            _uiState.value = AuthUiState.Error("Password must be at least 6 characters.")
+
+        val passwordError = validatePassword(password)
+        if (passwordError != null) {
+            _uiState.value = AuthUiState.Error(passwordError)
             return
         }
 
@@ -129,7 +146,8 @@ class AuthViewModel(
                             uid = user.uid,
                             displayName = fullName.trim(),
                             email = email.trim(),
-                            isVerifiedStudent = false
+                            isVerifiedStudent = false,
+                            isModerator = HelpdeskViewModel.isModeratorEmail(email)
                         )
                         viewModelScope.launch {
                             repository.saveUserProfile(initialProfile)
@@ -254,6 +272,12 @@ class AuthViewModel(
             return
         }
 
+        val emailError = validateEmail(email)
+        if (emailError != null) {
+            _uiState.value = AuthUiState.Error(emailError)
+            return
+        }
+
         _uiState.value = AuthUiState.Loading
         auth.sendPasswordResetEmail(email.trim())
             .addOnCompleteListener { task ->
@@ -294,5 +318,74 @@ class AuthViewModel(
 
     fun clearUiState() {
         _uiState.value = AuthUiState.Idle
+    }
+
+    companion object {
+        val ALLOWED_DOMAINS = listOf("@helplive.edu.my", "@gmail.com")
+
+        fun validateEmail(email: String): String? {
+            val trimmed = email.trim().lowercase()
+            if (trimmed.isBlank()) {
+                return "Please enter your email."
+            }
+            if (ALLOWED_DOMAINS.none { trimmed.endsWith(it) }) {
+                return "Email must end with @helplive.edu.my or @gmail.com."
+            }
+            return null
+        }
+
+        fun validatePassword(password: String): String? {
+            if (password.length < 8) {
+                return "Password must be at least 8 characters long."
+            }
+            if (!password.any { it.isUpperCase() }) {
+                return "Password must contain at least one uppercase letter (A-Z)."
+            }
+            if (!password.any { it.isLowerCase() }) {
+                return "Password must contain at least one lowercase letter (a-z)."
+            }
+            if (!password.any { !it.isLetterOrDigit() }) {
+                return "Password must contain at least one special character (e.g. !@#$%^&*)."
+            }
+            return null
+        }
+    }
+    fun signInWithGoogle(idToken: String, onSuccess: () -> Unit) {
+        _uiState.value = AuthUiState.Loading
+        val credential = GoogleAuthProvider.getCredential(idToken, null)
+
+        auth.signInWithCredential(credential)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    val user = auth.currentUser
+                    val email = user?.email.orEmpty()
+
+                    // Validate allowed email domain if needed (@helplive.edu.my or @gmail.com)
+                    if (ALLOWED_DOMAINS.none { email.lowercase().endsWith(it) }) {
+                        auth.signOut()
+                        _uiState.value = AuthUiState.Error("Only @helplive.edu.my or @gmail.com accounts are allowed.")
+                        return@addOnCompleteListener
+                    }
+
+                    // Sync user profile to Firestore
+                    val profile = UserProfile(
+                        uid = user?.uid.orEmpty(),
+                        displayName = user?.displayName.orEmpty().ifBlank { "Student User" },
+                        email = email,
+                        isVerifiedStudent = true,
+                        isModerator = HelpdeskViewModel.isModeratorEmail(email)
+                    )
+                    viewModelScope.launch {
+                        repository.saveUserProfile(profile)
+                        updateUserPresence(isOnline = true)
+                        _uiState.value = AuthUiState.Success("Signed in with Google!")
+                        fetchUserProfile()
+                        onSuccess()
+                    }
+                } else {
+                    val msg = task.exception?.localizedMessage ?: "Google Sign-In failed."
+                    _uiState.value = AuthUiState.Error(msg)
+                }
+            }
     }
 }

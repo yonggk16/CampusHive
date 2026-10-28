@@ -1,6 +1,9 @@
 package com.example.campushive.screen
 
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -12,11 +15,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -25,6 +31,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -32,6 +39,9 @@ import com.example.campushive.R
 import com.example.campushive.ui.theme.*
 import com.example.campushive.viewmodel.AuthUiState
 import com.example.campushive.viewmodel.AuthViewModel
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 
 @Composable
 fun SignUpScreen(
@@ -45,8 +55,39 @@ fun SignUpScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+    var isPasswordVisible by remember { mutableStateOf(false) }
+    var isConfirmPasswordVisible by remember { mutableStateOf(false) }
 
     val isLoading = uiState is AuthUiState.Loading
+
+    val webClientId = "1052933591746-mmdnqdaikfeqdeiqh15gdehkell39c19.apps.googleusercontent.com"
+
+    val gso = remember {
+        GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(webClientId)
+            .requestEmail()
+            .build()
+    }
+    val googleSignInClient = remember { GoogleSignIn.getClient(context, gso) }
+
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            val idToken = account?.idToken
+            if (idToken != null) {
+                authViewModel.signInWithGoogle(idToken) {
+                    onSignUpSuccess()
+                }
+            } else {
+                Toast.makeText(context, "Failed to retrieve Google token", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            Toast.makeText(context, "Google Sign-In failed or cancelled", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     // Observe UiState for messages
     LaunchedEffect(uiState) {
@@ -72,7 +113,7 @@ fun SignUpScreen(
             .padding(horizontal = 24.dp, vertical = 20.dp),
         horizontalAlignment = Alignment.Start
     ) {
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(20.dp))
 
         // App Logo
         Image(
@@ -107,7 +148,7 @@ fun SignUpScreen(
         Spacer(Modifier.height(8.dp))
 
         Text(
-            text = "Get verified with your campus email to list services or hire peers.",
+            text = "Get verified with your email (@helplive.edu.my or @gmail.com) to list services or hire peers.",
             fontSize = 13.sp,
             color = MutedText,
             lineHeight = 18.sp
@@ -125,20 +166,29 @@ fun SignUpScreen(
             Column(Modifier.padding(16.dp)) {
                 Text("FULL NAME", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MutedText, letterSpacing = 0.8.sp)
                 Spacer(Modifier.height(6.dp))
-                BasicTextField(
-                    value = fullName,
-                    onValueChange = { fullName = it },
-                    textStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Charcoal),
-                    cursorBrush = SolidColor(Honey),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    if (fullName.isEmpty()) {
+                        Text(
+                            text = "Ahmad Ali",
+                            fontSize = 15.sp,
+                            color = MutedText.copy(alpha = 0.5f)
+                        )
+                    }
+                    BasicTextField(
+                        value = fullName,
+                        onValueChange = { fullName = it },
+                        textStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Charcoal),
+                        cursorBrush = SolidColor(Honey),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
         }
 
         Spacer(Modifier.height(12.dp))
 
-        // UNIVERSITY EMAIL Card
+        // EMAIL Card
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
@@ -146,17 +196,26 @@ fun SignUpScreen(
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column(Modifier.padding(16.dp)) {
-                Text("UNIVERSITY EMAIL", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MutedText, letterSpacing = 0.8.sp)
+                Text("EMAIL", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MutedText, letterSpacing = 0.8.sp)
                 Spacer(Modifier.height(6.dp))
-                BasicTextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    textStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Charcoal),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    cursorBrush = SolidColor(Honey),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    if (email.isEmpty()) {
+                        Text(
+                            text = "@helplive.edu.my or @gmail.com",
+                            fontSize = 15.sp,
+                            color = MutedText.copy(alpha = 0.5f)
+                        )
+                    }
+                    BasicTextField(
+                        value = email,
+                        onValueChange = { email = it },
+                        textStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Charcoal),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                        cursorBrush = SolidColor(Honey),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
         }
 
@@ -172,16 +231,42 @@ fun SignUpScreen(
             Column(Modifier.padding(16.dp)) {
                 Text("PASSWORD", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MutedText, letterSpacing = 0.8.sp)
                 Spacer(Modifier.height(6.dp))
-                BasicTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    textStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Charcoal),
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    cursorBrush = SolidColor(Honey),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        if (password.isEmpty()) {
+                            Text(
+                                text = "Min. 8 chars (upper, lower & special)",
+                                fontSize = 15.sp,
+                                color = MutedText.copy(alpha = 0.5f)
+                            )
+                        }
+                        BasicTextField(
+                            value = password,
+                            onValueChange = { password = it },
+                            textStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Charcoal),
+                            visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            cursorBrush = SolidColor(Honey),
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { isPasswordVisible = !isPasswordVisible },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isPasswordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                            contentDescription = if (isPasswordVisible) "Hide password" else "Show password",
+                            tint = MutedText,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
             }
         }
 
@@ -197,16 +282,42 @@ fun SignUpScreen(
             Column(Modifier.padding(16.dp)) {
                 Text("CONFIRM PASSWORD", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MutedText, letterSpacing = 0.8.sp)
                 Spacer(Modifier.height(6.dp))
-                BasicTextField(
-                    value = confirmPassword,
-                    onValueChange = { confirmPassword = it },
-                    textStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Charcoal),
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    cursorBrush = SolidColor(Honey),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        if (confirmPassword.isEmpty()) {
+                            Text(
+                                text = "Re-enter your password",
+                                fontSize = 15.sp,
+                                color = MutedText.copy(alpha = 0.5f)
+                            )
+                        }
+                        BasicTextField(
+                            value = confirmPassword,
+                            onValueChange = { confirmPassword = it },
+                            textStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Charcoal),
+                            visualTransformation = if (isConfirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            cursorBrush = SolidColor(Honey),
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { isConfirmPasswordVisible = !isConfirmPasswordVisible },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isConfirmPasswordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                            contentDescription = if (isConfirmPasswordVisible) "Hide password" else "Show password",
+                            tint = MutedText,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
             }
         }
 
@@ -246,6 +357,29 @@ fun SignUpScreen(
                     modifier = Modifier.size(18.dp)
                 )
             }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        OutlinedButton(
+            onClick = {
+                googleSignInClient.signOut()
+                googleSignInLauncher.launch(googleSignInClient.signInIntent)
+            },
+            enabled = !isLoading,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(50),
+            border = BorderStroke(1.dp, Hairline),
+            colors = ButtonDefaults.outlinedButtonColors(containerColor = CardWhite, contentColor = Charcoal)
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_google),
+                contentDescription = "Google Logo",
+                tint = Color.Unspecified,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(Modifier.width(10.dp))
+            Text("Continue with Google", fontWeight = FontWeight.Bold, fontSize = 14.sp)
         }
 
         Spacer(Modifier.height(16.dp))

@@ -97,9 +97,9 @@ fun SearchScreen(
     LaunchedEffect(initialCategory) {
         if (initialCategory.isNotBlank()) {
             listingViewModel.setSelectedCategory(initialCategory)
-            searchQuery = ""
-            selectedPriceFilter = "All Prices"
         }
+        searchQuery = ""
+        selectedPriceFilter = "All Prices"
     }
 
     // Automatically focus the search input and show the soft keyboard when transitioning from the Home Screen search bar
@@ -157,7 +157,7 @@ fun SearchScreen(
             .statusBarsPadding()
     ) {
         LazyColumn(
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 90.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 90.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxSize()
         ) {

@@ -183,7 +183,7 @@ fun ProfileScreen(
             .background(Cream)
             .statusBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp)
+            .padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 96.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -350,7 +350,7 @@ fun ProfileScreen(
 
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(jobsDoneCount.toString(), fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Charcoal)
-                        Text("JOBS DONE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MutedText)
+                        Text("JOBS LISTED", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MutedText)
                     }
 
                     HorizontalDivider(modifier = Modifier.height(28.dp).width(1.dp), color = Hairline)

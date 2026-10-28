@@ -66,7 +66,7 @@ fun CreateServiceScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
+                .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -409,6 +409,7 @@ fun CreateServiceScreen(
                         )
 
                         listingViewModel.addListing(newListing)
+                        listingViewModel.setSelectedCategory("All Categories")
                         Toast.makeText(context, "Listing published live to Cloud Firestore!", Toast.LENGTH_SHORT).show()
                         onServiceCreated()
                     }

@@ -43,7 +43,11 @@ class ListingViewModel(
         // Stream live active public listings from Cloud Firestore
         viewModelScope.launch {
             repository.getListingsFlow().collect { firestoreListings ->
-                _listings.value = firestoreListings
+                val currentListings = _listings.value
+                val localOnly = currentListings.filter { localItem ->
+                    firestoreListings.none { it.id == localItem.id }
+                }
+                _listings.value = (localOnly + firestoreListings).sortedByDescending { it.createdAt }
             }
         }
 
@@ -55,7 +59,11 @@ class ListingViewModel(
         val currentUid = Firebase.auth.currentUser?.uid.orEmpty()
         viewModelScope.launch {
             repository.getMyListingsFlow(currentUid).collect { userListings ->
-                _myListings.value = userListings
+                val currentMyListings = _myListings.value
+                val localOnly = currentMyListings.filter { localItem ->
+                    userListings.none { it.id == localItem.id }
+                }
+                _myListings.value = (localOnly + userListings).sortedByDescending { it.createdAt }
             }
         }
     }
@@ -67,6 +75,9 @@ class ListingViewModel(
         // 1. Instant local optimistic update for 0ms lag
         _listings.value = listOf(listingWithUid) + _listings.value.filterNot { it.id == listingWithUid.id }
         _myListings.value = listOf(listingWithUid) + _myListings.value.filterNot { it.id == listingWithUid.id }
+
+        // Reset category filter to All Categories so the newly added listing is immediately visible
+        _selectedCategory.value = "All Categories"
 
         // 2. Async Cloud Firestore sync
         viewModelScope.launch {

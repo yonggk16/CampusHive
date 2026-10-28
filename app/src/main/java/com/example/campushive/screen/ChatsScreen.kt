@@ -56,7 +56,7 @@ fun ChatsScreen(
             .statusBarsPadding()
     ) {
         // Header
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+        Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 12.dp)) {
             Text(
                 text = "Chats",
                 style = MaterialTheme.typography.headlineMedium,

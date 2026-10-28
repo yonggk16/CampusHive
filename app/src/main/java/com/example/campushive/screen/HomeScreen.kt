@@ -98,7 +98,7 @@ fun HomeScreen(
             .verticalScroll(rememberScrollState())
             .padding(bottom = 96.dp)
     ) {
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(18.dp))
 
         // 1. Top Greeting Row ("Hi, $firstName" + Notification Bell Button)
         Row(

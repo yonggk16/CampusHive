@@ -66,13 +66,11 @@ class FirestoreRepository(
             }
 
             val listings = snapshot.documents
-                .sortedByDescending { doc ->
-                    doc.getTimestamp("createdAt")?.toDate()?.time ?: 0L
-                }
                 .mapNotNull { doc ->
                     doc.toListingOrNull()
                 }
-                .filter { it.title.isNotBlank() && it.status == "ACTIVE" }
+                .filter { (it.title.isNotBlank()) && (it.status == "ACTIVE") }
+                .sortedByDescending { it.createdAt }
 
             trySend(listings)
         }
@@ -118,7 +116,7 @@ class FirestoreRepository(
         providerUID: String = Firebase.auth.currentUser?.uid ?: "usr_daniel",
     ): Boolean {
         return try {
-            val docRef = if (listing.id.isNotBlank() && !listing.id.startsWith("srv_")) {
+            val docRef = if (listing.id.isNotBlank()) {
                 listingsRef.document(listing.id)
             } else {
                 listingsRef.document()

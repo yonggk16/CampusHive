@@ -33,18 +33,16 @@ class HelpdeskViewModel(
 
     companion object {
         private val MODERATOR_EMAILS = setOf(
+            "yonggk07@helplive.edu.my",
+            "teammate2@gmail.com",
             "b2500904@helplive.edu.my",
-            "b2500904@helplivve.edu.my",
-            "admin@helplive.edu.my",
-            "moderator@helplive.edu.my"
+            "b2501286@helplive.edu.my"
         )
 
         fun isModeratorEmail(email: String?): Boolean {
             val normalized = email?.trim()?.lowercase().orEmpty()
-            return normalized in MODERATOR_EMAILS ||
-                normalized.startsWith("b2500904") ||
-                normalized.contains("admin") ||
-                normalized.contains("mod")
+            if (normalized.isBlank()) return false
+            return normalized in MODERATOR_EMAILS
         }
     }
 
