@@ -180,7 +180,7 @@ class ChatViewModel(
                         uMap[uid] = username
                         uMap[doc.id] = username
                         val nameKey = username.trim().lowercase()
-                        onlineMap[nameKey] = (onlineMap[nameKey] == true) || isOnline
+                        onlineMap[nameKey] = isOnline
                         if (lastSeenMillis > (lastSeenMap[nameKey] ?: 0L)) {
                             lastSeenMap[nameKey] = lastSeenMillis
                         }
@@ -205,6 +205,24 @@ class ChatViewModel(
                 repairMissingConversationParticipants(snapshot.documents)
             }
         }
+    }
+
+    private fun isUsersIdentifier(target: String?): Boolean {
+        if (target.isNullOrBlank()) return false
+        val user = auth.currentUser ?: return false
+        val cleanTarget = target.trim().lowercase()
+
+        val myUid = user.uid.trim().lowercase()
+        val myEmail = (user.email ?: "").trim().lowercase()
+        val myEmailPrefix = myEmail.substringBefore("@").trim().lowercase()
+        val myDisplayName = (user.displayName ?: "").trim().lowercase()
+        val myName = getCurrentUserName().trim().lowercase()
+
+        return cleanTarget == myUid ||
+                (myEmail.isNotBlank() && cleanTarget == myEmail) ||
+                (myEmailPrefix.isNotBlank() && cleanTarget == myEmailPrefix) ||
+                (myDisplayName.isNotBlank() && !isGenericPlaceholderName(myDisplayName) && cleanTarget == myDisplayName) ||
+                (myName.isNotBlank() && !isGenericPlaceholderName(myName) && cleanTarget == myName)
     }
 
     /**
@@ -239,7 +257,7 @@ class ChatViewModel(
                 ?: discoveredSeekerNameMap[convId]
                 ?: ""
 
-            if (storedSeekerUid.isBlank() || storedSeekerName.isBlank() || doc.getString("providerUID").isNullOrBlank()) {
+            if (doc.getString("lastMessage").isNullOrBlank() || storedSeekerUid.isBlank() || storedSeekerName.isBlank() || doc.getString("providerUID").isNullOrBlank()) {
                 doc.reference.collection("messages").get().addOnSuccessListener { msgSnap ->
                     val updates = hashMapOf<String, Any>()
                     if (providerUID.isNotBlank() && doc.getString("providerUID").isNullOrBlank()) {
@@ -247,6 +265,32 @@ class ChatViewModel(
                     }
                     if (providerName.isNotBlank() && doc.getString("providerName").isNullOrBlank()) {
                         updates["providerName"] = providerName
+                    }
+
+                    if (doc.getString("lastMessage").isNullOrBlank() && msgSnap.documents.isNotEmpty()) {
+                        val latestMsg = msgSnap.documents.maxByOrNull {
+                            it.getTimestamp("timestamp")?.toDate()?.time ?: 0L
+                        }
+                        val lastMsgText = latestMsg?.getString("text")?.takeIf { it.isNotBlank() } ?: "Started a conversation"
+                        val lastTs = latestMsg?.getTimestamp("timestamp") ?: Timestamp.now()
+                        updates["lastMessage"] = lastMsgText
+                        updates["lasttimestamp"] = lastTs
+                    }
+
+                    // Check if current user sent any message in this conversation
+                    val myMsg = msgSnap.documents.firstOrNull { m ->
+                        val sUid = m.getString("senderUid") ?: ""
+                        isUsersIdentifier(sUid)
+                    }
+                    if (myMsg != null && currentUid.isNotBlank() && currentUid != providerUID) {
+                        discoveredSeekerUidMap[convId] = currentUid
+                        if (!isGenericPlaceholderName(myName)) {
+                            discoveredSeekerNameMap[convId] = myName
+                        }
+                        updates["seekerUid"] = currentUid
+                        if (!isGenericPlaceholderName(myName)) {
+                            updates["seekerName"] = myName
+                        }
                     }
 
                     // Find any message sent by the Seeker (senderUid != providerUID)
@@ -315,12 +359,12 @@ class ChatViewModel(
     }
 
     private fun rebuildConversationsList() {
-        val currentUid = auth.currentUser?.uid ?: ""
+        val user = auth.currentUser ?: return
+        val currentUid = user.uid
         val myName = getCurrentUserName()
         val knownIds = allKnownListingIds + listingsProviderUidMap.keys
 
         val myUserDocs = latestConversationDocs.filter { doc ->
-            if (currentUid.isBlank()) return@filter false
             val convId = doc.id
             val listingId = doc.getString("listingId")?.takeIf { it.isNotBlank() }
                 ?: extractListingIdFromChatId(convId, knownIds)
@@ -334,16 +378,15 @@ class ChatViewModel(
             val pName = doc.getString("providerName") ?: ""
             val sName = doc.getString("seekerName") ?: ""
 
-            val matchesProvider = if (pUid.isNotBlank()) {
-                currentUid == pUid
-            } else {
-                !isGenericPlaceholderName(myName) && myName.equals(pName, ignoreCase = true)
-            }
-            val matchesSeeker = when {
-                convId.endsWith("_$currentUid") && currentUid != pUid -> true
-                sUid.isNotBlank() -> currentUid == sUid
-                else -> !isGenericPlaceholderName(myName) && myName.equals(sName, ignoreCase = true)
-            }
+            val matchesProvider = isUsersIdentifier(pUid) ||
+                    (!isGenericPlaceholderName(pName) && isUsersIdentifier(pName))
+
+            val extractedSeekerInChatId = extractSeekerUidFromChatId(convId, knownIds)
+            val matchesSeeker = isUsersIdentifier(sUid) ||
+                    (!isGenericPlaceholderName(sName) && isUsersIdentifier(sName)) ||
+                    isUsersIdentifier(extractedSeekerInChatId) ||
+                    (convId.contains("_") && isUsersIdentifier(convId.substringAfterLast("_"))) ||
+                    (!matchesProvider && currentUid.isNotBlank())
 
             matchesProvider || matchesSeeker
         }
@@ -507,10 +550,22 @@ class ChatViewModel(
             rebuildConversationsList()
         }
 
-        // Persist the parent conversation document in Firestore if it doesn't exist yet
+        // Always persist & merge participant metadata into the Firestore conversation document
         val convDocRef = conversationsRef.document(conversationId)
+        val updateData = hashMapOf<String, Any>(
+            "conversationId" to conversationId,
+            "listingId" to listingId,
+            "seekerUid" to currentUid,
+            "seekerName" to currentUserName,
+            "providerUID" to resolvedProviderUid,
+            "providerName" to resolvedProviderName,
+            "serviceTitle" to serviceTitle,
+            "isVerifiedStudent" to true
+        )
+        convDocRef.set(updateData, SetOptions.merge())
+
         convDocRef.get().addOnSuccessListener { snap ->
-            if (!snap.exists()) {
+            if (!snap.exists() || snap.getString("lastMessage").isNullOrBlank()) {
                 convDocRef.collection("messages").get().addOnSuccessListener { msgSnap ->
                     val latestMsg = msgSnap.documents.maxByOrNull {
                         it.getTimestamp("timestamp")?.toDate()?.time ?: 0L
@@ -519,18 +574,9 @@ class ChatViewModel(
                     val lastTs = latestMsg?.getTimestamp("timestamp") ?: Timestamp.now()
 
                     val initData = hashMapOf<String, Any>(
-                        "conversationId" to conversationId,
-                        "listingId" to listingId,
-                        "seekerUid" to currentUid,
-                        "seekerName" to currentUserName,
-                        "studentName" to currentUserName,
-                        "providerUID" to resolvedProviderUid,
-                        "providerName" to resolvedProviderName,
-                        "serviceTitle" to serviceTitle,
                         "lastMessage" to lastMsgText,
                         "lasttimestamp" to lastTs,
-                        "unreadCount" to 0,
-                        "isVerifiedStudent" to true
+                        "unreadCount" to 0
                     )
                     convDocRef.set(initData, SetOptions.merge())
                 }

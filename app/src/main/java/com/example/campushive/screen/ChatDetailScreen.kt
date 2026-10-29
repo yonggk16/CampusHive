@@ -171,11 +171,11 @@ fun ChatDetailScreen(
     val isPartnerOnline = remember(userOnlineStatus, currentConversation, partnerUid, partnerName, currentUid) {
         val nameKey = partnerName.trim().lowercase()
         when {
+            currentConversation != null -> currentConversation.isOnline
             partnerUid.isNotBlank() && partnerUid != currentUid && userOnlineStatus.containsKey(partnerUid) ->
                 userOnlineStatus[partnerUid] == true
             nameKey.isNotBlank() && !nameKey.equals(myName.trim(), ignoreCase = true) && userOnlineStatus.containsKey(nameKey) ->
                 userOnlineStatus[nameKey] == true
-            currentConversation != null -> currentConversation.isOnline
             else -> false
         }
     }
@@ -183,11 +183,12 @@ fun ChatDetailScreen(
     val partnerLastSeenMillis = remember(userLastSeenMillis, currentConversation, partnerUid, partnerName) {
         val nameKey = partnerName.trim().lowercase()
         when {
+            currentConversation != null && currentConversation.lastSeenMillis > 0L ->
+                currentConversation.lastSeenMillis
             partnerUid.isNotBlank() && (userLastSeenMillis[partnerUid] ?: 0L) > 0L ->
                 userLastSeenMillis[partnerUid] ?: 0L
             nameKey.isNotBlank() && (userLastSeenMillis[nameKey] ?: 0L) > 0L ->
                 userLastSeenMillis[nameKey] ?: 0L
-            currentConversation != null -> currentConversation.lastSeenMillis
             else -> 0L
         }
     }
