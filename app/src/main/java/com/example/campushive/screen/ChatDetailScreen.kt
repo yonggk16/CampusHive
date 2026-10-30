@@ -296,7 +296,7 @@ fun ChatDetailScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(CardWhite)
+            .background(HoneyBottomGradient)
             .statusBarsPadding()
     ) {
         // Top Header Bar

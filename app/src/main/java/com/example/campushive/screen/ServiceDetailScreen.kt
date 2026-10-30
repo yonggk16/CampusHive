@@ -131,7 +131,7 @@ fun ServiceDetailScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(CardWhite)
+            .background(HoneyBottomGradient)
     ) {
         Column(
             modifier = Modifier
