@@ -101,6 +101,30 @@ com.example.campushive/
 
 CampusHive uses 5 top-level collections (`users`, `listings`, `conversations`, `reviews`, `reports`) and 1 nested subcollection (`conversations/{conversationId}/messages`).
 
+```mermaid
+%%{init: {
+  'theme': 'base',
+  'er': {
+    'layoutDirection': 'LR',
+    'entityPadding': 15,
+    'stroke': '#000000',
+    'fill': '#000000'
+  },
+  'themeVariables': {
+    'primaryColor': '#000000',
+    'primaryTextColor': '#ffffff',
+    'primaryBorderColor': '#000000',
+    'lineColor': '#000000',
+    'secondaryColor': '#ffffff',
+    'tertiaryColor': '#ffffff',
+    'mainBkg': '#000000',
+    'textColor': '#000000',
+    'attributeBackgroundColorOdd': '#ffffff',
+    'attributeBackgroundColorEven': '#ffffff',
+    'fontFamily': 'Helvetica, Arial, sans-serif',
+    'fontSize': '13px'
+  }
+}}%%
 erDiagram
     USER {
         string uid PK "Firebase Auth UID"
@@ -205,6 +229,8 @@ erDiagram
     CONVERSATION ||--o{ MESSAGE : contains
     USER ||--o{ MESSAGE : sends
     
+'''
+
 ---
 
 ## Getting Started
