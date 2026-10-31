@@ -101,37 +101,10 @@ com.example.campushive/
 
 CampusHive uses 5 top-level collections (`users`, `listings`, `conversations`, `reviews`, `reports`) and 1 nested subcollection (`conversations/{conversationId}/messages`).
 
-```mermaid
-%%{init: {
-  'theme': 'base',
-  'er': {
-    'layoutDirection': 'LR',
-    'entityPadding': 15,
-    'stroke': '#000000',
-    'fill': '#000000'
-  },
-  'themeVariables': {
-    'primaryColor': '#000000',
-    'primaryTextColor': '#ffffff',
-    'primaryBorderColor': '#000000',
-    'lineColor': '#000000',
-    'secondaryColor': '#ffffff',
-    'tertiaryColor': '#ffffff',
-    'mainBkg': '#000000',
-    'textColor': '#000000',
-    'attributeBackgroundColorOdd': '#ffffff',
-    'attributeBackgroundColorEven': '#ffffff',
-    'fontFamily': 'Helvetica, Arial, sans-serif',
-    'fontSize': '13px'
-  }
-}}%%
 erDiagram
-    direction LR
-
-    USERS {
-        string uid PK
+    USER {
+        string uid PK "Firebase Auth UID"
         string displayName
-        string fullName
         string email
         string bio
         string campusLocation
@@ -139,104 +112,99 @@ erDiagram
         string phoneNumber
         boolean isVerifiedStudent
         boolean isModerator
+        timestamp createdAt
         boolean isOnline
-        Timestamp lastSeen
-        Timestamp createdAt
+        timestamp lastSeen
     }
 
-    LISTINGS {
+    LISTING {
         string listingId PK
         string providerUID FK
         string providerName
         string title
         string category
-        double price
-        string pricingType
-        double rating
-        int reviewCount
+        number price
+        string pricingType "PER_HOUR or FIXED"
+        number rating
+        integer reviewCount
         string campusLocation
         string description
         string coverImageUrl
-        string status
+        string status "ACTIVE, INACTIVE, DELETED"
         boolean isVerifiedStudent
-        Timestamp createdAt
+        timestamp createdAt
     }
 
-    CONVERSATIONS {
+    REVIEW {
+        string reviewId PK
+        string listingId FK
+        string providerUID FK
+        string providerName
+        string reviewerUID FK
+        string reviewerName
+        string serviceTitle
+        number rating
+        string comment
+        array tags
+        timestamp createdAt
+    }
+
+    REPORT {
+        string reportId PK
+        string reporterUid FK
+        string reporterName
+        string type "PROBLEM, USER_SAFETY, LISTING_FLAG"
+        string category
+        string targetId "Polymorphic target; not an enforced FK"
+        string targetName
+        string description
+        string status "OPEN, UNDER_REVIEW, RESOLVED, CLOSED"
+        string moderatorNote
+        string resolvedBy
+        timestamp createdAt
+    }
+
+    CONVERSATION {
         string conversationId PK
         string listingId FK
         string seekerUid FK
-        string providerUID FK
         string seekerName
+        string providerUID FK
         string providerName
-        string studentName
         string serviceTitle
         string lastMessage
-        Timestamp lasttimestamp
-        int unreadCount
+        timestamp lasttimestamp
+        integer unreadCount
         boolean isVerifiedStudent
     }
 
-    MESSAGES {
+    MESSAGE {
         string messageId PK
         string conversationId FK
         string senderUid FK
         string senderName
-        string senderRole
+        string senderRole "SEEKER or PROVIDER"
         string text
-        string time
-        Timestamp timestamp
         string attachmentType
         string attachmentName
         string attachmentSize
         string attachmentBase64
         boolean isEdited
         boolean isDeleted
+        timestamp timestamp
     }
 
-    REVIEWS {
-        string reviewId PK
-        string listingId FK
-        string providerUID FK
-        string reviewerUID FK
-        string providerName
-        string reviewerName
-        string serviceTitle
-        double rating
-        string comment
-        List_String tags
-        Timestamp createdAt
-    }
-
-    REPORTS {
-        string reportId PK
-        string reporterUid FK
-        string targetId FK
-        string reporterName
-        string type
-        string category
-        string targetName
-        string description
-        string status
-        string moderatorNote
-        string resolvedBy
-        Timestamp createdAt
-    }
-
-    USERS ||--o{ LISTINGS : "publishes"
-    USERS ||--o{ REVIEWS : "writes"
-    USERS ||--o{ REVIEWS : "receives"
-    LISTINGS ||--o{ REVIEWS : "has"
-    USERS ||--o{ CONVERSATIONS : "initiates as seeker"
-    USERS ||--o{ CONVERSATIONS : "participates as provider"
-    LISTINGS ||--o{ CONVERSATIONS : "discussed in"
-    CONVERSATIONS ||--|{ MESSAGES : "contains subcollection"
-    USERS ||--o{ MESSAGES : "sends"
-    USERS ||--o{ REPORTS : "submits"
-    LISTINGS |o--o{ REPORTS : "flagged in"
-    USERS |o--o{ REPORTS : "reported in"
-```
-
+    USER ||--o{ LISTING : provides
+    USER ||--o{ REVIEW : writes
+    USER ||--o{ REVIEW : receives
+    LISTING ||--o{ REVIEW : receives
+    USER ||--o{ REPORT : submits
+    USER ||--o{ CONVERSATION : seeks
+    USER ||--o{ CONVERSATION : provides
+    LISTING ||--o{ CONVERSATION : is_about
+    CONVERSATION ||--o{ MESSAGE : contains
+    USER ||--o{ MESSAGE : sends
+    
 ---
 
 ## Getting Started
