@@ -109,14 +109,14 @@ CampusHive uses 5 top-level collections (`users`, `listings`, `conversations`, `
     'entityPadding': 16,
     'stroke': '#315A7D',
     'fill': '#EAF2F8',
-    'fontSize': 16
+    'fontSize': 13
   },
   'themeVariables': {
     'background': '#FFFFFF',
     'primaryColor': '#EAF2F8',
     'primaryTextColor': '#172B4D',
     'primaryBorderColor': '#315A7D',
-    'lineColor': '#52677D',
+    'lineColor': '#FFFFFF',
     'secondaryColor': '#F1F5F9',
     'tertiaryColor': '#FFFFFF',
     'mainBkg': '#FFFFFF',
@@ -126,7 +126,7 @@ CampusHive uses 5 top-level collections (`users`, `listings`, `conversations`, `
     'attributeBackgroundColorOdd': '#FFFFFF',
     'attributeBackgroundColorEven': '#F1F5F9',
     'fontFamily': 'Helvetica, Arial, sans-serif',
-    'fontSize': '16px'
+    'fontSize': '13px'
   }
 }}%%
 erDiagram
