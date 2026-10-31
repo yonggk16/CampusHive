@@ -106,23 +106,27 @@ CampusHive uses 5 top-level collections (`users`, `listings`, `conversations`, `
   'theme': 'base',
   'er': {
     'layoutDirection': 'LR',
-    'entityPadding': 15,
-    'stroke': '#000000',
-    'fill': '#000000'
+    'entityPadding': 16,
+    'stroke': '#315A7D',
+    'fill': '#EAF2F8',
+    'fontSize': 16
   },
   'themeVariables': {
-    'primaryColor': '#000000',
-    'primaryTextColor': '#ffffff',
-    'primaryBorderColor': '#000000',
-    'lineColor': '#000000',
-    'secondaryColor': '#ffffff',
-    'tertiaryColor': '#ffffff',
-    'mainBkg': '#000000',
-    'textColor': '#000000',
-    'attributeBackgroundColorOdd': '#ffffff',
-    'attributeBackgroundColorEven': '#ffffff',
+    'background': '#FFFFFF',
+    'primaryColor': '#EAF2F8',
+    'primaryTextColor': '#172B4D',
+    'primaryBorderColor': '#315A7D',
+    'lineColor': '#52677D',
+    'secondaryColor': '#F1F5F9',
+    'tertiaryColor': '#FFFFFF',
+    'mainBkg': '#FFFFFF',
+    'textColor': '#172B4D',
+    'entityBkg': '#EAF2F8',
+    'entityBorder': '#315A7D',
+    'attributeBackgroundColorOdd': '#FFFFFF',
+    'attributeBackgroundColorEven': '#F1F5F9',
     'fontFamily': 'Helvetica, Arial, sans-serif',
-    'fontSize': '13px'
+    'fontSize': '16px'
   }
 }}%%
 erDiagram
