@@ -69,8 +69,17 @@ class ListingViewModel(
     }
 
     fun addListing(listing: Listing, onResult: (Boolean) -> Unit = {}) {
-        val currentUserId = Firebase.auth.currentUser?.uid.orEmpty()
-        val listingWithUid = if (listing.providerUID.isBlank()) listing.copy(providerUID = currentUserId) else listing
+        val user = Firebase.auth.currentUser
+        val currentUserId = user?.uid.orEmpty()
+        val currentUserName = user?.displayName
+            ?.takeIf { it.isNotBlank() }
+            ?: user?.email?.substringBefore("@")?.takeIf { it.isNotBlank() }
+            ?: "Student User"
+
+        val listingWithUid = listing.copy(
+            providerUID = listing.providerUID.ifBlank { currentUserId },
+            providerName = listing.providerName.ifBlank { currentUserName }
+        )
 
         // 1. Instant local optimistic update for 0ms lag
         _listings.value = listOf(listingWithUid) + _listings.value.filterNot { it.id == listingWithUid.id }
