@@ -70,7 +70,7 @@ data class Listing(
     val price: Double,
     val pricingType: PricingType = PricingType.PER_HOUR,
     val providerName: String,
-    val rating: Double = 5.0,
+    val rating: Double = 0.0,
     val reviewCount: Int = 0,
     val campusLocation: String,
     val isVerifiedStudent: Boolean = true,

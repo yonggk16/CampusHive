@@ -14,6 +14,7 @@ import com.google.firebase.auth.auth
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.PropertyName
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -113,28 +114,38 @@ class FirestoreRepository(
      */
     suspend fun createListing(
         listing: Listing,
-        providerUID: String = Firebase.auth.currentUser?.uid ?: "usr_daniel",
+        providerUID: String = "",
     ): Boolean {
         return try {
-            val docRef = if (listing.id.isNotBlank()) {
+            val docRef = if (listing.id.isNotBlank() && !listing.id.startsWith("srv_")) {
                 listingsRef.document(listing.id)
             } else {
                 listingsRef.document()
             }
 
-            val effectiveUid = providerUID.ifBlank { Firebase.auth.currentUser?.uid ?: "usr_daniel" }
+            val currentAuthUid = Firebase.auth.currentUser?.uid.orEmpty()
+            val effectiveUid = when {
+                listing.providerUID.isNotBlank() -> listing.providerUID
+                providerUID.isNotBlank() -> providerUID
+                currentAuthUid.isNotBlank() -> currentAuthUid
+                else -> ""
+            }
+
+            val currentAuthName = Firebase.auth.currentUser?.displayName.orEmpty()
+                .ifBlank { Firebase.auth.currentUser?.email?.substringBefore("@").orEmpty() }
+            val effectiveName = listing.providerName.ifBlank { currentAuthName.ifBlank { "Student User" } }
 
             val data = hashMapOf(
                 "listingId" to docRef.id,
                 "providerUID" to effectiveUid,
-                "providerName" to listing.providerName.ifBlank { "Daniel Wong" },
+                "providerName" to effectiveName,
                 "title" to listing.title,
                 "category" to listing.category,
                 "price" to listing.price,
                 "pricingType" to listing.pricingType.name,
                 "rating" to listing.rating,
                 "reviewCount" to listing.reviewCount,
-                "campusLocation" to listing.campusLocation,
+                "campusLocation" to listing.campusLocation.ifBlank { "Subang 2 Campus" },
                 "description" to listing.description,
                 "coverImageUrl" to "",
                 "status" to listing.status.ifBlank { "ACTIVE" },
@@ -142,7 +153,7 @@ class FirestoreRepository(
                 "createdAt" to Timestamp.now()
             )
 
-            docRef.set(data).await()
+            docRef.set(data, SetOptions.merge()).await()
             Log.d("FirestoreRepository", "Successfully stored listing in Firestore: ${docRef.id}")
             true
         } catch (e: Exception) {

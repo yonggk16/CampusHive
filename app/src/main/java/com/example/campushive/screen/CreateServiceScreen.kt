@@ -37,6 +37,7 @@ import com.example.campushive.components.ServiceCategoryIconBox
 import com.example.campushive.model.Listing
 import com.example.campushive.model.PricingType
 import com.example.campushive.ui.theme.*
+import com.example.campushive.viewmodel.AuthViewModel
 import com.example.campushive.viewmodel.ListingViewModel
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
@@ -46,10 +47,12 @@ private val categories = listOf("Tutoring", "Design", "Tech Help", "Errands", "O
 @Composable
 fun CreateServiceScreen(
     listingViewModel: ListingViewModel = viewModel(),
+    authViewModel: AuthViewModel = viewModel(),
     onClose: () -> Unit = {},
     onServiceCreated: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    val userProfile by authViewModel.userProfile.collectAsState()
     var isPublishing by remember { mutableStateOf(false) }
 
     var title by remember { mutableStateOf("") }
@@ -393,9 +396,14 @@ fun CreateServiceScreen(
                         } else {
                             isPublishing = true
                             val parsedPrice = priceText.toDoubleOrNull() ?: 18.0
-                            val currentUserName = Firebase.auth.currentUser?.displayName
-                                ?.takeIf { it.isNotBlank() } ?: "Daniel Wong"
-                            val currentUid = Firebase.auth.currentUser?.uid ?: "usr_daniel"
+                            val user = Firebase.auth.currentUser
+                            val currentUid = user?.uid.orEmpty()
+                            val currentUserName = userProfile?.displayName
+                                ?.takeIf { it.isNotBlank() }
+                                ?: user?.displayName?.takeIf { it.isNotBlank() }
+                                ?: user?.email?.substringBefore("@")?.takeIf { it.isNotBlank() }
+                                ?: "Student User"
+
                             val newListing = Listing(
                                 id = "srv_${System.currentTimeMillis()}",
                                 providerUID = currentUid,
@@ -404,16 +412,22 @@ fun CreateServiceScreen(
                                 price = parsedPrice,
                                 pricingType = selectedPricingType,
                                 providerName = currentUserName,
-                                rating = 5.0,
-                                reviewCount = 1,
+                                rating = 0.0,
+                                reviewCount = 0,
                                 campusLocation = "Subang 2 Campus",
-                                isVerifiedStudent = true,
+                                isVerifiedStudent = user?.isEmailVerified == true || userProfile?.isVerifiedStudent == true,
                                 description = description.trim()
                             )
 
-                            listingViewModel.addListing(newListing)
+                            listingViewModel.addListing(newListing) { success ->
+                                isPublishing = false
+                                if (success) {
+                                    Toast.makeText(context, "Listing published live to Cloud Firestore!", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Notice: Saved locally (Check network connection)", Toast.LENGTH_LONG).show()
+                                }
+                            }
                             listingViewModel.setSelectedCategory("All Categories")
-                            Toast.makeText(context, "Listing published live to Cloud Firestore!", Toast.LENGTH_SHORT).show()
                             onServiceCreated()
                         }
                     },
