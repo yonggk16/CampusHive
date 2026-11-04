@@ -57,11 +57,123 @@ fun ReportDetailScreen(
     val editedDescription = remember(report) { mutableStateOf(report?.description ?: "") }
     var isSaving by remember { mutableStateOf(false) }
     var isDeleting by remember { mutableStateOf(false) }
+    var showDeleteTicketConfirmDialog by remember { mutableStateOf(false) }
 
     // Moderator Controls State
     var selectedModStatus by remember(report) { mutableStateOf(report?.status ?: ReportStatus.OPEN) }
     var moderatorNoteInput by remember(report) { mutableStateOf(report?.moderatorNote ?: "") }
     var isModerating by remember { mutableStateOf(false) }
+    var showRemoveListingConfirmDialog by remember { mutableStateOf(false) }
+
+    // Confirmation Alert Dialog for Deleting Report Ticket
+    if (showDeleteTicketConfirmDialog && report != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteTicketConfirmDialog = false },
+            title = {
+                Text(
+                    text = "Delete Report Ticket?",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = Charcoal
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to delete this report ticket? This action cannot be undone.",
+                    fontSize = 13.sp,
+                    color = Charcoal,
+                    lineHeight = 18.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteTicketConfirmDialog = false
+                        isDeleting = true
+                        helpdeskViewModel.deleteReport(report.reportId) { success ->
+                            isDeleting = false
+                            if (success) {
+                                Toast.makeText(context, "Report ticket deleted successfully", Toast.LENGTH_SHORT).show()
+                                onDeleteOrUpdate()
+                            } else {
+                                Toast.makeText(context, "Failed to delete report ticket", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F), contentColor = CardWhite),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Delete Ticket", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = CardWhite)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { showDeleteTicketConfirmDialog = false },
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Hairline)
+                ) {
+                    Text("Cancel", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Charcoal)
+                }
+            },
+            containerColor = CardWhite,
+            shape = RoundedCornerShape(20.dp)
+        )
+    }
+
+    // Confirmation Alert Dialog for Moderator Removing Listing
+    if (showRemoveListingConfirmDialog && report != null) {
+        AlertDialog(
+            onDismissRequest = { showRemoveListingConfirmDialog = false },
+            title = {
+                Text(
+                    text = "Remove Listing From Platform?",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = Charcoal
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to remove '${report.targetName}' from CampusHive? The listing will be marked DELETED and the ticket will be set to RESOLVED.",
+                    fontSize = 13.sp,
+                    color = Charcoal,
+                    lineHeight = 18.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showRemoveListingConfirmDialog = false
+                        helpdeskViewModel.moderateListingStatus(report.targetId, "DELETED") {
+                            selectedModStatus = ReportStatus.RESOLVED
+                            moderatorNoteInput = "Listing '${report.targetName}' was removed for violating CampusHive guidelines."
+                            helpdeskViewModel.moderateReport(
+                                reportId = report.reportId,
+                                newStatus = ReportStatus.RESOLVED,
+                                moderatorNote = moderatorNoteInput
+                            )
+                            Toast.makeText(context, "Listing removed from CampusHive & ticket resolved", Toast.LENGTH_LONG).show()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F), contentColor = CardWhite),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Remove Listing", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = CardWhite)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { showRemoveListingConfirmDialog = false },
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Hairline)
+                ) {
+                    Text("Cancel", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Charcoal)
+                }
+            },
+            containerColor = CardWhite,
+            shape = RoundedCornerShape(20.dp)
+        )
+    }
 
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy • hh:mm a", Locale.getDefault()) }
     val formattedDate = remember(report?.createdAt) {
@@ -124,18 +236,7 @@ fun ReportDetailScreen(
                     Icon(Icons.Filled.Edit, contentDescription = "Edit Report", tint = if (isEditing) Honey else Charcoal)
                 }
                 IconButton(
-                    onClick = {
-                        isDeleting = true
-                        helpdeskViewModel.deleteReport(report.reportId) { success ->
-                            isDeleting = false
-                            if (success) {
-                                Toast.makeText(context, "Report deleted successfully", Toast.LENGTH_SHORT).show()
-                                onDeleteOrUpdate()
-                            } else {
-                                Toast.makeText(context, "Failed to delete report", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    },
+                    onClick = { showDeleteTicketConfirmDialog = true },
                     enabled = !isDeleting
                 ) {
                     Icon(Icons.Filled.Delete, contentDescription = "Delete Report", tint = Color.Red)
@@ -445,13 +546,13 @@ fun ReportDetailScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Surface(
-                                color = Charcoal,
+                                color = HoneyTint,
                                 shape = RoundedCornerShape(10.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.AdminPanelSettings,
                                     contentDescription = null,
-                                    tint = Honey,
+                                    tint = Charcoal,
                                     modifier = Modifier
                                         .padding(6.dp)
                                         .size(18.dp)
@@ -606,18 +707,18 @@ fun ReportDetailScreen(
                                 }
                             },
                             enabled = !isModerating,
-                            colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = Honey),
+                            colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
                             shape = RoundedCornerShape(14.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(46.dp)
                         ) {
                             if (isModerating) {
-                                CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Honey, strokeWidth = 2.dp)
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), color = CardWhite, strokeWidth = 2.dp)
                             } else {
-                                Icon(Icons.Filled.Gavel, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Filled.Gavel, contentDescription = null, tint = CardWhite, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(8.dp))
-                                Text("Save Moderation Decision", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text("Save Moderation Decision", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = CardWhite)
                             }
                         }
 
@@ -700,18 +801,7 @@ fun ReportDetailScreen(
 
                                 // Remove Listing
                                 Button(
-                                    onClick = {
-                                        helpdeskViewModel.moderateListingStatus(report.targetId, "DELETED") {
-                                            selectedModStatus = ReportStatus.RESOLVED
-                                            moderatorNoteInput = "Listing '${report.targetName}' was removed for violating CampusHive guidelines."
-                                            helpdeskViewModel.moderateReport(
-                                                reportId = report.reportId,
-                                                newStatus = ReportStatus.RESOLVED,
-                                                moderatorNote = moderatorNoteInput
-                                            )
-                                            Toast.makeText(context, "Listing removed from CampusHive & ticket resolved", Toast.LENGTH_LONG).show()
-                                        }
-                                    },
+                                    onClick = { showRemoveListingConfirmDialog = true },
                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFEBEE), contentColor = Color(0xFFC62828)),
                                     shape = RoundedCornerShape(12.dp),
                                     modifier = Modifier.fillMaxWidth()

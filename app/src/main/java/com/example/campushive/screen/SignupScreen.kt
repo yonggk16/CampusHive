@@ -15,12 +15,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -84,7 +86,7 @@ fun SignUpScreen(
             } else {
                 Toast.makeText(context, "Failed to retrieve Google token", Toast.LENGTH_SHORT).show()
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             Toast.makeText(context, "Google Sign-In failed or cancelled", Toast.LENGTH_SHORT).show()
         }
     }
@@ -104,26 +106,72 @@ fun SignUpScreen(
         }
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(HoneyBottomGradient)
-            .statusBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 20.dp),
-        horizontalAlignment = Alignment.Start
     ) {
-        Spacer(Modifier.height(30.dp))
-
-        // App Logo
+        // Campus Environment Background Vector Illustration
         Image(
-            painter = painterResource(id = R.drawable.app_logo),
-            contentDescription = "CampusHive Logo",
+            painter = painterResource(id = R.drawable.campus_environment),
+            contentDescription = "Campus Environment",
             modifier = Modifier
-                .size(60.dp)
-                .clip(RoundedCornerShape(14.dp)),
-            contentScale = ContentScale.Fit
+                .fillMaxSize()
+                .alpha(0.35f),
+            contentScale = ContentScale.Crop
         )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 20.dp),
+            horizontalAlignment = Alignment.Start
+        ) {
+        Spacer(Modifier.weight(1f))
+
+        // Top Header Row: Logo on Left + HELP University Subang 2 Location Tag on Top Right
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.app_logo),
+                contentDescription = "CampusHive Logo",
+                modifier = Modifier
+                    .size(54.dp)
+                    .clip(RoundedCornerShape(14.dp)),
+                contentScale = ContentScale.Fit
+            )
+
+            // Location Tag: HELP University Subang 2
+            Surface(
+                color = CardWhite,
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.dp, Hairline)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.LocationOn,
+                        contentDescription = null,
+                        tint = Charcoal,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = "HELP University Subang 2",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Charcoal
+                    )
+                }
+            }
+        }
 
         Spacer(Modifier.height(14.dp))
 
@@ -323,7 +371,7 @@ fun SignUpScreen(
 
         Spacer(Modifier.height(24.dp))
 
-        // Create Account Button
+        // Full-width Create Account Button
         Button(
             onClick = {
                 authViewModel.signUp(fullName, email, password, confirmPassword) {
@@ -333,14 +381,14 @@ fun SignUpScreen(
             enabled = !isLoading,
             shape = RoundedCornerShape(50),
             colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
-            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
             modifier = Modifier
-                .wrapContentWidth()
-                .bounceClick(scaleDown = 0.95f)
+                .fillMaxWidth()
+                .height(54.dp)
+                .bounceClick(scaleDown = 0.96f)
         ) {
             if (isLoading) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(20.dp),
                     color = CardWhite,
                     strokeWidth = 2.dp
                 )
@@ -348,18 +396,20 @@ fun SignUpScreen(
                 Text(
                     text = "Create account",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
+                    fontSize = 16.sp,
+                    color = CardWhite
                 )
                 Spacer(Modifier.width(8.dp))
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = null,
+                    tint = CardWhite,
                     modifier = Modifier.size(18.dp)
                 )
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(20.dp))
 
         OutlinedButton(
             onClick = {
@@ -367,7 +417,10 @@ fun SignUpScreen(
                 googleSignInLauncher.launch(googleSignInClient.signInIntent)
             },
             enabled = !isLoading,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(54.dp)
+                .bounceClick(scaleDown = 0.96f),
             shape = RoundedCornerShape(50),
             border = BorderStroke(1.dp, Hairline),
             colors = ButtonDefaults.outlinedButtonColors(containerColor = CardWhite, contentColor = Charcoal)
@@ -379,12 +432,16 @@ fun SignUpScreen(
                 modifier = Modifier.size(20.dp)
             )
             Spacer(Modifier.width(10.dp))
-            Text("Continue with Google", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text("Continue with Google", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Charcoal)
         }
 
         Spacer(Modifier.height(16.dp))
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text("Already have an account? ", color = MutedText, fontSize = 13.sp)
             Text(
                 text = "Log In",
@@ -397,4 +454,5 @@ fun SignUpScreen(
 
         Spacer(Modifier.height(40.dp))
     }
+}
 }
