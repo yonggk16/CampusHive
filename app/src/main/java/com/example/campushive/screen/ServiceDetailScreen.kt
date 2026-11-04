@@ -126,7 +126,58 @@ fun ServiceDetailScreen(
         }
     }
 
-    val showReportBanner = listingReport != null || reportSubmittedLocally
+    var showReportNoticeDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(reportSubmittedLocally) {
+        if (reportSubmittedLocally) {
+            showReportNoticeDialog = true
+        }
+    }
+
+    // Pop-up Notice Dialog when a report is submitted or tapped
+    if (showReportNoticeDialog) {
+        AlertDialog(
+            onDismissRequest = { showReportNoticeDialog = false },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.WarningAmber,
+                        contentDescription = null,
+                        tint = Color(0xFFE65100),
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Text(
+                        text = "Report Submitted",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = Charcoal
+                    )
+                }
+            },
+            text = {
+                Text(
+                    text = "Category: ${listingReport?.category ?: "Flag"}\n\nOur campus moderation team is investigating this listing. Thank you for keeping CampusHive safe!",
+                    fontSize = 13.sp,
+                    color = Charcoal,
+                    lineHeight = 18.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showReportNoticeDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Got it", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+            },
+            containerColor = CardWhite,
+            shape = RoundedCornerShape(20.dp)
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -138,44 +189,6 @@ fun ServiceDetailScreen(
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
         ) {
-            if (showReportBanner) {
-                Surface(
-                    color = Color(0xFFFFF3C4),
-                    shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.dp, Color(0xFFE5C158)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.WarningAmber,
-                            contentDescription = null,
-                            tint = Color(0xFF7A5800),
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Report Submitted (${listingReport?.status?.name ?: "OPEN"})",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp,
-                                color = Color(0xFF7A5800)
-                            )
-                            Spacer(Modifier.height(2.dp))
-                            Text(
-                                text = if (listingReport != null) "Category: ${listingReport.category}. Our campus moderation team is investigating this listing." else "Your flag/report has been submitted and is under review.",
-                                fontSize = 11.sp,
-                                color = Color(0xFF7A5800),
-                                lineHeight = 15.sp
-                            )
-                        }
-                    }
-                }
-            }
             // Hero Image/Banner Box (Top Category Icon Showcase)
             Box(
                 modifier = Modifier
@@ -269,11 +282,38 @@ fun ServiceDetailScreen(
                 modifier = Modifier.padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Category & Location Badges
+                // Category, Location & Report Pending Badges
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    if (listingReport != null || reportSubmittedLocally) {
+                        Surface(
+                            color = Color(0xFFFFF3C4),
+                            shape = RoundedCornerShape(20.dp),
+                            border = BorderStroke(1.dp, Color(0xFFE5C158)),
+                            modifier = Modifier.clickable { showReportNoticeDialog = true }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.WarningAmber,
+                                    contentDescription = null,
+                                    tint = Color(0xFF7A5800),
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Text(
+                                    text = "Report Pending (${listingReport?.status?.name ?: "OPEN"})",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF7A5800)
+                                )
+                            }
+                        }
+                    }
                     Surface(
                         color = HoneyTint,
                         shape = RoundedCornerShape(20.dp)
@@ -669,21 +709,23 @@ fun ServiceDetailScreen(
 
                 Spacer(Modifier.height(16.dp))
 
-                // Flag / Report Listing Button
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { showReportDialog = true }
-                        .padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Flag or report this listing",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MutedText
-                    )
+                // Flag / Report Listing Button (Only visible to Service Seekers, hidden from the Provider)
+                if (!isOwnListing) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showReportDialog = true }
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Flag or report this listing",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MutedText
+                        )
+                    }
                 }
 
                 Spacer(Modifier.height(20.dp))

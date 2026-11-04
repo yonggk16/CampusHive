@@ -119,6 +119,7 @@ fun HelpdeskScreen(
             // Moderator Role Pill Toggle
             Surface(
                 color = if (isModeratorMode) Charcoal else CardWhite,
+                contentColor = if (isModeratorMode) CardWhite else Charcoal,
                 shape = RoundedCornerShape(20.dp),
                 border = BorderStroke(1.dp, if (isModeratorMode) Charcoal else Hairline),
                 modifier = Modifier
@@ -133,7 +134,7 @@ fun HelpdeskScreen(
                     Icon(
                         imageVector = Icons.Filled.AdminPanelSettings,
                         contentDescription = "Moderator Mode",
-                        tint = if (isModeratorMode) Honey else MutedText,
+                        tint = if (isModeratorMode) CardWhite else Charcoal,
                         modifier = Modifier.size(15.dp)
                     )
                     Text(
