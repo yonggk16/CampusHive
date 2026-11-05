@@ -1,7 +1,5 @@
 package com.example.campushive.viewmodel
 
-import android.app.Activity
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.campushive.data.FirestoreRepository
@@ -9,7 +7,7 @@ import com.example.campushive.model.UserProfile
 import com.google.firebase.Firebase
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseUser
-import com.google.firebase.auth.OAuthProvider
+import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -19,6 +17,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+// ==============================================================================
+// AUTH UI STATE CONTRACT
+// ==============================================================================
 sealed interface AuthUiState {
     data object Idle : AuthUiState
     data object Loading : AuthUiState
@@ -29,6 +30,10 @@ sealed interface AuthUiState {
 class AuthViewModel(
     private val repository: FirestoreRepository = FirestoreRepository(),
 ) : ViewModel() {
+
+    // ==========================================================================
+    // 1. REACTIVE STATE HOLDERS & INITIALIZATION
+    // ==========================================================================
     private val auth = Firebase.auth
 
     private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
@@ -43,9 +48,6 @@ class AuthViewModel(
     val isLoggedIn: Boolean
         get() = currentUser != null
 
-    val isMicrosoftUser: Boolean
-        get() = currentUser?.providerData?.any { it.providerId == "microsoft.com" } == true
-
     val isEmailVerified: Boolean
         get() = currentUser?.isEmailVerified == true
 
@@ -56,24 +58,18 @@ class AuthViewModel(
     fun fetchUserProfile() {
         val user = currentUser
         if (user != null) {
-            val isMicrosoft = isMicrosoftUser
             viewModelScope.launch {
                 repository.getUserProfileFlow(user.uid).collect { profile ->
                     if (profile != null) {
-                        if (isMicrosoft && !profile.isVerifiedStudent) {
-                            val updated = profile.copy(isVerifiedStudent = true)
-                            repository.saveUserProfile(updated)
-                            _userProfile.value = updated
-                        } else {
-                            _userProfile.value = profile
-                        }
+                        _userProfile.value = profile
                     } else {
                         // Create a default initial user profile state if not found in Firestore yet
                         _userProfile.value = UserProfile(
                             uid = user.uid,
                             displayName = user.displayName.orEmpty().ifBlank { "Student User" },
                             email = user.email.orEmpty(),
-                            isVerifiedStudent = isMicrosoft
+                            isVerifiedStudent = user.isEmailVerified,
+                            isModerator = HelpdeskViewModel.isModeratorEmail(user.email)
                         )
                     }
                 }
@@ -83,9 +79,19 @@ class AuthViewModel(
         }
     }
 
+    // ==========================================================================
+    // 2. AUTHENTICATION OPERATIONS (Login, Sign-Up, Google, Sign-Out)
+    // ==========================================================================
+
     fun login(email: String, password: String, onSuccess: () -> Unit) {
         if (email.isBlank() || password.isBlank()) {
             _uiState.value = AuthUiState.Error("Please enter your student email and password.")
+            return
+        }
+
+        val emailError = validateEmail(email)
+        if (emailError != null) {
+            _uiState.value = AuthUiState.Error(emailError)
             return
         }
 
@@ -98,72 +104,17 @@ class AuthViewModel(
                     fetchUserProfile()
                     onSuccess()
                 } else {
-                    val errorMsg = task.exception?.localizedMessage ?: "Login failed. Check your credentials."
+                    val rawMsg = task.exception?.localizedMessage.orEmpty()
+                    val errorMsg = when {
+                        rawMsg.contains("credential", ignoreCase = true) || rawMsg.contains("expired", ignoreCase = true) ->
+                            "Incorrect email or password. Please use your new password."
+                        rawMsg.contains("user-not-found", ignoreCase = true) ->
+                            "No student account found with this email."
+                        else -> rawMsg.ifBlank { "Login failed. Check your credentials." }
+                    }
                     _uiState.value = AuthUiState.Error(errorMsg)
                 }
             }
-    }
-
-    /**
-     * Signs in student via Microsoft Account / Azure AD (OAuthProvider)
-     * allows students to log in without typing a password.
-     */
-    fun loginWithMicrosoft(activity: Activity, onSuccess: () -> Unit) {
-        _uiState.value = AuthUiState.Loading
-
-        val provider = OAuthProvider.newBuilder("microsoft.com")
-        provider.addCustomParameter("prompt", "select_account")
-
-        val pendingResultTask = auth.pendingAuthResult
-        if (pendingResultTask != null) {
-            pendingResultTask
-                .addOnSuccessListener { authResult ->
-                    handleMicrosoftSignInSuccess(authResult.user, onSuccess)
-                }
-                .addOnFailureListener { e ->
-                    Log.e("AuthViewModel", "Microsoft sign-in error (pending task): ${e.message}", e)
-                    val errorMsg = e.localizedMessage ?: "Microsoft sign-in failed."
-                    _uiState.value = AuthUiState.Error(errorMsg)
-                }
-        } else {
-            auth.startActivityForSignInWithProvider(activity, provider.build())
-                .addOnSuccessListener { authResult ->
-                    handleMicrosoftSignInSuccess(authResult.user, onSuccess)
-                }
-                .addOnFailureListener { e ->
-                    Log.e("AuthViewModel", "Microsoft sign-in error: ${e.message}", e)
-                    val errorMsg = e.localizedMessage ?: "Microsoft sign-in failed."
-                    _uiState.value = AuthUiState.Error(errorMsg)
-                }
-        }
-    }
-
-    private fun handleMicrosoftSignInSuccess(user: FirebaseUser?, onSuccess: () -> Unit) {
-        if (user == null) {
-            _uiState.value = AuthUiState.Error("Failed to retrieve Microsoft account details.")
-            return
-        }
-
-        viewModelScope.launch {
-            val existingProfile = repository.getUserProfile(user.uid)
-            val updatedProfile = UserProfile(
-                uid = user.uid,
-                displayName = user.displayName.orEmpty().ifBlank { existingProfile?.displayName ?: "Student User" },
-                email = user.email.orEmpty().ifBlank { existingProfile?.email ?: "" },
-                bio = existingProfile?.bio.orEmpty().ifBlank { "CampusHive Member" },
-                campusLocation = existingProfile?.campusLocation.orEmpty().ifBlank { "Subang 2 Campus" },
-                facultyOrMajor = existingProfile?.facultyOrMajor.orEmpty().ifBlank { "General Student" },
-                phoneNumber = existingProfile?.phoneNumber.orEmpty(),
-                isVerifiedStudent = true,
-                isModerator = existingProfile?.isModerator ?: false
-            )
-
-            repository.saveUserProfile(updatedProfile)
-            updateUserPresence(isOnline = true)
-            _uiState.value = AuthUiState.Success("Signed in with Microsoft Student Account!")
-            fetchUserProfile()
-            onSuccess()
-        }
     }
 
     fun signUp(
@@ -177,12 +128,21 @@ class AuthViewModel(
             _uiState.value = AuthUiState.Error("Please fill in all required fields.")
             return
         }
+
+        val emailError = validateEmail(email)
+        if (emailError != null) {
+            _uiState.value = AuthUiState.Error(emailError)
+            return
+        }
+
         if (password != confirmPassword) {
             _uiState.value = AuthUiState.Error("Passwords do not match.")
             return
         }
-        if (password.length < 6) {
-            _uiState.value = AuthUiState.Error("Password must be at least 6 characters.")
+
+        val passwordError = validatePassword(password)
+        if (passwordError != null) {
+            _uiState.value = AuthUiState.Error(passwordError)
             return
         }
 
@@ -204,7 +164,8 @@ class AuthViewModel(
                             uid = user.uid,
                             displayName = fullName.trim(),
                             email = email.trim(),
-                            isVerifiedStudent = false
+                            isVerifiedStudent = false,
+                            isModerator = HelpdeskViewModel.isModeratorEmail(email)
                         )
                         viewModelScope.launch {
                             repository.saveUserProfile(initialProfile)
@@ -224,6 +185,57 @@ class AuthViewModel(
                 }
             }
     }
+
+    fun signInWithGoogle(idToken: String, onSuccess: () -> Unit) {
+        _uiState.value = AuthUiState.Loading
+        val credential = GoogleAuthProvider.getCredential(idToken, null)
+
+        auth.signInWithCredential(credential)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    val user = auth.currentUser
+                    val email = user?.email.orEmpty()
+
+                    // Validate allowed email domain if needed (@helplive.edu.my or @gmail.com)
+                    if (ALLOWED_DOMAINS.none { email.lowercase().endsWith(it) }) {
+                        auth.signOut()
+                        _uiState.value = AuthUiState.Error("Only @helplive.edu.my or @gmail.com accounts are allowed.")
+                        return@addOnCompleteListener
+                    }
+
+                    // Sync user profile to Firestore
+                    val profile = UserProfile(
+                        uid = user?.uid.orEmpty(),
+                        displayName = user?.displayName.orEmpty().ifBlank { "Student User" },
+                        email = email,
+                        isVerifiedStudent = true,
+                        isModerator = HelpdeskViewModel.isModeratorEmail(email)
+                    )
+                    viewModelScope.launch {
+                        repository.saveUserProfile(profile)
+                        updateUserPresence(isOnline = true)
+                        _uiState.value = AuthUiState.Success("Signed in with Google!")
+                        fetchUserProfile()
+                        onSuccess()
+                    }
+                } else {
+                    val msg = task.exception?.localizedMessage ?: "Google Sign-In failed."
+                    _uiState.value = AuthUiState.Error(msg)
+                }
+            }
+    }
+
+    fun signOut(onSignOutComplete: () -> Unit) {
+        updateUserPresence(isOnline = false)
+        auth.signOut()
+        _uiState.value = AuthUiState.Idle
+        _userProfile.value = null
+        onSignOutComplete()
+    }
+
+    // ==========================================================================
+    // 3. EMAIL VERIFICATION & PASSWORD RESET
+    // ==========================================================================
 
     fun sendEmailVerification(onComplete: ((Boolean, String) -> Unit)? = null) {
         val user = auth.currentUser
@@ -255,17 +267,45 @@ class AuthViewModel(
         }
 
         user.reload().addOnCompleteListener { task ->
-            val isMicrosoft = isMicrosoftUser
-            if (isMicrosoft) {
+            val isVerified = auth.currentUser?.isEmailVerified == true
+            if (isVerified) {
                 val current = _userProfile.value ?: UserProfile(uid = user.uid, email = user.email ?: "")
                 val updated = current.copy(isVerifiedStudent = true)
                 viewModelScope.launch {
                     repository.saveUserProfile(updated)
                 }
             }
-            onComplete?.invoke(task.isSuccessful, isMicrosoft)
+            onComplete?.invoke(task.isSuccessful, isVerified)
         }
     }
+
+    fun sendPasswordReset(email: String) {
+        if (email.isBlank()) {
+            _uiState.value = AuthUiState.Error("Please enter your email address first.")
+            return
+        }
+
+        val emailError = validateEmail(email)
+        if (emailError != null) {
+            _uiState.value = AuthUiState.Error(emailError)
+            return
+        }
+
+        _uiState.value = AuthUiState.Loading
+        auth.sendPasswordResetEmail(email.trim())
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    _uiState.value = AuthUiState.Success("Password reset email sent to ${email.trim()}")
+                } else {
+                    val errorMsg = task.exception?.localizedMessage ?: "Failed to send reset email."
+                    _uiState.value = AuthUiState.Error(errorMsg)
+                }
+            }
+    }
+
+    // ==========================================================================
+    // 4. PROFILE MANAGEMENT & PRESENCE TRACKING
+    // ==========================================================================
 
     fun updateUserProfile(
         displayName: String,
@@ -294,7 +334,6 @@ class AuthViewModel(
                     uid = user.uid,
                     email = user.email.orEmpty()
                 )
-                val isMicrosoft = isMicrosoftUser
                 val updated = current.copy(
                     uid = user.uid,
                     displayName = displayName.trim(),
@@ -303,7 +342,7 @@ class AuthViewModel(
                     campusLocation = campusLocation.trim(),
                     facultyOrMajor = facultyOrMajor.trim(),
                     phoneNumber = phoneNumber.trim(),
-                    isVerifiedStudent = isMicrosoft || current.isVerifiedStudent
+                    isVerifiedStudent = user.isEmailVerified
                 )
 
                 viewModelScope.launch {
@@ -324,32 +363,6 @@ class AuthViewModel(
         }
     }
 
-    fun sendPasswordReset(email: String) {
-        if (email.isBlank()) {
-            _uiState.value = AuthUiState.Error("Please enter your email address first.")
-            return
-        }
-
-        _uiState.value = AuthUiState.Loading
-        auth.sendPasswordResetEmail(email.trim())
-            .addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    _uiState.value = AuthUiState.Success("Password reset email sent to ${email.trim()}")
-                } else {
-                    val errorMsg = task.exception?.localizedMessage ?: "Failed to send reset email."
-                    _uiState.value = AuthUiState.Error(errorMsg)
-                }
-            }
-    }
-
-    fun signOut(onSignOutComplete: () -> Unit) {
-        updateUserPresence(isOnline = false)
-        auth.signOut()
-        _uiState.value = AuthUiState.Idle
-        _userProfile.value = null
-        onSignOutComplete()
-    }
-
     /**
      * Updates student's real-time online presence in Cloud Firestore
      */
@@ -357,12 +370,10 @@ class AuthViewModel(
         val user = auth.currentUser ?: return
         val userDocRef = FirebaseFirestore.getInstance().collection("users").document(user.uid)
 
-        val isMicrosoft = isMicrosoftUser
         val presenceData = hashMapOf<String, Any>(
             "uid" to user.uid,
             "displayName" to (user.displayName ?: "Student"),
             "email" to (user.email ?: ""),
-            "isVerifiedStudent" to (isMicrosoft || (_userProfile.value?.isVerifiedStudent == true)),
             "isOnline" to isOnline,
             "lastSeen" to Timestamp.now()
         )
@@ -370,7 +381,46 @@ class AuthViewModel(
         userDocRef.set(presenceData, SetOptions.merge())
     }
 
+    // ==========================================================================
+    // 5. HELPER METHODS
+    // ==========================================================================
+
     fun clearUiState() {
         _uiState.value = AuthUiState.Idle
+    }
+
+    // ==========================================================================
+    // 6. VALIDATION RULES & CONSTANTS
+    // ==========================================================================
+
+    companion object {
+        val ALLOWED_DOMAINS = listOf("@helplive.edu.my", "@gmail.com")
+
+        fun validateEmail(email: String): String? {
+            val trimmed = email.trim().lowercase()
+            if (trimmed.isBlank()) {
+                return "Please enter your email."
+            }
+            if (ALLOWED_DOMAINS.none { trimmed.endsWith(it) }) {
+                return "Email must be @helplive.edu.my or @gmail.com"
+            }
+            return null
+        }
+
+        fun validatePassword(password: String): String? {
+            if (password.length < 8) {
+                return "Password must be at least 8 characters"
+            }
+            if (!password.any { it.isUpperCase() }) {
+                return "Password needs 1 uppercase letter (A-Z)"
+            }
+            if (!password.any { it.isLowerCase() }) {
+                return "Password needs 1 lowercase letter (a-z)"
+            }
+            if (!password.any { !it.isLetterOrDigit() }) {
+                return "Password needs 1 special symbol (!@#$)"
+            }
+            return null
+        }
     }
 }

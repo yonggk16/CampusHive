@@ -37,7 +37,9 @@ fun EditProfileDialog(
         Surface(
             modifier = Modifier
                 .fillMaxWidth(0.92f)
-                .wrapContentHeight(),
+                .wrapContentHeight()
+                .navigationBarsPadding()
+                .imePadding(),
             shape = RoundedCornerShape(24.dp),
             color = Cream,
             border = BorderStroke(1.dp, Hairline)
@@ -173,11 +175,11 @@ fun EditProfileDialog(
                                 onSave(displayName, bio, campusLocation, facultyOrMajor, phoneNumber)
                             }
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
+                        colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
                         shape = RoundedCornerShape(12.dp),
                         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
                     ) {
-                        Text("Save Profile", fontWeight = FontWeight.Bold)
+                        Text("Save Profile", fontWeight = FontWeight.Bold, color = CardWhite)
                     }
                 }
             }

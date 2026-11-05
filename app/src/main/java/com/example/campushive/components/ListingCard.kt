@@ -75,12 +75,12 @@ fun ListingCard(
                             Icon(
                                 imageVector = Icons.Filled.Star,
                                 contentDescription = "Rating",
-                                tint = Color(0xFFFFB800),
+                                tint = if (listing.reviewCount > 0) Color(0xFFFFB800) else MutedText,
                                 modifier = Modifier.size(13.dp)
                             )
                             Spacer(Modifier.width(2.dp))
                             Text(
-                                text = "${listing.rating} (${listing.reviewCount})",
+                                text = if (listing.reviewCount > 0) "%.1f (${listing.reviewCount})".format(listing.rating) else "New",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Charcoal

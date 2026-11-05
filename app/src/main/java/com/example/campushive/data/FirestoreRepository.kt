@@ -14,6 +14,7 @@ import com.google.firebase.auth.auth
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.PropertyName
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -52,8 +53,12 @@ class FirestoreRepository(
     private val usersRef = db.collection("users")
     private val reportsRef = db.collection("reports")
 
+    // ==========================================================================
+    // 1. LISTINGS OPERATIONS
+    // ==========================================================================
+
     /**
-     * Real-time Flow listener for Cloud Firestore Service Listings (ACTIVE ones)
+     * Real-time Flow listener for active public service listings
      */
     fun getListingsFlow(): Flow<List<Listing>> = callbackFlow {
         val listener = listingsRef.addSnapshotListener { snapshot, error ->
@@ -61,18 +66,12 @@ class FirestoreRepository(
                 Log.e("FirestoreRepository", "Error listening to listings", error)
                 return@addSnapshotListener
             }
-            if (snapshot == null) {
-                return@addSnapshotListener
-            }
+            if (snapshot == null) return@addSnapshotListener
 
             val listings = snapshot.documents
-                .sortedByDescending { doc ->
-                    doc.getTimestamp("createdAt")?.toDate()?.time ?: 0L
-                }
-                .mapNotNull { doc ->
-                    doc.toListingOrNull()
-                }
+                .mapNotNull { doc -> doc.toListingOrNull() }
                 .filter { it.title.isNotBlank() && it.status == "ACTIVE" }
+                .sortedByDescending { it.createdAt }
 
             trySend(listings)
         }
@@ -81,7 +80,7 @@ class FirestoreRepository(
     }
 
     /**
-     * Real-time Flow listener for user's managed listings (ACTIVE & INACTIVE, excludes DELETED)
+     * Real-time Flow listener for user's managed listings (ACTIVE & INACTIVE)
      */
     fun getMyListingsFlow(providerUID: String = Firebase.auth.currentUser?.uid ?: ""): Flow<List<Listing>> = callbackFlow {
         val listener = listingsRef.addSnapshotListener { snapshot, error ->
@@ -115,7 +114,7 @@ class FirestoreRepository(
      */
     suspend fun createListing(
         listing: Listing,
-        providerUID: String = Firebase.auth.currentUser?.uid ?: "usr_daniel",
+        providerUID: String = "",
     ): Boolean {
         return try {
             val docRef = if (listing.id.isNotBlank() && !listing.id.startsWith("srv_")) {
@@ -124,19 +123,29 @@ class FirestoreRepository(
                 listingsRef.document()
             }
 
-            val effectiveUid = providerUID.ifBlank { Firebase.auth.currentUser?.uid ?: "usr_daniel" }
+            val currentAuthUid = Firebase.auth.currentUser?.uid.orEmpty()
+            val effectiveUid = when {
+                listing.providerUID.isNotBlank() -> listing.providerUID
+                providerUID.isNotBlank() -> providerUID
+                currentAuthUid.isNotBlank() -> currentAuthUid
+                else -> ""
+            }
+
+            val currentAuthName = Firebase.auth.currentUser?.displayName.orEmpty()
+                .ifBlank { Firebase.auth.currentUser?.email?.substringBefore("@").orEmpty() }
+            val effectiveName = listing.providerName.ifBlank { currentAuthName.ifBlank { "Student User" } }
 
             val data = hashMapOf(
                 "listingId" to docRef.id,
                 "providerUID" to effectiveUid,
-                "providerName" to listing.providerName.ifBlank { "Daniel Wong" },
+                "providerName" to effectiveName,
                 "title" to listing.title,
                 "category" to listing.category,
                 "price" to listing.price,
                 "pricingType" to listing.pricingType.name,
                 "rating" to listing.rating,
                 "reviewCount" to listing.reviewCount,
-                "campusLocation" to listing.campusLocation,
+                "campusLocation" to listing.campusLocation.ifBlank { "Subang 2 Campus" },
                 "description" to listing.description,
                 "coverImageUrl" to "",
                 "status" to listing.status.ifBlank { "ACTIVE" },
@@ -144,7 +153,7 @@ class FirestoreRepository(
                 "createdAt" to Timestamp.now()
             )
 
-            docRef.set(data).await()
+            docRef.set(data, SetOptions.merge()).await()
             Log.d("FirestoreRepository", "Successfully stored listing in Firestore: ${docRef.id}")
             true
         } catch (e: Exception) {
@@ -178,7 +187,7 @@ class FirestoreRepository(
     }
 
     /**
-     * Delete or soft-delete a Service Listing in Cloud Firestore
+     * soft-delete a Service Listing in Cloud Firestore
      */
     suspend fun deleteListing(listingId: String): Boolean {
         return try {
@@ -205,6 +214,10 @@ class FirestoreRepository(
             false
         }
     }
+
+    // ==========================================================================
+    // 2. REVIEWS & RATINGS OPERATIONS
+    // ==========================================================================
 
     /**
      * Submit a new Review and recalculate listing rating & review count in Firestore
@@ -348,6 +361,10 @@ class FirestoreRepository(
         awaitClose { listener.remove() }
     }
 
+    // ==========================================================================
+    // 3. USER PROFILE OPERATIONS
+    // ==========================================================================
+
     /**
      * Real-time Flow listener for a specific User Profile in Firestore
      */
@@ -416,6 +433,10 @@ class FirestoreRepository(
             null
         }
     }
+
+    // ==========================================================================
+    // 4. HELPDESK & MODERATION REPORTS
+    // ==========================================================================
 
     /**
      * Submit a Helpdesk / User Safety Report to Cloud Firestore
@@ -564,6 +585,10 @@ class FirestoreRepository(
     }
 }
 
+// ==============================================================================
+// 5. FIRESTORE DOCUMENT MAPPERS
+// ==============================================================================
+
 private fun DocumentSnapshot.toListingOrNull(): Listing? {
     return try {
         val title = getString("title") ?: return null
@@ -691,7 +716,7 @@ private fun DocumentSnapshot.toHelpReportOrNull(): HelpReport? {
     }
 }
 
-// Mapper Extension
+// Entity Mapper Extension
 @Suppress("unused")
 fun ListingEntity.toUIModel(): Listing {
     return Listing(

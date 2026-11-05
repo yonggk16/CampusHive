@@ -43,7 +43,10 @@ fun ReviewDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .imePadding(),
             shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(containerColor = CardWhite)
         ) {
@@ -102,8 +105,9 @@ fun ReviewDialog(
                         val isSelected = selectedTags.contains(tag)
                         Surface(
                             shape = RoundedCornerShape(20.dp),
-                            color = if (isSelected) Honey else Cream,
-                            border = BorderStroke(1.dp, Hairline),
+                            color = if (isSelected) Charcoal else CardWhite,
+                            contentColor = if (isSelected) CardWhite else Charcoal,
+                            border = if (isSelected) null else BorderStroke(1.dp, Hairline),
                             modifier = Modifier.clickable {
                                 if (isSelected) selectedTags.remove(tag) else selectedTags.add(tag)
                             }
@@ -113,7 +117,7 @@ fun ReviewDialog(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Charcoal
+                                color = if (isSelected) CardWhite else Charcoal
                             )
                         }
                     }
@@ -184,13 +188,13 @@ fun ReviewDialog(
                     },
                     enabled = !isSubmitting,
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
+                    colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     if (isSubmitting) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(18.dp),
-                            color = Charcoal,
+                            color = CardWhite,
                             strokeWidth = 2.dp
                         )
                     } else {

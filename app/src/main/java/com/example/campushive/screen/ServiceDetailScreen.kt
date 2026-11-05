@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -36,6 +37,7 @@ import com.example.campushive.components.ReviewDialog
 import com.example.campushive.components.ServiceCategoryIconBox
 import com.example.campushive.model.Listing
 import com.example.campushive.model.PricingType
+import com.example.campushive.model.ReportStatus
 import com.example.campushive.model.ReportType
 import com.example.campushive.ui.theme.*
 import com.example.campushive.viewmodel.HelpdeskViewModel
@@ -90,7 +92,6 @@ fun ServiceDetailScreen(
         (currentUserName.isNotBlank() && listing.providerName.isNotBlank() && currentUserName.equals(listing.providerName, ignoreCase = true))
 
     val initials = listing.providerName.split(" ").mapNotNull { it.firstOrNull()?.toString() }.joinToString("")
-    val firstName = listing.providerName.split(" ").firstOrNull() ?: listing.providerName
 
     if (showReviewDialog && !isOwnListing) {
         ReviewDialog(
@@ -118,64 +119,81 @@ fun ServiceDetailScreen(
     }
 
     val userReports by helpdeskViewModel.userReports.collectAsState()
-    val listingReport = remember(userReports, listing.id, listing.title) {
-        userReports.find { report ->
-            report.targetId == listing.id ||
-            (listing.id.isNotBlank() && report.targetId.contains(listing.id)) ||
-            (report.targetName.isNotBlank() && report.targetName.equals(listing.title, ignoreCase = true))
+    val allReports by helpdeskViewModel.allReports.collectAsState()
+
+    val listingReport = remember(userReports, allReports, listing.id, listing.title) {
+        (allReports + userReports).find { report ->
+            report.status != ReportStatus.RESOLVED && report.status != ReportStatus.CLOSED && (
+                report.targetId == listing.id ||
+                (listing.id.isNotBlank() && report.targetId.contains(listing.id)) ||
+                (report.targetName.isNotBlank() && report.targetName.equals(listing.title, ignoreCase = true))
+            )
         }
     }
 
-    val showReportBanner = listingReport != null || reportSubmittedLocally
+    var showReportNoticeDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(reportSubmittedLocally) {
+        if (reportSubmittedLocally) {
+            showReportNoticeDialog = true
+        }
+    }
+
+    // Pop-up Notice Dialog when a report is submitted or tapped
+    if (showReportNoticeDialog) {
+        AlertDialog(
+            onDismissRequest = { showReportNoticeDialog = false },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.WarningAmber,
+                        contentDescription = null,
+                        tint = Color(0xFFE65100),
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Text(
+                        text = "Report Submitted",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = Charcoal
+                    )
+                }
+            },
+            text = {
+                Text(
+                    text = "Category: ${listingReport?.category ?: "Flag"}\n\nOur campus moderation team is investigating this listing. Thank you for keeping CampusHive safe!",
+                    fontSize = 13.sp,
+                    color = Charcoal,
+                    lineHeight = 18.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showReportNoticeDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Got it", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+            },
+            containerColor = CardWhite,
+            shape = RoundedCornerShape(20.dp)
+        )
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Cream)
+            .background(HoneyBottomGradient)
     ) {
         Column(
             modifier = Modifier
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
         ) {
-            if (showReportBanner) {
-                Surface(
-                    color = Color(0xFFFFF3C4),
-                    shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.dp, Color(0xFFE5C158)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.WarningAmber,
-                            contentDescription = null,
-                            tint = Color(0xFF7A5800),
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Report Submitted (${listingReport?.status?.name ?: "OPEN"})",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp,
-                                color = Color(0xFF7A5800)
-                            )
-                            Spacer(Modifier.height(2.dp))
-                            Text(
-                                text = if (listingReport != null) "Category: ${listingReport.category}. Our campus moderation team is investigating this listing." else "Your flag/report has been submitted and is under review.",
-                                fontSize = 11.sp,
-                                color = Color(0xFF7A5800),
-                                lineHeight = 15.sp
-                            )
-                        }
-                    }
-                }
-            }
             // Hero Image/Banner Box (Top Category Icon Showcase)
             Box(
                 modifier = Modifier
@@ -192,7 +210,7 @@ fun ServiceDetailScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .statusBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -269,45 +287,78 @@ fun ServiceDetailScreen(
                 modifier = Modifier.padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Category & Location Badges
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Surface(
-                        color = Color(0xFFFFF7DB),
-                        shape = RoundedCornerShape(20.dp)
-                    ) {
-                        Text(
-                            text = listing.category.uppercase(),
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF8C6B10)
-                        )
+                // Category, Location & Report Pending Badges
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (listingReport != null || reportSubmittedLocally) {
+                        Surface(
+                            color = Color(0xFFFFF3C4),
+                            shape = RoundedCornerShape(20.dp),
+                            border = BorderStroke(1.dp, Color(0xFFE5C158)),
+                            modifier = Modifier.clickable { showReportNoticeDialog = true }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.WarningAmber,
+                                    contentDescription = null,
+                                    tint = Color(0xFF7A5800),
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Text(
+                                    text = "Report Pending (${listingReport?.status?.name ?: "OPEN"})",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF7A5800)
+                                )
+                            }
+                        }
                     }
 
-                    Surface(
-                        color = Color(0xFFF6F3EE),
-                        shape = RoundedCornerShape(20.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        Surface(
+                            color = HoneyTint,
+                            shape = RoundedCornerShape(20.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Outlined.LocationOn,
-                                contentDescription = null,
-                                tint = MutedText,
-                                modifier = Modifier.size(13.dp)
-                            )
-                            Spacer(Modifier.width(4.dp))
                             Text(
-                                text = listing.campusLocation,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium,
+                                text = listing.category.uppercase(),
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
                                 color = Charcoal
                             )
+                        }
+
+                        Surface(
+                            color = CardWhite,
+                            border = BorderStroke(1.dp, Hairline),
+                            shape = RoundedCornerShape(20.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.LocationOn,
+                                    contentDescription = null,
+                                    tint = MutedText,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    text = listing.campusLocation,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Charcoal,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                     }
                 }
@@ -393,7 +444,7 @@ fun ServiceDetailScreen(
                                 modifier = Modifier
                                     .size(44.dp)
                                     .clip(CircleShape)
-                                    .background(Honey),
+                                    .background(HoneyTint),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
@@ -507,7 +558,7 @@ fun ServiceDetailScreen(
 
                         if (!isOwnListing) {
                             Surface(
-                                color = Honey,
+                                color = HoneyTint,
                                 shape = RoundedCornerShape(16.dp),
                                 modifier = Modifier
                                     .clickable { showReviewDialog = true }
@@ -565,11 +616,11 @@ fun ServiceDetailScreen(
                                     Spacer(Modifier.height(10.dp))
                                     Button(
                                         onClick = { showReviewDialog = true },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
                                         shape = RoundedCornerShape(12.dp),
                                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
                                     ) {
-                                        Text("Write a Review", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        Text("Write a Review", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = CardWhite)
                                     }
                                 }
                             }
@@ -668,21 +719,23 @@ fun ServiceDetailScreen(
 
                 Spacer(Modifier.height(16.dp))
 
-                // Flag / Report Listing Button
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { showReportDialog = true }
-                        .padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Flag or report this listing",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MutedText
-                    )
+                // Flag / Report Listing Button (Only visible to Service Seekers, hidden from the Provider)
+                if (!isOwnListing) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showReportDialog = true }
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Flag or report this listing",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MutedText
+                        )
+                    }
                 }
 
                 Spacer(Modifier.height(20.dp))
@@ -726,15 +779,15 @@ fun ServiceDetailScreen(
                     modifier = Modifier.bounceClick(scaleDown = 0.95f)
                 ) {
                     Text(
-                        text = if (isOwnListing) "Open Service Chat" else "Chat with $firstName",
+                        text = if (isOwnListing) "Manage Listing" else "Chat Provider",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
+                        fontSize = 15.sp
                     )
                     Spacer(Modifier.width(8.dp))
                     Icon(
                         imageVector = Icons.Outlined.ChatBubbleOutline,
                         contentDescription = null,
-                        tint = Honey,
+                        tint = HoneyTint,
                         modifier = Modifier.size(16.dp)
                     )
                 }

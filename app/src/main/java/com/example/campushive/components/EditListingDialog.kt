@@ -61,7 +61,9 @@ fun EditListingDialog(
         Surface(
             modifier = Modifier
                 .fillMaxWidth(0.92f)
-                .wrapContentHeight(),
+                .wrapContentHeight()
+                .navigationBarsPadding()
+                .imePadding(),
             shape = RoundedCornerShape(24.dp),
             color = Cream
         ) {
@@ -305,7 +307,17 @@ fun EditListingDialog(
                                 Toast.makeText(context, "Title and Price cannot be empty", Toast.LENGTH_SHORT).show()
                                 return@Button
                             }
-                            val parsedPrice = priceText.toDoubleOrNull() ?: listing.price
+                            val rawPrice = priceText.toDoubleOrNull() ?: listing.price
+                            val maxAllowedPrice = if (selectedPricingType == PricingType.PER_HOUR) 50.0 else 1000.0
+                            if (rawPrice > maxAllowedPrice) {
+                                val limitMsg = if (selectedPricingType == PricingType.PER_HOUR)
+                                    "Maximum rate for hourly services is RM 50 / hr"
+                                else
+                                    "Maximum price for fixed gig services is RM 1,000"
+                                Toast.makeText(context, limitMsg, Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            val parsedPrice = rawPrice.coerceIn(0.0, maxAllowedPrice)
                             val updatedListing = listing.copy(
                                 title = title.trim(),
                                 category = selectedCategory,
@@ -318,11 +330,11 @@ fun EditListingDialog(
                             onSave(updatedListing)
                             Toast.makeText(context, "Listing updated successfully!", Toast.LENGTH_SHORT).show()
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
+                        colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
                         shape = RoundedCornerShape(14.dp),
                         modifier = Modifier.weight(0.6f)
                     ) {
-                        Text("Save Changes", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text("Save Changes", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = CardWhite)
                     }
                 }
             }

@@ -15,6 +15,9 @@ class ListingViewModel(
     private val repository: FirestoreRepository = FirestoreRepository(),
 ) : ViewModel() {
 
+    // ==========================================================================
+    // 1. REACTIVE STATE HOLDERS & INITIALIZATION
+    // ==========================================================================
     private val _listings = MutableStateFlow<List<Listing>>(emptyList())
     val listings: StateFlow<List<Listing>> = _listings.asStateFlow()
 
@@ -27,46 +30,59 @@ class ListingViewModel(
     private val _shouldFocusSearch = MutableStateFlow(false)
     val shouldFocusSearch: StateFlow<Boolean> = _shouldFocusSearch.asStateFlow()
 
-    fun setSelectedCategory(category: String) {
-        _selectedCategory.value = normalizeCategoryFilter(category)
-    }
-
-    fun requestSearchFocus() {
-        _shouldFocusSearch.value = true
-    }
-
-    fun consumeSearchFocus() {
-        _shouldFocusSearch.value = false
-    }
-
     init {
         // Stream live active public listings from Cloud Firestore
         viewModelScope.launch {
             repository.getListingsFlow().collect { firestoreListings ->
-                _listings.value = firestoreListings
+                val currentListings = _listings.value
+                val localOnly = currentListings.filter { localItem ->
+                    firestoreListings.none { it.id == localItem.id }
+                }
+                _listings.value = (localOnly + firestoreListings).sortedByDescending { it.createdAt }
             }
         }
 
-        // Stream live managed listings for the currently logged in user
+        // Stream live managed listings for the currently logged-in user
         refreshUserListings()
     }
 
     fun refreshUserListings() {
         val currentUid = Firebase.auth.currentUser?.uid.orEmpty()
+        if (currentUid.isBlank()) {
+            _myListings.value = emptyList()
+            return
+        }
+        _myListings.value = emptyList() // Resets state on user switch
         viewModelScope.launch {
             repository.getMyListingsFlow(currentUid).collect { userListings ->
-                _myListings.value = userListings
+                _myListings.value = userListings.sortedByDescending { it.createdAt }
             }
         }
     }
 
+    // ==========================================================================
+    // 2. LISTING CRUD OPERATIONS (Zero-Latency Optimistic Updates)
+    // ==========================================================================
+
     fun addListing(listing: Listing, onResult: (Boolean) -> Unit = {}) {
-        val currentUserId = Firebase.auth.currentUser?.uid.orEmpty()
-        val listingWithUid = if (listing.providerUID.isBlank()) listing.copy(providerUID = currentUserId) else listing
+        val user = Firebase.auth.currentUser
+        val currentUserId = user?.uid.orEmpty()
+        val currentUserName = user?.displayName
+            ?.takeIf { it.isNotBlank() }
+            ?: user?.email?.substringBefore("@")?.takeIf { it.isNotBlank() }
+            ?: "Student User"
+
+        val listingWithUid = listing.copy(
+            providerUID = listing.providerUID.ifBlank { currentUserId },
+            providerName = listing.providerName.ifBlank { currentUserName }
+        )
 
         // 1. Instant local optimistic update for 0ms lag
         _listings.value = listOf(listingWithUid) + _listings.value.filterNot { it.id == listingWithUid.id }
         _myListings.value = listOf(listingWithUid) + _myListings.value.filterNot { it.id == listingWithUid.id }
+
+        // Reset category filter to All Categories so the newly added listing is immediately visible
+        _selectedCategory.value = "All Categories"
 
         // 2. Async Cloud Firestore sync
         viewModelScope.launch {
@@ -120,12 +136,28 @@ class ListingViewModel(
         }
     }
 
-    fun removeListing(listingId: String) {
-        deleteListing(listingId)
+    // ==========================================================================
+    // 3. SEARCH & CATEGORY FILTER STATE HANDLERS
+    // ==========================================================================
+
+    fun setSelectedCategory(category: String) {
+        _selectedCategory.value = normalizeCategoryFilter(category)
     }
 
+    fun requestSearchFocus() {
+        _shouldFocusSearch.value = true
+    }
+
+    fun consumeSearchFocus() {
+        _shouldFocusSearch.value = false
+    }
+
+    // ==========================================================================
+    // 4. CONSTANTS & CATEGORY VALIDATION
+    // ==========================================================================
+
     companion object {
-        val CATEGORY_FILTERS = listOf("All Categories", "Tutoring", "Design", "Tech Help", "Errands")
+        val CATEGORY_FILTERS = listOf("All Categories", "Tutoring", "Design", "Tech Help", "Errands", "Others")
 
         fun normalizeCategoryFilter(raw: String): String {
             val trimmed = raw.trim()
@@ -134,6 +166,7 @@ class ListingViewModel(
                 ?: when (trimmed.lowercase()) {
                     "coding", "tech", "tech help" -> "Tech Help"
                     "campus services", "errand" -> "Errands"
+                    "other", "others", "general" -> "Others"
                     else -> trimmed
                 }
         }

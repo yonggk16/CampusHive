@@ -2,7 +2,6 @@ package com.example.campushive.components
 
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -15,7 +14,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -58,6 +56,8 @@ fun ReportDialog(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
+                .imePadding()
                 .padding(16.dp),
             shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(containerColor = CardWhite),
@@ -150,15 +150,16 @@ fun ReportDialog(
                         val isSelected = selectedCategory == cat
                         Surface(
                             shape = RoundedCornerShape(20.dp),
-                            color = if (isSelected) Honey else Cream,
-                            border = BorderStroke(1.dp, if (isSelected) Honey else Hairline),
+                            color = if (isSelected) Charcoal else CardWhite,
+                            contentColor = if (isSelected) CardWhite else Charcoal,
+                            border = BorderStroke(1.dp, if (isSelected) Charcoal else Hairline),
                             modifier = Modifier.clickable { selectedCategory = cat }
                         ) {
                             Text(
                                 text = cat,
                                 fontSize = 12.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = Charcoal,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) CardWhite else Charcoal,
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                             )
                         }
@@ -226,14 +227,14 @@ fun ReportDialog(
                         }
                     },
                     enabled = !isSubmitting,
-                    colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = Charcoal),
+                    colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp)
                 ) {
                     if (isSubmitting) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Charcoal, strokeWidth = 2.dp)
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = CardWhite, strokeWidth = 2.dp)
                     } else {
                         Text("Submit Report", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     }

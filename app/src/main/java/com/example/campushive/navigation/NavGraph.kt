@@ -7,6 +7,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -22,6 +24,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.campushive.components.BottomBar
 import com.example.campushive.screen.*
+import com.example.campushive.viewmodel.ChatViewModel
 import com.example.campushive.viewmodel.HelpdeskViewModel
 import com.example.campushive.viewmodel.ListingViewModel
 import com.example.campushive.viewmodel.ReviewViewModel
@@ -44,6 +47,7 @@ fun CampusHiveApp() {
     val listingViewModel: ListingViewModel = viewModel()
     val reviewViewModel: ReviewViewModel = viewModel()
     val helpdeskViewModel: HelpdeskViewModel = viewModel()
+    val chatViewModel: ChatViewModel = viewModel()
     val auth = Firebase.auth
     val currentUser = auth.currentUser
 
@@ -62,12 +66,15 @@ fun CampusHiveApp() {
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        bottomBar = { if (showBottomBar) BottomBar(navController) },
-    ) { padding ->
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        bottomBar = { if (showBottomBar) BottomBar(navController, chatViewModel) },
+    ) { innerPadding ->
         NavHost(
             navController = navController,
             startDestination = startDestination,
-            modifier = Modifier.padding(padding),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
             enterTransition = {
                 fadeIn(animationSpec = tween(180)) +
                     scaleIn(
@@ -120,6 +127,7 @@ fun CampusHiveApp() {
             composable(Screen.Home.route) {
                 HomeScreen(
                     listingViewModel = listingViewModel,
+                    chatViewModel = chatViewModel,
                     onListingClick = { listing ->
                         navController.navigate("service_detail/${listing.id}")
                     },
@@ -189,10 +197,42 @@ fun CampusHiveApp() {
                     listingViewModel = listingViewModel,
                     reviewViewModel = reviewViewModel,
                     helpdeskViewModel = helpdeskViewModel,
-                    onBackClick = { navController.popBackStack() },
+                    onBackClick = {
+                        if (!navController.popBackStack()) {
+                            navController.navigate(Screen.Search.route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                            }
+                        }
+                    },
                     onChatClick = { providerName, serviceTitle ->
-                        val uniqueChatId = "chat_$listingId"
-                        navController.navigate("chat_detail/$uniqueChatId/$providerName/$serviceTitle")
+                        val activeUser = Firebase.auth.currentUser
+                        val activeUid = activeUser?.uid.orEmpty()
+                        val activeUserName = activeUser?.displayName?.trim()?.takeIf { it.isNotBlank() }
+                            ?: activeUser?.email?.substringBefore("@")?.trim()
+                            ?: ""
+                        val targetListing = listingViewModel.listings.value.find { it.id == listingId }
+                        val isOwnListing = (activeUid.isNotBlank() && targetListing?.providerUID?.isNotBlank() == true && activeUid == targetListing.providerUID) ||
+                            (activeUserName.isNotBlank() && providerName.isNotBlank() && activeUserName.equals(providerName, ignoreCase = true))
+
+                        if (isOwnListing) {
+                            navController.navigate(Screen.Chats.route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                            }
+                        } else {
+                            val uniqueChatId = ChatViewModel.buildConversationId(listingId, activeUid)
+                            chatViewModel.startConversation(
+                                conversationId = uniqueChatId,
+                                listingId = listingId,
+                                providerUID = targetListing?.providerUID.orEmpty(),
+                                providerName = providerName,
+                                serviceTitle = serviceTitle
+                            )
+                            navController.navigate("chat_detail/$uniqueChatId/$providerName/$serviceTitle") {
+                                launchSingleTop = true
+                            }
+                        }
                     }
                 )
             }
@@ -205,10 +245,11 @@ fun CampusHiveApp() {
                         navController.popBackStack()
                     },
                     onServiceCreated = {
-                        navController.navigate(Screen.Search.route) {
+                        listingViewModel.setSelectedCategory("All Categories")
+                        navController.navigate("search?category=All%20Categories&focusSearch=false") {
                             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                             launchSingleTop = true
-                            restoreState = true
+                            restoreState = false
                         }
                     }
                 )
@@ -217,11 +258,17 @@ fun CampusHiveApp() {
             // Chats Screen
             composable(Screen.Chats.route) {
                 ChatsScreen(
+                    chatViewModel = chatViewModel,
+                    reviewViewModel = reviewViewModel,
                     onChatClick = { chat ->
-                        navController.navigate("chat_detail/${chat.id}/${chat.studentName}/${chat.serviceTitle}")
+                        navController.navigate("chat_detail/${chat.id}/${chat.studentName}/${chat.serviceTitle}") {
+                            launchSingleTop = true
+                        }
                     },
                     onReviewClick = { chat ->
-                        val extractedListingId = if (chat.id.startsWith("chat_")) chat.id.removePrefix("chat_") else chat.id
+                        val extractedListingId = chat.listingId.ifBlank {
+                            ChatViewModel.extractListingIdFromChatId(chat.id)
+                        }
                         navController.navigate("post_review/${chat.studentName}/${chat.serviceTitle}?listingId=$extractedListingId")
                     }
                 )
@@ -237,11 +284,22 @@ fun CampusHiveApp() {
                     chatId = chatId,
                     studentName = studentName,
                     serviceTitle = serviceTitle,
+                    chatViewModel = chatViewModel,
                     helpdeskViewModel = helpdeskViewModel,
-                    onBackClick = { navController.popBackStack() },
+                    onBackClick = {
+                        if (!navController.popBackStack()) {
+                            navController.navigate(Screen.Chats.route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                            }
+                        }
+                    },
                     onViewServiceClick = { targetListingId ->
                         if (targetListingId.isNotBlank()) {
-                            navController.navigate("service_detail/$targetListingId")
+                            navController.navigate("service_detail/$targetListingId") {
+                                popUpTo("service_detail/$targetListingId") { inclusive = true }
+                                launchSingleTop = true
+                            }
                         }
                     }
                 )
