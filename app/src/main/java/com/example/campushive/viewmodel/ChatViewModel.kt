@@ -24,7 +24,6 @@ import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.TimeZone
 
 class ChatViewModel(
     private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
