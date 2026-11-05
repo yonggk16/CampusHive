@@ -59,10 +59,24 @@ class ChatViewModel(
     private var usersRegistration: ListenerRegistration? = null
 
     private val authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+        val user = firebaseAuth.currentUser
+        if (user == null) {
+            clearDataOnSignOut()
+        } else {
+            optimisticConversations.clear()
+            syncCurrentUserToFirestore(firebaseAuth)
+            rebuildConversationsList()
+            repairMissingConversationParticipants(latestConversationDocs)
+        }
+    }
+
+    fun clearDataOnSignOut() {
+        discoveredSeekerUidMap.clear()
+        discoveredSeekerNameMap.clear()
         optimisticConversations.clear()
-        syncCurrentUserToFirestore(firebaseAuth)
-        rebuildConversationsList()
-        repairMissingConversationParticipants(latestConversationDocs)
+        _conversations.value = emptyList()
+        _userOnlineStatus.value = emptyMap()
+        _userLastSeenMillis.value = emptyMap()
     }
 
     init {
@@ -386,7 +400,7 @@ class ChatViewModel(
                     (!isGenericPlaceholderName(sName) && isUsersIdentifier(sName)) ||
                     isUsersIdentifier(extractedSeekerInChatId) ||
                     (convId.contains("_") && isUsersIdentifier(convId.substringAfterLast("_"))) ||
-                    (!matchesProvider && currentUid.isNotBlank())
+                    (discoveredSeekerUidMap[convId] != null && isUsersIdentifier(discoveredSeekerUidMap[convId]))
 
             matchesProvider || matchesSeeker
         }
@@ -688,26 +702,30 @@ class ChatViewModel(
 
                 val currentUid = auth.currentUser?.uid ?: ""
 
-                // Prevent leaking messages from a conversation that belongs to a different Seeker
                 val effectiveSeekerUid = cachedSeekerUid.ifBlank {
                     snapshot.documents.firstOrNull { doc ->
                         val sUid = doc.getString("senderUid") ?: ""
                         sUid.isNotBlank() && cachedProviderUid.isNotBlank() && sUid != cachedProviderUid
                     }?.getString("senderUid").orEmpty()
                 }
+
+                val isParticipant = isUsersIdentifier(cachedProviderUid) ||
+                        isUsersIdentifier(effectiveSeekerUid) ||
+                        snapshot.documents.any { isUsersIdentifier(it.getString("senderUid")) }
+
+                // Only block 3rd-party users if provider and seeker are known AND current user is neither
                 if (currentUid.isNotBlank() &&
+                    cachedProviderUid.isNotBlank() &&
                     effectiveSeekerUid.isNotBlank() &&
-                    currentUid != cachedProviderUid &&
-                    currentUid != effectiveSeekerUid
+                    !isParticipant
                 ) {
                     trySend(emptyList())
                     return@addSnapshotListener
                 }
 
                 val myRole = when {
-                    currentUid.isNotBlank() && currentUid == cachedProviderUid -> "PROVIDER"
-                    currentUid.isNotBlank() && currentUid == effectiveSeekerUid -> "SEEKER"
-                    currentUid.isNotBlank() && cachedProviderUid.isNotBlank() && currentUid != cachedProviderUid -> "SEEKER"
+                    isUsersIdentifier(cachedProviderUid) -> "PROVIDER"
+                    isUsersIdentifier(effectiveSeekerUid) -> "SEEKER"
                     else -> ""
                 }
 

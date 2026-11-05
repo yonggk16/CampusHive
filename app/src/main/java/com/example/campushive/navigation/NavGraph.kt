@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -67,11 +68,13 @@ fun CampusHiveApp() {
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = { if (showBottomBar) BottomBar(navController, chatViewModel) },
-    ) { _ ->
+    ) { innerPadding ->
         NavHost(
             navController = navController,
             startDestination = startDestination,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
             enterTransition = {
                 fadeIn(animationSpec = tween(180)) +
                     scaleIn(
@@ -194,7 +197,14 @@ fun CampusHiveApp() {
                     listingViewModel = listingViewModel,
                     reviewViewModel = reviewViewModel,
                     helpdeskViewModel = helpdeskViewModel,
-                    onBackClick = { navController.popBackStack() },
+                    onBackClick = {
+                        if (!navController.popBackStack()) {
+                            navController.navigate(Screen.Search.route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                            }
+                        }
+                    },
                     onChatClick = { providerName, serviceTitle ->
                         val activeUser = Firebase.auth.currentUser
                         val activeUid = activeUser?.uid.orEmpty()
@@ -206,7 +216,10 @@ fun CampusHiveApp() {
                             (activeUserName.isNotBlank() && providerName.isNotBlank() && activeUserName.equals(providerName, ignoreCase = true))
 
                         if (isOwnListing) {
-                            navController.navigate(Screen.Chats.route)
+                            navController.navigate(Screen.Chats.route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                            }
                         } else {
                             val uniqueChatId = ChatViewModel.buildConversationId(listingId, activeUid)
                             chatViewModel.startConversation(
@@ -216,7 +229,9 @@ fun CampusHiveApp() {
                                 providerName = providerName,
                                 serviceTitle = serviceTitle
                             )
-                            navController.navigate("chat_detail/$uniqueChatId/$providerName/$serviceTitle")
+                            navController.navigate("chat_detail/$uniqueChatId/$providerName/$serviceTitle") {
+                                launchSingleTop = true
+                            }
                         }
                     }
                 )
@@ -246,7 +261,9 @@ fun CampusHiveApp() {
                     chatViewModel = chatViewModel,
                     reviewViewModel = reviewViewModel,
                     onChatClick = { chat ->
-                        navController.navigate("chat_detail/${chat.id}/${chat.studentName}/${chat.serviceTitle}")
+                        navController.navigate("chat_detail/${chat.id}/${chat.studentName}/${chat.serviceTitle}") {
+                            launchSingleTop = true
+                        }
                     },
                     onReviewClick = { chat ->
                         val extractedListingId = chat.listingId.ifBlank {
@@ -269,10 +286,20 @@ fun CampusHiveApp() {
                     serviceTitle = serviceTitle,
                     chatViewModel = chatViewModel,
                     helpdeskViewModel = helpdeskViewModel,
-                    onBackClick = { navController.popBackStack() },
+                    onBackClick = {
+                        if (!navController.popBackStack()) {
+                            navController.navigate(Screen.Chats.route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                            }
+                        }
+                    },
                     onViewServiceClick = { targetListingId ->
                         if (targetListingId.isNotBlank()) {
-                            navController.navigate("service_detail/$targetListingId")
+                            navController.navigate("service_detail/$targetListingId") {
+                                popUpTo("service_detail/$targetListingId") { inclusive = true }
+                                launchSingleTop = true
+                            }
                         }
                     }
                 )

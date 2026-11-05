@@ -17,6 +17,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+// ==============================================================================
+// AUTH UI STATE CONTRACT
+// ==============================================================================
 sealed interface AuthUiState {
     data object Idle : AuthUiState
     data object Loading : AuthUiState
@@ -27,6 +30,10 @@ sealed interface AuthUiState {
 class AuthViewModel(
     private val repository: FirestoreRepository = FirestoreRepository(),
 ) : ViewModel() {
+
+    // ==========================================================================
+    // 1. REACTIVE STATE HOLDERS & INITIALIZATION
+    // ==========================================================================
     private val auth = Firebase.auth
 
     private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
@@ -72,6 +79,10 @@ class AuthViewModel(
         }
     }
 
+    // ==========================================================================
+    // 2. AUTHENTICATION OPERATIONS (Login, Sign-Up, Google, Sign-Out)
+    // ==========================================================================
+
     fun login(email: String, password: String, onSuccess: () -> Unit) {
         if (email.isBlank() || password.isBlank()) {
             _uiState.value = AuthUiState.Error("Please enter your student email and password.")
@@ -93,7 +104,14 @@ class AuthViewModel(
                     fetchUserProfile()
                     onSuccess()
                 } else {
-                    val errorMsg = task.exception?.localizedMessage ?: "Login failed. Check your credentials."
+                    val rawMsg = task.exception?.localizedMessage.orEmpty()
+                    val errorMsg = when {
+                        rawMsg.contains("credential", ignoreCase = true) || rawMsg.contains("expired", ignoreCase = true) ->
+                            "Incorrect email or password. Please use your new password."
+                        rawMsg.contains("user-not-found", ignoreCase = true) ->
+                            "No student account found with this email."
+                        else -> rawMsg.ifBlank { "Login failed. Check your credentials." }
+                    }
                     _uiState.value = AuthUiState.Error(errorMsg)
                 }
             }
@@ -168,6 +186,57 @@ class AuthViewModel(
             }
     }
 
+    fun signInWithGoogle(idToken: String, onSuccess: () -> Unit) {
+        _uiState.value = AuthUiState.Loading
+        val credential = GoogleAuthProvider.getCredential(idToken, null)
+
+        auth.signInWithCredential(credential)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    val user = auth.currentUser
+                    val email = user?.email.orEmpty()
+
+                    // Validate allowed email domain if needed (@helplive.edu.my or @gmail.com)
+                    if (ALLOWED_DOMAINS.none { email.lowercase().endsWith(it) }) {
+                        auth.signOut()
+                        _uiState.value = AuthUiState.Error("Only @helplive.edu.my or @gmail.com accounts are allowed.")
+                        return@addOnCompleteListener
+                    }
+
+                    // Sync user profile to Firestore
+                    val profile = UserProfile(
+                        uid = user?.uid.orEmpty(),
+                        displayName = user?.displayName.orEmpty().ifBlank { "Student User" },
+                        email = email,
+                        isVerifiedStudent = true,
+                        isModerator = HelpdeskViewModel.isModeratorEmail(email)
+                    )
+                    viewModelScope.launch {
+                        repository.saveUserProfile(profile)
+                        updateUserPresence(isOnline = true)
+                        _uiState.value = AuthUiState.Success("Signed in with Google!")
+                        fetchUserProfile()
+                        onSuccess()
+                    }
+                } else {
+                    val msg = task.exception?.localizedMessage ?: "Google Sign-In failed."
+                    _uiState.value = AuthUiState.Error(msg)
+                }
+            }
+    }
+
+    fun signOut(onSignOutComplete: () -> Unit) {
+        updateUserPresence(isOnline = false)
+        auth.signOut()
+        _uiState.value = AuthUiState.Idle
+        _userProfile.value = null
+        onSignOutComplete()
+    }
+
+    // ==========================================================================
+    // 3. EMAIL VERIFICATION & PASSWORD RESET
+    // ==========================================================================
+
     fun sendEmailVerification(onComplete: ((Boolean, String) -> Unit)? = null) {
         val user = auth.currentUser
         if (user == null) {
@@ -209,6 +278,34 @@ class AuthViewModel(
             onComplete?.invoke(task.isSuccessful, isVerified)
         }
     }
+
+    fun sendPasswordReset(email: String) {
+        if (email.isBlank()) {
+            _uiState.value = AuthUiState.Error("Please enter your email address first.")
+            return
+        }
+
+        val emailError = validateEmail(email)
+        if (emailError != null) {
+            _uiState.value = AuthUiState.Error(emailError)
+            return
+        }
+
+        _uiState.value = AuthUiState.Loading
+        auth.sendPasswordResetEmail(email.trim())
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    _uiState.value = AuthUiState.Success("Password reset email sent to ${email.trim()}")
+                } else {
+                    val errorMsg = task.exception?.localizedMessage ?: "Failed to send reset email."
+                    _uiState.value = AuthUiState.Error(errorMsg)
+                }
+            }
+    }
+
+    // ==========================================================================
+    // 4. PROFILE MANAGEMENT & PRESENCE TRACKING
+    // ==========================================================================
 
     fun updateUserProfile(
         displayName: String,
@@ -266,38 +363,6 @@ class AuthViewModel(
         }
     }
 
-    fun sendPasswordReset(email: String) {
-        if (email.isBlank()) {
-            _uiState.value = AuthUiState.Error("Please enter your email address first.")
-            return
-        }
-
-        val emailError = validateEmail(email)
-        if (emailError != null) {
-            _uiState.value = AuthUiState.Error(emailError)
-            return
-        }
-
-        _uiState.value = AuthUiState.Loading
-        auth.sendPasswordResetEmail(email.trim())
-            .addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    _uiState.value = AuthUiState.Success("Password reset email sent to ${email.trim()}")
-                } else {
-                    val errorMsg = task.exception?.localizedMessage ?: "Failed to send reset email."
-                    _uiState.value = AuthUiState.Error(errorMsg)
-                }
-            }
-    }
-
-    fun signOut(onSignOutComplete: () -> Unit) {
-        updateUserPresence(isOnline = false)
-        auth.signOut()
-        _uiState.value = AuthUiState.Idle
-        _userProfile.value = null
-        onSignOutComplete()
-    }
-
     /**
      * Updates student's real-time online presence in Cloud Firestore
      */
@@ -316,9 +381,17 @@ class AuthViewModel(
         userDocRef.set(presenceData, SetOptions.merge())
     }
 
+    // ==========================================================================
+    // 5. HELPER METHODS
+    // ==========================================================================
+
     fun clearUiState() {
         _uiState.value = AuthUiState.Idle
     }
+
+    // ==========================================================================
+    // 6. VALIDATION RULES & CONSTANTS
+    // ==========================================================================
 
     companion object {
         val ALLOWED_DOMAINS = listOf("@helplive.edu.my", "@gmail.com")
@@ -329,63 +402,25 @@ class AuthViewModel(
                 return "Please enter your email."
             }
             if (ALLOWED_DOMAINS.none { trimmed.endsWith(it) }) {
-                return "Email must end with @helplive.edu.my or @gmail.com."
+                return "Email must be @helplive.edu.my or @gmail.com"
             }
             return null
         }
 
         fun validatePassword(password: String): String? {
             if (password.length < 8) {
-                return "Password must be at least 8 characters long."
+                return "Password must be at least 8 characters"
             }
             if (!password.any { it.isUpperCase() }) {
-                return "Password must contain at least one uppercase letter (A-Z)."
+                return "Password needs 1 uppercase letter (A-Z)"
             }
             if (!password.any { it.isLowerCase() }) {
-                return "Password must contain at least one lowercase letter (a-z)."
+                return "Password needs 1 lowercase letter (a-z)"
             }
             if (!password.any { !it.isLetterOrDigit() }) {
-                return "Password must contain at least one special character (e.g. !@#$%^&*)."
+                return "Password needs 1 special symbol (!@#$)"
             }
             return null
         }
-    }
-    fun signInWithGoogle(idToken: String, onSuccess: () -> Unit) {
-        _uiState.value = AuthUiState.Loading
-        val credential = GoogleAuthProvider.getCredential(idToken, null)
-
-        auth.signInWithCredential(credential)
-            .addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    val user = auth.currentUser
-                    val email = user?.email.orEmpty()
-
-                    // Validate allowed email domain if needed (@helplive.edu.my or @gmail.com)
-                    if (ALLOWED_DOMAINS.none { email.lowercase().endsWith(it) }) {
-                        auth.signOut()
-                        _uiState.value = AuthUiState.Error("Only @helplive.edu.my or @gmail.com accounts are allowed.")
-                        return@addOnCompleteListener
-                    }
-
-                    // Sync user profile to Firestore
-                    val profile = UserProfile(
-                        uid = user?.uid.orEmpty(),
-                        displayName = user?.displayName.orEmpty().ifBlank { "Student User" },
-                        email = email,
-                        isVerifiedStudent = true,
-                        isModerator = HelpdeskViewModel.isModeratorEmail(email)
-                    )
-                    viewModelScope.launch {
-                        repository.saveUserProfile(profile)
-                        updateUserPresence(isOnline = true)
-                        _uiState.value = AuthUiState.Success("Signed in with Google!")
-                        fetchUserProfile()
-                        onSuccess()
-                    }
-                } else {
-                    val msg = task.exception?.localizedMessage ?: "Google Sign-In failed."
-                    _uiState.value = AuthUiState.Error(msg)
-                }
-            }
     }
 }

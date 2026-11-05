@@ -105,6 +105,8 @@ fun CreateServiceScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
+                .navigationBarsPadding()
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -394,8 +396,18 @@ fun CreateServiceScreen(
                         if (title.isBlank() || priceText.isBlank()) {
                             Toast.makeText(context, "Please enter a title and price", Toast.LENGTH_SHORT).show()
                         } else {
+                            val rawPrice = priceText.toDoubleOrNull() ?: 18.0
+                            val maxAllowedPrice = if (selectedPricingType == PricingType.PER_HOUR) 50.0 else 1000.0
+                            if (rawPrice > maxAllowedPrice) {
+                                val limitMsg = if (selectedPricingType == PricingType.PER_HOUR)
+                                    "Maximum rate for hourly services is RM 50 / hr"
+                                else
+                                    "Maximum price for fixed gig services is RM 1,000"
+                                Toast.makeText(context, limitMsg, Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            val parsedPrice = rawPrice.coerceIn(0.0, maxAllowedPrice)
                             isPublishing = true
-                            val parsedPrice = priceText.toDoubleOrNull() ?: 18.0
                             val user = Firebase.auth.currentUser
                             val currentUid = user?.uid.orEmpty()
                             val currentUserName = userProfile?.displayName

@@ -53,8 +53,12 @@ class FirestoreRepository(
     private val usersRef = db.collection("users")
     private val reportsRef = db.collection("reports")
 
+    // ==========================================================================
+    // 1. LISTINGS OPERATIONS
+    // ==========================================================================
+
     /**
-     * Real-time Flow listener for Cloud Firestore Service Listings (ACTIVE ones)
+     * Real-time Flow listener for active public service listings
      */
     fun getListingsFlow(): Flow<List<Listing>> = callbackFlow {
         val listener = listingsRef.addSnapshotListener { snapshot, error ->
@@ -62,15 +66,11 @@ class FirestoreRepository(
                 Log.e("FirestoreRepository", "Error listening to listings", error)
                 return@addSnapshotListener
             }
-            if (snapshot == null) {
-                return@addSnapshotListener
-            }
+            if (snapshot == null) return@addSnapshotListener
 
             val listings = snapshot.documents
-                .mapNotNull { doc ->
-                    doc.toListingOrNull()
-                }
-                .filter { (it.title.isNotBlank()) && (it.status == "ACTIVE") }
+                .mapNotNull { doc -> doc.toListingOrNull() }
+                .filter { it.title.isNotBlank() && it.status == "ACTIVE" }
                 .sortedByDescending { it.createdAt }
 
             trySend(listings)
@@ -80,7 +80,7 @@ class FirestoreRepository(
     }
 
     /**
-     * Real-time Flow listener for user's managed listings (ACTIVE & INACTIVE, excludes DELETED)
+     * Real-time Flow listener for user's managed listings (ACTIVE & INACTIVE)
      */
     fun getMyListingsFlow(providerUID: String = Firebase.auth.currentUser?.uid ?: ""): Flow<List<Listing>> = callbackFlow {
         val listener = listingsRef.addSnapshotListener { snapshot, error ->
@@ -187,7 +187,7 @@ class FirestoreRepository(
     }
 
     /**
-     * Delete or soft-delete a Service Listing in Cloud Firestore
+     * soft-delete a Service Listing in Cloud Firestore
      */
     suspend fun deleteListing(listingId: String): Boolean {
         return try {
@@ -214,6 +214,10 @@ class FirestoreRepository(
             false
         }
     }
+
+    // ==========================================================================
+    // 2. REVIEWS & RATINGS OPERATIONS
+    // ==========================================================================
 
     /**
      * Submit a new Review and recalculate listing rating & review count in Firestore
@@ -357,6 +361,10 @@ class FirestoreRepository(
         awaitClose { listener.remove() }
     }
 
+    // ==========================================================================
+    // 3. USER PROFILE OPERATIONS
+    // ==========================================================================
+
     /**
      * Real-time Flow listener for a specific User Profile in Firestore
      */
@@ -425,6 +433,10 @@ class FirestoreRepository(
             null
         }
     }
+
+    // ==========================================================================
+    // 4. HELPDESK & MODERATION REPORTS
+    // ==========================================================================
 
     /**
      * Submit a Helpdesk / User Safety Report to Cloud Firestore
@@ -573,6 +585,10 @@ class FirestoreRepository(
     }
 }
 
+// ==============================================================================
+// 5. FIRESTORE DOCUMENT MAPPERS
+// ==============================================================================
+
 private fun DocumentSnapshot.toListingOrNull(): Listing? {
     return try {
         val title = getString("title") ?: return null
@@ -700,7 +716,7 @@ private fun DocumentSnapshot.toHelpReportOrNull(): HelpReport? {
     }
 }
 
-// Mapper Extension
+// Entity Mapper Extension
 @Suppress("unused")
 fun ListingEntity.toUIModel(): Listing {
     return Listing(

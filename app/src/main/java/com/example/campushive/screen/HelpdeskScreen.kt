@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campushive.components.ReportDialog
 import com.example.campushive.model.ReportStatus
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
 import com.example.campushive.model.ReportType
 import com.example.campushive.ui.theme.*
 import com.example.campushive.viewmodel.HelpdeskViewModel
@@ -66,6 +68,8 @@ fun HelpdeskScreen(
 
     LaunchedEffect(Unit) {
         helpdeskViewModel.refreshModeratorAccess()
+        helpdeskViewModel.loadAllReports()
+        helpdeskViewModel.loadUserReports()
     }
 
     var showReportDialog by remember { mutableStateOf(false) }
@@ -116,33 +120,35 @@ fun HelpdeskScreen(
                 )
             }
 
-            // Moderator Role Pill Toggle
-            Surface(
-                color = if (isModeratorMode) Charcoal else CardWhite,
-                contentColor = if (isModeratorMode) CardWhite else Charcoal,
-                shape = RoundedCornerShape(20.dp),
-                border = BorderStroke(1.dp, if (isModeratorMode) Charcoal else Hairline),
-                modifier = Modifier
-                    .padding(end = 8.dp)
-                    .clickable { helpdeskViewModel.toggleModeratorMode() }
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+            // Moderator Role Pill Toggle (ONLY visible for whitelisted moderator emails)
+            if (HelpdeskViewModel.isModeratorEmail(Firebase.auth.currentUser?.email)) {
+                Surface(
+                    color = if (isModeratorMode) Charcoal else CardWhite,
+                    contentColor = if (isModeratorMode) CardWhite else Charcoal,
+                    shape = RoundedCornerShape(20.dp),
+                    border = BorderStroke(1.dp, if (isModeratorMode) Charcoal else Hairline),
+                    modifier = Modifier
+                        .padding(end = 8.dp)
+                        .clickable { helpdeskViewModel.toggleModeratorMode() }
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.AdminPanelSettings,
-                        contentDescription = "Moderator Mode",
-                        tint = if (isModeratorMode) CardWhite else Charcoal,
-                        modifier = Modifier.size(15.dp)
-                    )
-                    Text(
-                        text = if (isModeratorMode) "Moderator ON" else "Moderator View",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isModeratorMode) CardWhite else Charcoal
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.AdminPanelSettings,
+                            contentDescription = "Moderator Mode",
+                            tint = if (isModeratorMode) CardWhite else Charcoal,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Text(
+                            text = if (isModeratorMode) "Moderator ON" else "Moderator View",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isModeratorMode) CardWhite else Charcoal
+                        )
+                    }
                 }
             }
         }
@@ -156,8 +162,8 @@ fun HelpdeskScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Moderator Portal Card (Visible when Moderator Mode is active)
-            AnimatedVisibility(visible = isModeratorMode) {
+            // Moderator Portal Card (ONLY visible for whitelisted moderators in Moderator Mode)
+            AnimatedVisibility(visible = isModeratorMode && HelpdeskViewModel.isModeratorEmail(Firebase.auth.currentUser?.email)) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()

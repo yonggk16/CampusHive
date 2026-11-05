@@ -37,7 +37,9 @@ fun EditProfileDialog(
         Surface(
             modifier = Modifier
                 .fillMaxWidth(0.92f)
-                .wrapContentHeight(),
+                .wrapContentHeight()
+                .navigationBarsPadding()
+                .imePadding(),
             shape = RoundedCornerShape(24.dp),
             color = Cream,
             border = BorderStroke(1.dp, Hairline)
