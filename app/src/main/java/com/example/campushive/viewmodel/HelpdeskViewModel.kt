@@ -33,8 +33,7 @@ class HelpdeskViewModel(
 
     companion object {
         private val MODERATOR_EMAILS = setOf(
-            "yonggk07@helplive.edu.my",
-            "teammate2@gmail.com",
+            "yonggk07@gmail.com",
             "b2500904@helplive.edu.my",
             "b2501286@helplive.edu.my"
         )
@@ -57,21 +56,42 @@ class HelpdeskViewModel(
     }
 
     fun refreshModeratorAccess() {
-        if (checkDefaultModeratorAccess()) {
-            _isModeratorMode.value = true
+        val hasAccess = checkDefaultModeratorAccess()
+        _isModeratorMode.value = hasAccess
+        if (hasAccess) {
+            loadAllReports()
+        } else {
+            _allReports.value = emptyList()
         }
     }
 
     fun toggleModeratorMode() {
-        _isModeratorMode.value = !_isModeratorMode.value
+        if (!checkDefaultModeratorAccess()) {
+            _isModeratorMode.value = false
+            _allReports.value = emptyList()
+            return
+        }
+        val newMode = !_isModeratorMode.value
+        _isModeratorMode.value = newMode
+        if (newMode) {
+            loadAllReports()
+        }
     }
 
     /**
      * Connect real-time stream of reports submitted by the active user
      */
     fun loadUserReports() {
+        val currentUid = Firebase.auth.currentUser?.uid.orEmpty()
+        if (currentUid.isBlank()) {
+            _userReports.value = emptyList()
+            localOptimisticReports.clear()
+            return
+        }
+        _userReports.value = emptyList() // Resets state on user switch
+        localOptimisticReports.clear()
         viewModelScope.launch {
-            repository.getUserReportsFlow().collect { remoteReports ->
+            repository.getUserReportsFlow(currentUid).collect { remoteReports ->
                 val remoteDescriptions = remoteReports.map { "${it.targetId}_${it.description}" }.toSet()
                 val keptOptimistic = localOptimisticReports.filter {
                     "${it.targetId}_${it.description}" !in remoteDescriptions
@@ -85,6 +105,10 @@ class HelpdeskViewModel(
      * Connect real-time stream of ALL campus reports for Platform Moderators
      */
     fun loadAllReports() {
+        if (!checkDefaultModeratorAccess()) {
+            _allReports.value = emptyList()
+            return
+        }
         viewModelScope.launch {
             repository.getAllReportsFlow().collect { remoteReports ->
                 val remoteDescriptions = remoteReports.map { "${it.targetId}_${it.description}" }.toSet()

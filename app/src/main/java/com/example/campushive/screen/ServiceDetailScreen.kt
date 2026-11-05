@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -36,6 +37,7 @@ import com.example.campushive.components.ReviewDialog
 import com.example.campushive.components.ServiceCategoryIconBox
 import com.example.campushive.model.Listing
 import com.example.campushive.model.PricingType
+import com.example.campushive.model.ReportStatus
 import com.example.campushive.model.ReportType
 import com.example.campushive.ui.theme.*
 import com.example.campushive.viewmodel.HelpdeskViewModel
@@ -118,11 +120,15 @@ fun ServiceDetailScreen(
     }
 
     val userReports by helpdeskViewModel.userReports.collectAsState()
-    val listingReport = remember(userReports, listing.id, listing.title) {
-        userReports.find { report ->
-            report.targetId == listing.id ||
-            (listing.id.isNotBlank() && report.targetId.contains(listing.id)) ||
-            (report.targetName.isNotBlank() && report.targetName.equals(listing.title, ignoreCase = true))
+    val allReports by helpdeskViewModel.allReports.collectAsState()
+
+    val listingReport = remember(userReports, allReports, listing.id, listing.title) {
+        (allReports + userReports).find { report ->
+            report.status != ReportStatus.RESOLVED && report.status != ReportStatus.CLOSED && (
+                report.targetId == listing.id ||
+                (listing.id.isNotBlank() && report.targetId.contains(listing.id)) ||
+                (report.targetName.isNotBlank() && report.targetName.equals(listing.title, ignoreCase = true))
+            )
         }
     }
 
@@ -283,10 +289,7 @@ fun ServiceDetailScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Category, Location & Report Pending Badges
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (listingReport != null || reportSubmittedLocally) {
                         Surface(
                             color = Color(0xFFFFF3C4),
@@ -314,41 +317,49 @@ fun ServiceDetailScreen(
                             }
                         }
                     }
-                    Surface(
-                        color = HoneyTint,
-                        shape = RoundedCornerShape(20.dp)
-                    ) {
-                        Text(
-                            text = listing.category.uppercase(),
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Charcoal
-                        )
-                    }
 
-                    Surface(
-                        color = CardWhite,
-                        border = BorderStroke(1.dp, Hairline),
-                        shape = RoundedCornerShape(20.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        Surface(
+                            color = HoneyTint,
+                            shape = RoundedCornerShape(20.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Outlined.LocationOn,
-                                contentDescription = null,
-                                tint = MutedText,
-                                modifier = Modifier.size(13.dp)
-                            )
-                            Spacer(Modifier.width(4.dp))
                             Text(
-                                text = listing.campusLocation,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium,
+                                text = listing.category.uppercase(),
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
                                 color = Charcoal
                             )
+                        }
+
+                        Surface(
+                            color = CardWhite,
+                            border = BorderStroke(1.dp, Hairline),
+                            shape = RoundedCornerShape(20.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.LocationOn,
+                                    contentDescription = null,
+                                    tint = MutedText,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    text = listing.campusLocation,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Charcoal,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                     }
                 }
@@ -769,9 +780,9 @@ fun ServiceDetailScreen(
                     modifier = Modifier.bounceClick(scaleDown = 0.95f)
                 ) {
                     Text(
-                        text = if (isOwnListing) "Open Service Chat" else "Chat with $firstName",
+                        text = if (isOwnListing) "Manage Listing" else "Chat Provider",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
+                        fontSize = 15.sp
                     )
                     Spacer(Modifier.width(8.dp))
                     Icon(

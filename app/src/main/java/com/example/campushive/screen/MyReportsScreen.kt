@@ -41,6 +41,12 @@ fun MyReportsScreen(
     val allReports by helpdeskViewModel.allReports.collectAsState()
     val isModeratorMode by helpdeskViewModel.isModeratorMode.collectAsState()
 
+    LaunchedEffect(Unit) {
+        helpdeskViewModel.refreshModeratorAccess()
+        helpdeskViewModel.loadAllReports()
+        helpdeskViewModel.loadUserReports()
+    }
+
     var showAllCampusQueue by remember(initialModeratorTab) {
         mutableStateOf(initialModeratorTab)
     }

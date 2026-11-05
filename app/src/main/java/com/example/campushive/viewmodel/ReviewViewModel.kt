@@ -45,8 +45,14 @@ class ReviewViewModel(
      * Connect real-time stream of reviews for a specific provider
      */
     fun loadReviewsForProvider(providerUID: String = "") {
+        val currentUid = providerUID.ifBlank { Firebase.auth.currentUser?.uid.orEmpty() }
+        if (currentUid.isBlank()) {
+            _providerReviews.value = emptyList()
+            return
+        }
+        _providerReviews.value = emptyList() // Resets state on user switch
         viewModelScope.launch {
-            repository.getReviewsForProviderFlow(providerUID).collect { reviews ->
+            repository.getReviewsForProviderFlow(currentUid).collect { reviews ->
                 _providerReviews.value = reviews
             }
         }
