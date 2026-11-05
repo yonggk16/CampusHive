@@ -92,7 +92,6 @@ fun ServiceDetailScreen(
         (currentUserName.isNotBlank() && listing.providerName.isNotBlank() && currentUserName.equals(listing.providerName, ignoreCase = true))
 
     val initials = listing.providerName.split(" ").mapNotNull { it.firstOrNull()?.toString() }.joinToString("")
-    val firstName = listing.providerName.split(" ").firstOrNull() ?: listing.providerName
 
     if (showReviewDialog && !isOwnListing) {
         ReviewDialog(

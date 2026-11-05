@@ -10,12 +10,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Gavel
-import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.*
@@ -744,7 +744,7 @@ fun ReportDetailScreen(
                                     border = BorderStroke(1.dp, Charcoal),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Icon(Icons.Filled.OpenInNew, contentDescription = null, tint = Charcoal, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, tint = Charcoal, modifier = Modifier.size(16.dp))
                                     Spacer(Modifier.width(6.dp))
                                     Text("Inspect Target Listing", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Charcoal)
                                 }
