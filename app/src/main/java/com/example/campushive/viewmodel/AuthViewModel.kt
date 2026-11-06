@@ -268,12 +268,10 @@ class AuthViewModel(
 
         user.reload().addOnCompleteListener { task ->
             val isVerified = auth.currentUser?.isEmailVerified == true
-            if (isVerified) {
-                val current = _userProfile.value ?: UserProfile(uid = user.uid, email = user.email ?: "")
-                val updated = current.copy(isVerifiedStudent = true)
-                viewModelScope.launch {
-                    repository.saveUserProfile(updated)
-                }
+            val current = _userProfile.value ?: UserProfile(uid = user.uid, email = user.email ?: "")
+            val updated = current.copy(isVerifiedStudent = isVerified)
+            viewModelScope.launch {
+                repository.saveUserProfile(updated)
             }
             onComplete?.invoke(task.isSuccessful, isVerified)
         }

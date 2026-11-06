@@ -28,7 +28,10 @@ import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.WorkOutline
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -73,7 +76,8 @@ fun ProfileScreen(
     val major = userProfile?.facultyOrMajor ?: "General Student"
     val phone = userProfile?.phoneNumber ?: ""
 
-    val isVerified = authViewModel.isEmailVerified || (userProfile?.isVerifiedStudent == true)
+    val isGoogleUser = currentUser?.providerData?.any { it.providerId == "google.com" } == true
+    val isVerified = isGoogleUser || (authViewModel.isEmailVerified && userProfile?.isVerifiedStudent == true)
 
     val providerReviews by reviewViewModel.providerReviews.collectAsState()
     val myListings by listingViewModel.myListings.collectAsState()
@@ -234,14 +238,33 @@ fun ProfileScreen(
         )
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(HoneyBottomGradient)
-            .statusBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 96.dp)
+    var isRefreshing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = {
+            isRefreshing = true
+            scope.launch {
+                authViewModel.reloadUserVerificationStatus { _, _ -> }
+                authViewModel.fetchUserProfile()
+                listingViewModel.refreshUserListings()
+                reviewViewModel.loadReviewsForProvider()
+                delay(800)
+                isRefreshing = false
+                Toast.makeText(context, "Profile data refreshed", Toast.LENGTH_SHORT).show()
+            }
+        },
+        modifier = Modifier.fillMaxSize()
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(HoneyBottomGradient)
+                .statusBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 96.dp)
+        ) {
         // Top Header (Title + Settings Icon)
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1127,4 +1150,5 @@ fun ProfileScreen(
 
         Spacer(Modifier.height(80.dp))
     }
+}
 }

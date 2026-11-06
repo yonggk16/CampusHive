@@ -603,7 +603,7 @@ private fun DocumentSnapshot.toListingOrNull(): Listing? {
         val campusLocation = getString("campusLocation") ?: "Subang 2 Campus"
         val isVerified = getBoolean("isVerifiedStudent")
             ?: getBoolean("verifiedStudent")
-            ?: true
+            ?: false
         val description = getString("description") ?: ""
         val createdAt = getTimestamp("createdAt")?.toDate()?.time ?: System.currentTimeMillis()
 
