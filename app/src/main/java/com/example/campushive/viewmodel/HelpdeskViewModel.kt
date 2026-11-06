@@ -17,6 +17,9 @@ class HelpdeskViewModel(
     private val repository: FirestoreRepository = FirestoreRepository(),
 ) : ViewModel() {
 
+    // ==========================================================================
+    // 1. REACTIVE STATE HOLDERS & INITIALIZATION
+    // ==========================================================================
     private val _userReports = MutableStateFlow<List<HelpReport>>(emptyList())
     val userReports: StateFlow<List<HelpReport>> = _userReports.asStateFlow()
 
@@ -31,30 +34,23 @@ class HelpdeskViewModel(
 
     private val localOptimisticReports = mutableListOf<HelpReport>()
 
-    companion object {
-        private val MODERATOR_EMAILS = setOf(
-            "yonggk07@gmail.com",
-            "b2500904@helplive.edu.my",
-            "b2501286@helplive.edu.my"
-        )
-
-        fun isModeratorEmail(email: String?): Boolean {
-            val normalized = email?.trim()?.lowercase().orEmpty()
-            if (normalized.isBlank()) return false
-            return normalized in MODERATOR_EMAILS
-        }
-    }
-
     init {
         loadUserReports()
         loadAllReports()
     }
+
+    // ==========================================================================
+    // 2. MODERATOR PRIVILEGE VERIFICATION & ACCESS CONTROL
+    // ==========================================================================
 
     private fun checkDefaultModeratorAccess(): Boolean {
         val email = Firebase.auth.currentUser?.email
         return isModeratorEmail(email)
     }
 
+    /**
+     * Verifies current user's email against the moderator whitelist
+     */
     fun refreshModeratorAccess() {
         val hasAccess = checkDefaultModeratorAccess()
         _isModeratorMode.value = hasAccess
@@ -65,6 +61,9 @@ class HelpdeskViewModel(
         }
     }
 
+    /**
+     * Toggles moderator mode view state for authorized platform moderators
+     */
     fun toggleModeratorMode() {
         if (!checkDefaultModeratorAccess()) {
             _isModeratorMode.value = false
@@ -78,8 +77,12 @@ class HelpdeskViewModel(
         }
     }
 
+    // ==========================================================================
+    // 3. REAL-TIME TICKET STREAMS
+    // ==========================================================================
+
     /**
-     * Connect real-time stream of reports submitted by the active user
+     * Connects real-time Firestore stream of reports submitted by the active user
      */
     fun loadUserReports() {
         val currentUid = Firebase.auth.currentUser?.uid.orEmpty()
@@ -102,7 +105,7 @@ class HelpdeskViewModel(
     }
 
     /**
-     * Connect real-time stream of ALL campus reports for Platform Moderators
+     * Connects real-time Firestore stream of ALL campus reports for Platform Moderators
      */
     fun loadAllReports() {
         if (!checkDefaultModeratorAccess()) {
@@ -120,8 +123,12 @@ class HelpdeskViewModel(
         }
     }
 
+    // ==========================================================================
+    // 4. STUDENT REPORT CRUD & OPTIMISTIC UPDATES
+    // ==========================================================================
+
     /**
-     * Submit a new problem or safety report to Cloud Firestore
+     * Submits a new problem ticket or safety report to Cloud Firestore
      */
     fun submitReport(
         type: ReportType = ReportType.PROBLEM,
@@ -153,7 +160,7 @@ class HelpdeskViewModel(
         )
 
         localOptimisticReports.add(newReport)
-        // Optimistic UI update
+        // Instant local optimistic UI update
         _userReports.value = listOf(newReport) + _userReports.value
         _allReports.value = listOf(newReport) + _allReports.value
 
@@ -165,7 +172,7 @@ class HelpdeskViewModel(
     }
 
     /**
-     * Update an existing report (Student edit)
+     * Updates an existing report description and category
      */
     fun updateReport(reportId: String, category: String, description: String, onResult: (Boolean) -> Unit = {}) {
         viewModelScope.launch {
@@ -183,7 +190,26 @@ class HelpdeskViewModel(
     }
 
     /**
-     * Moderator action: update ticket status and attach official moderator response/resolution note
+     * Deletes an existing report ticket
+     */
+    fun deleteReport(reportId: String, onResult: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            val success = repository.deleteReport(reportId)
+            if (success) {
+                _userReports.value = _userReports.value.filterNot { it.reportId == reportId }
+                _allReports.value = _allReports.value.filterNot { it.reportId == reportId }
+                localOptimisticReports.removeIf { it.reportId == reportId }
+            }
+            onResult(success)
+        }
+    }
+
+    // ==========================================================================
+    // 5. MODERATOR CONSOLE & ENFORCEMENT ACTIONS
+    // ==========================================================================
+
+    /**
+     * Moderator action: Updates ticket status and attaches official moderator resolution note
      */
     fun moderateReport(
         reportId: String,
@@ -196,7 +222,6 @@ class HelpdeskViewModel(
             ?: currentUser?.email?.substringBefore("@")?.takeIf { it.isNotBlank() }
             ?: "Campus Moderator"
 
-        // Optimistic UI update
         val cleanNote = moderatorNote.trim()
         _allReports.value = _allReports.value.map {
             if (it.reportId == reportId) it.copy(status = newStatus, moderatorNote = cleanNote, resolvedBy = moderatorName) else it
@@ -217,7 +242,7 @@ class HelpdeskViewModel(
     }
 
     /**
-     * Moderator action: pause ("INACTIVE"), restore ("ACTIVE"), or remove ("DELETED") a flagged listing
+     * Moderator action: Pauses ("INACTIVE"), restores ("ACTIVE"), or removes ("DELETED") a flagged listing
      */
     fun moderateListingStatus(
         listingId: String,
@@ -238,18 +263,21 @@ class HelpdeskViewModel(
         }
     }
 
-    /**
-     * Delete an existing report
-     */
-    fun deleteReport(reportId: String, onResult: (Boolean) -> Unit = {}) {
-        viewModelScope.launch {
-            val success = repository.deleteReport(reportId)
-            if (success) {
-                _userReports.value = _userReports.value.filterNot { it.reportId == reportId }
-                _allReports.value = _allReports.value.filterNot { it.reportId == reportId }
-                localOptimisticReports.removeIf { it.reportId == reportId }
-            }
-            onResult(success)
+    // ==========================================================================
+    // 6. MODERATOR EMAIL WHITELIST
+    // ==========================================================================
+
+    companion object {
+        private val MODERATOR_EMAILS = setOf(
+            "yonggk07@gmail.com",
+            "b2500904@helplive.edu.my",
+            "b2501286@helplive.edu.my"
+        )
+
+        fun isModeratorEmail(email: String?): Boolean {
+            val normalized = email?.trim()?.lowercase().orEmpty()
+            if (normalized.isBlank()) return false
+            return normalized in MODERATOR_EMAILS
         }
     }
 }

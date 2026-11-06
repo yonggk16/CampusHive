@@ -145,7 +145,7 @@ class FirestoreRepository(
                 "pricingType" to listing.pricingType.name,
                 "rating" to listing.rating,
                 "reviewCount" to listing.reviewCount,
-                "campusLocation" to listing.campusLocation.ifBlank { "Subang 2 Campus" },
+                "campusLocation" to listing.campusLocation.ifBlank { "HELP University S2" },
                 "description" to listing.description,
                 "coverImageUrl" to "",
                 "status" to listing.status.ifBlank { "ACTIVE" },
@@ -600,7 +600,7 @@ private fun DocumentSnapshot.toListingOrNull(): Listing? {
         val status = getString("status") ?: "ACTIVE"
         val rating = getDouble("rating") ?: (getLong("rating")?.toDouble() ?: 5.0)
         val reviewCount = getLong("reviewCount")?.toInt() ?: 1
-        val campusLocation = getString("campusLocation") ?: "Subang 2 Campus"
+        val campusLocation = getString("campusLocation") ?: "HELP University S2"
         val isVerified = getBoolean("isVerifiedStudent")
             ?: getBoolean("verifiedStudent")
             ?: false
@@ -663,7 +663,7 @@ private fun DocumentSnapshot.toUserProfileOrNull(): UserProfile? {
         val displayName = getString("displayName") ?: "Student User"
         val email = getString("email") ?: ""
         val bio = getString("bio") ?: "CampusHive Member"
-        val campusLocation = getString("campusLocation") ?: "Subang 2 Campus"
+        val campusLocation = getString("campusLocation") ?: "HELP University S2"
         val facultyOrMajor = getString("facultyOrMajor") ?: "General Student"
         val phoneNumber = getString("phoneNumber") ?: ""
         val isVerified = getBoolean("isVerifiedStudent") ?: false
@@ -693,8 +693,8 @@ private fun DocumentSnapshot.toHelpReportOrNull(): HelpReport? {
         val typeStr = getString("type") ?: "PROBLEM"
         val statusStr = getString("status") ?: "OPEN"
 
-        val reportType = try { ReportType.valueOf(typeStr) } catch (e: Exception) { ReportType.PROBLEM }
-        val reportStatus = try { ReportStatus.valueOf(statusStr) } catch (e: Exception) { ReportStatus.OPEN }
+        val reportType = try { ReportType.valueOf(typeStr) } catch (_: Exception) { ReportType.PROBLEM }
+        val reportStatus = try { ReportStatus.valueOf(statusStr) } catch (_: Exception) { ReportStatus.OPEN }
 
         HelpReport(
             reportId = getString("reportId") ?: id,

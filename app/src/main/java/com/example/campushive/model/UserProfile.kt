@@ -7,7 +7,7 @@ data class UserProfile(
     val displayName: String = "Student User",
     val email: String = "",
     val bio: String = "CampusHive Member",
-    val campusLocation: String = "Subang 2 Campus",
+    val campusLocation: String = "HELP University S2",
     val facultyOrMajor: String = "General Student",
     val phoneNumber: String = "",
     val isVerifiedStudent: Boolean = false,
