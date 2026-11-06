@@ -21,10 +21,8 @@ import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.School
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,12 +33,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campushive.model.Listing
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campushive.ui.theme.*
 import com.example.campushive.viewmodel.AuthViewModel
 import com.example.campushive.viewmodel.ChatViewModel
 import com.example.campushive.viewmodel.ListingViewModel
+import kotlin.time.Duration.Companion.milliseconds
 
 private data class ServiceCategory(
     val id: String,
@@ -69,6 +70,7 @@ private val quickHelpItems = listOf(
     QuickHelpItem( "Fix my code or laptop", "Tech Help")
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     listingViewModel: ListingViewModel = viewModel(),
@@ -84,6 +86,8 @@ fun HomeScreen(
     val liveListings by listingViewModel.listings.collectAsState()
     val userProfile by authViewModel.userProfile.collectAsState()
     val conversations by chatViewModel.conversations.collectAsState()
+    var isRefreshing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     val upNextChat = remember(conversations) {
         conversations.firstOrNull { it.unreadCount > 0 || it.lastMessage.isNotBlank() }
@@ -97,14 +101,28 @@ fun HomeScreen(
 
     val firstName = currentUserName.split(" ").firstOrNull() ?: "Student"
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(HoneyBottomGradient)
-            .statusBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(bottom = 96.dp)
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = {
+            isRefreshing = true
+            scope.launch {
+                authViewModel.fetchUserProfile()
+                listingViewModel.refreshUserListings()
+                delay(800.milliseconds)
+                isRefreshing = false
+                Toast.makeText(context, "Campus feeds updated", Toast.LENGTH_SHORT).show()
+            }
+        },
+        modifier = Modifier.fillMaxSize()
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(HoneyBottomGradient)
+                .statusBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 96.dp)
+        ) {
         Spacer(Modifier.height(28.dp))
 
         // 1. Top Greeting Row ("Hi, $firstName" + Notification Bell Button)
@@ -475,4 +493,5 @@ fun HomeScreen(
             }
         }
     }
+}
 }

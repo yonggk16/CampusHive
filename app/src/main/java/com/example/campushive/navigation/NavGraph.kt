@@ -31,6 +31,9 @@ import com.example.campushive.viewmodel.ReviewViewModel
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 
+// ==============================================================================
+// 1. NAVIGATION SCREEN ROUTE CONTRACTS
+// ==============================================================================
 sealed class Screen(val route: String, val title: String) {
     data object Login : Screen("login", "Log In")
     data object SignUp : Screen("signup", "Sign Up")
@@ -41,6 +44,9 @@ sealed class Screen(val route: String, val title: String) {
     data object Profile : Screen("profile", "Profile")
 }
 
+// ==============================================================================
+// 2. ROOT APPLICATION SCAFFOLD & NAV HOST
+// ==============================================================================
 @Composable
 fun CampusHiveApp() {
     val navController = rememberNavController()
@@ -95,6 +101,10 @@ fun CampusHiveApp() {
                 fadeOut(animationSpec = tween(140))
             }
         ) {
+            // ==================================================================
+            // 3. AUTHENTICATION DESTINATIONS
+            // ==================================================================
+
             // Login Screen
             composable(Screen.Login.route) {
                 LoginScreen(
@@ -122,6 +132,10 @@ fun CampusHiveApp() {
                     }
                 )
             }
+
+            // ==================================================================
+            // 4. MAIN NAVIGATION TABS
+            // ==================================================================
 
             // Home Screen (New User Onboarding + Live Bounties)
             composable(Screen.Home.route) {
@@ -189,6 +203,48 @@ fun CampusHiveApp() {
                 )
             }
 
+            // Chats Screen
+            composable(Screen.Chats.route) {
+                ChatsScreen(
+                    chatViewModel = chatViewModel,
+                    reviewViewModel = reviewViewModel,
+                    onChatClick = { chat ->
+                        navController.navigate("chat_detail/${chat.id}/${chat.studentName}/${chat.serviceTitle}") {
+                            launchSingleTop = true
+                        }
+                    },
+                    onReviewClick = { chat ->
+                        val extractedListingId = chat.listingId.ifBlank {
+                            ChatViewModel.extractListingIdFromChatId(chat.id)
+                        }
+                        navController.navigate("post_review/${chat.studentName}/${chat.serviceTitle}?listingId=$extractedListingId")
+                    }
+                )
+            }
+
+            // Profile Screen
+            composable(Screen.Profile.route) {
+                ProfileScreen(
+                    listingViewModel = listingViewModel,
+                    reviewViewModel = reviewViewModel,
+                    onHelpdeskClick = {
+                        navController.navigate("helpdesk")
+                    },
+                    onCreateServiceClick = {
+                        navController.navigate(Screen.Create.route)
+                    },
+                    onSignOutClick = {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                )
+            }
+
+            // ==================================================================
+            // 5. MARKETPLACE & SERVICE CREATION
+            // ==================================================================
+
             // Service Detail Destination
             composable("service_detail/{listingId}") { backStackEntry ->
                 val listingId = backStackEntry.arguments?.getString("listingId") ?: ""
@@ -255,24 +311,9 @@ fun CampusHiveApp() {
                 )
             }
 
-            // Chats Screen
-            composable(Screen.Chats.route) {
-                ChatsScreen(
-                    chatViewModel = chatViewModel,
-                    reviewViewModel = reviewViewModel,
-                    onChatClick = { chat ->
-                        navController.navigate("chat_detail/${chat.id}/${chat.studentName}/${chat.serviceTitle}") {
-                            launchSingleTop = true
-                        }
-                    },
-                    onReviewClick = { chat ->
-                        val extractedListingId = chat.listingId.ifBlank {
-                            ChatViewModel.extractListingIdFromChatId(chat.id)
-                        }
-                        navController.navigate("post_review/${chat.studentName}/${chat.serviceTitle}?listingId=$extractedListingId")
-                    }
-                )
-            }
+            // ==================================================================
+            // 6. REAL-TIME CHAT & FEEDBACK REVIEWS
+            // ==================================================================
 
             // Chat Detail Destination
             composable("chat_detail/{chatId}/{studentName}/{serviceTitle}") { backStackEntry ->
@@ -329,24 +370,9 @@ fun CampusHiveApp() {
                 )
             }
 
-            // Profile Screen
-            composable(Screen.Profile.route) {
-                ProfileScreen(
-                    listingViewModel = listingViewModel,
-                    reviewViewModel = reviewViewModel,
-                    onHelpdeskClick = {
-                        navController.navigate("helpdesk")
-                    },
-                    onCreateServiceClick = {
-                        navController.navigate(Screen.Create.route)
-                    },
-                    onSignOutClick = {
-                        navController.navigate(Screen.Login.route) {
-                            popUpTo(0) { inclusive = true }
-                        }
-                    }
-                )
-            }
+            // ==================================================================
+            // 7. HELPDESK & MODERATION PORTAL DESTINATIONS
+            // ==================================================================
 
             // Helpdesk Destination
             composable("helpdesk") {

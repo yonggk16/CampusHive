@@ -1,5 +1,6 @@
 package com.example.campushive.screen
 
+import android.widget.Toast
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -20,6 +21,7 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,9 +32,12 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -42,11 +47,11 @@ import com.example.campushive.components.ServiceCategoryIconBox
 import com.example.campushive.model.Listing
 import com.example.campushive.ui.theme.*
 import com.example.campushive.viewmodel.ListingViewModel
-import kotlinx.coroutines.delay
 
 private val priceFilters = listOf("All Prices", "Under RM20", "RM20 - RM50", "RM50+")
 private val categoryFilters = ListingViewModel.CATEGORY_FILTERS
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
     initialCategory: String = "",
@@ -54,9 +59,12 @@ fun SearchScreen(
     listingViewModel: ListingViewModel = viewModel(),
     onListingClick: (Listing) -> Unit = {}
 ) {
+    val context = LocalContext.current
     val liveListings by listingViewModel.listings.collectAsState()
     val selectedCategoryFilter by listingViewModel.selectedCategory.collectAsState()
     val shouldFocusSearch by listingViewModel.shouldFocusSearch.collectAsState()
+    var isRefreshing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedPriceFilter by remember { mutableStateOf("All Prices") }
@@ -151,12 +159,25 @@ fun SearchScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(HoneyBottomGradient)
-            .statusBarsPadding()
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = {
+            isRefreshing = true
+            scope.launch {
+                listingViewModel.refreshUserListings()
+                delay(800)
+                isRefreshing = false
+                Toast.makeText(context, "Search results updated", Toast.LENGTH_SHORT).show()
+            }
+        },
+        modifier = Modifier.fillMaxSize()
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(HoneyBottomGradient)
+                .statusBarsPadding()
+        ) {
         LazyColumn(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 90.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -340,6 +361,7 @@ fun SearchScreen(
             }
         }
     }
+}
 }
 
 @Composable

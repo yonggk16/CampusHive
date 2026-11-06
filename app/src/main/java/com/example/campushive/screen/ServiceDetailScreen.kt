@@ -76,7 +76,7 @@ fun ServiceDetailScreen(
             providerName = "Daniel Wong",
             rating = 5.0,
             reviewCount = 1,
-            campusLocation = "Subang 2 Campus",
+            campusLocation = "HELP University S2",
             isVerifiedStudent = true,
             description = "Campus service listing details."
         )

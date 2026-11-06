@@ -15,6 +15,9 @@ class ReviewViewModel(
     private val repository: FirestoreRepository = FirestoreRepository(),
 ) : ViewModel() {
 
+    // ==========================================================================
+    // 1. REACTIVE STATE HOLDERS & INITIALIZATION
+    // ==========================================================================
     private val _listingReviews = MutableStateFlow<List<Review>>(emptyList())
     val listingReviews: StateFlow<List<Review>> = _listingReviews.asStateFlow()
 
@@ -29,8 +32,12 @@ class ReviewViewModel(
         loadReviewsForProvider()
     }
 
+    // ==========================================================================
+    // 2. REAL-TIME REVIEW STREAMS
+    // ==========================================================================
+
     /**
-     * Connect real-time stream of reviews for a specific service listing
+     * Connects real-time Firestore stream of reviews for a specific service listing
      */
     fun loadReviewsForListing(listingId: String) {
         if (listingId.isBlank()) return
@@ -42,7 +49,7 @@ class ReviewViewModel(
     }
 
     /**
-     * Connect real-time stream of reviews for a specific provider
+     * Connects real-time Firestore stream of reviews for a specific provider
      */
     fun loadReviewsForProvider(providerUID: String = "") {
         val currentUid = providerUID.ifBlank { Firebase.auth.currentUser?.uid.orEmpty() }
@@ -58,8 +65,12 @@ class ReviewViewModel(
         }
     }
 
+    // ==========================================================================
+    // 3. REVIEW SUBMISSION & RATING CALCULATIONS
+    // ==========================================================================
+
     /**
-     * Submit a review to Cloud Firestore and update listing ratings
+     * Submits a new student review to Cloud Firestore and updates aggregate listing ratings
      */
     fun submitReview(
         listingId: String = "",
@@ -90,7 +101,7 @@ class ReviewViewModel(
             tags = tags
         )
 
-        // Optimistic local update for zero-latency UI reflection
+        // Instant local optimistic update for zero-latency UI reflection
         if (listingId.isNotBlank()) {
             _listingReviews.value = listOf(newReview) + _listingReviews.value
         }

@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -101,6 +102,10 @@ fun CreateServiceScreen(
         }
 
         // Form Content
+        val currentUser = Firebase.auth.currentUser
+        val isGoogleUser = currentUser?.providerData?.any { it.providerId == "google.com" } == true
+        val isVerifiedStudent = isGoogleUser || currentUser?.isEmailVerified == true || userProfile?.isVerifiedStudent == true
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -111,6 +116,43 @@ fun CreateServiceScreen(
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Unverified Student Warning Banner
+            if (!isVerifiedStudent) {
+                Surface(
+                    color = Color(0xFFFFF3C4),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, Color(0xFFE5C158)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Security,
+                            contentDescription = null,
+                            tint = Color(0xFF7A5800),
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Verification Required to Offer Services",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = Color(0xFF7A5800)
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = "Only verified students can publish service listings. Please verify your student email in your profile first.",
+                                fontSize = 11.sp,
+                                color = Color(0xFF7A5800),
+                                lineHeight = 15.sp
+                            )
+                        }
+                    }
+                }
+            }
             // 1. CATEGORY SECTION
             Column {
                 Text(
@@ -393,6 +435,10 @@ fun CreateServiceScreen(
             ) {
                 Button(
                     onClick = {
+                        if (!isVerifiedStudent) {
+                            Toast.makeText(context, "Only verified students can offer services. Please verify your email first!", Toast.LENGTH_LONG).show()
+                            return@Button
+                        }
                         if (title.isBlank() || priceText.isBlank()) {
                             Toast.makeText(context, "Please enter a title and price", Toast.LENGTH_SHORT).show()
                         } else {
@@ -426,7 +472,7 @@ fun CreateServiceScreen(
                                 providerName = currentUserName,
                                 rating = 0.0,
                                 reviewCount = 0,
-                                campusLocation = "Subang 2 Campus",
+                                campusLocation = "HELP University S2",
                                 isVerifiedStudent = user?.isEmailVerified == true || userProfile?.isVerifiedStudent == true,
                                 description = description.trim()
                             )

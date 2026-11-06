@@ -29,6 +29,9 @@ class ChatViewModel(
     private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
 ) : ViewModel() {
 
+    // ==========================================================================
+    // 1. REACTIVE STATE HOLDERS & CACHES
+    // ==========================================================================
     private val conversationsRef = db.collection("conversations")
     private val listingsRef = db.collection("listings")
     private val usersRef = db.collection("users")
@@ -145,6 +148,10 @@ class ChatViewModel(
         )
         usersRef.document(user.uid).set(data, SetOptions.merge())
     }
+
+    // ==========================================================================
+    // 2. FIRESTORE REAL-TIME LISTENERS & CONVERSATION INDEXING
+    // ==========================================================================
 
     private fun startFirestoreListeners() {
         listingsRegistration = listingsRef.addSnapshotListener { snapshot, _ ->
@@ -597,8 +604,12 @@ class ChatViewModel(
         }
     }
 
+    // ==========================================================================
+    // 3. CONVERSATION & MESSAGE FLOWS
+    // ==========================================================================
+
     /**
-     * Stream real-time messages for a specific conversation from Cloud Firestore
+     * Connects real-time Firestore stream of messages for a specific conversation
      */
     fun getMessagesFlow(conversationId: String): Flow<List<ChatMessage>> = callbackFlow {
         if (conversationId.isBlank()) {
@@ -1064,6 +1075,10 @@ class ChatViewModel(
         }
     }
 
+    // ==========================================================================
+    // 4. MESSAGE MANAGEMENT (Edit, Delete, Attachments)
+    // ==========================================================================
+
     /**
      * Edit a sent message in Cloud Firestore in real time
      */
@@ -1113,6 +1128,10 @@ class ChatViewModel(
             }
         }
     }
+
+    // ==========================================================================
+    // 5. HELPER UTILITIES & ID EXTRACTORS
+    // ==========================================================================
 
     companion object {
         /**
