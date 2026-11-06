@@ -1,88 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="390dp"
-    android:height="844dp"
-    android:viewportWidth="390"
-    android:viewportHeight="844">
-
-    <!-- Subtle Campus Sky / Horizon Gradient Backdrop -->
-    <path
-        android:fillColor="#FAF8F2"
-        android:pathData="M0,0h390v844h-390z"/>
-
-    <!-- Subtle Sun / Warm Campus Glow -->
-    <path
-        android:fillColor="#FFE8A3"
-        android:pathData="M195,140m-90,0a90,90 0 1,0 180,0a90,90 0 1,0 -180,0"/>
-
-    <!-- Background Campus Hills / Greenery -->
-    <path
-        android:fillColor="#E6DFC8"
-        android:pathData="M-50,600 Q90,520 230,570 T390,530 L390,844 L-50,844 Z"/>
-
-    <path
-        android:fillColor="#DDD4BA"
-        android:pathData="M0,640 Q150,580 290,620 T440,590 L440,844 L0,844 Z"/>
-
-    <!-- University Main Building Silhouette (Center Academic Hall) -->
-    <path
-        android:fillColor="#C8BEA0"
-        android:pathData="M120,620 L120,490 L140,490 L140,460 L195,420 L250,460 L250,490 L270,490 L270,620 Z"/>
-
-    <!-- Campus Pillars & Archway -->
-    <path
-        android:fillColor="#B2A686"
-        android:pathData="M165,620 V530 C165,510 225,510 225,530 V620 Z"/>
-
-    <path
-        android:fillColor="#FAF8F2"
-        android:pathData="M175,620 V540 C175,525 215,525 215,540 V620 Z"/>
-
-    <!-- Left Campus Wing (Library & Faculties) -->
-    <path
-        android:fillColor="#C0B596"
-        android:pathData="M40,640 L40,520 L120,520 L120,640 Z"/>
-
-    <path
-        android:fillColor="#B2A686"
-        android:pathData="M55,540 H105 V560 H55 Z M55,570 H105 V590 H55 Z"/>
-
-    <!-- Right Campus Wing (Student Center & Labs) -->
-    <path
-        android:fillColor="#C0B596"
-        android:pathData="M270,640 L270,520 L350,520 L350,640 Z"/>
-
-    <path
-        android:fillColor="#B2A686"
-        android:pathData="M285,540 H335 V560 H285 Z M285,570 H335 V590 H285 Z"/>
-
-    <!-- Clock Tower / Bell Tower (Campus Landmark) -->
-    <path
-        android:fillColor="#A69A7A"
-        android:pathData="M180,420 L180,330 L195,300 L210,330 L210,420 Z"/>
-
-    <!-- Clock Face on Tower -->
-    <path
-        android:fillColor="#FAF8F2"
-        android:pathData="M195,355m-10,0a10,10 0 1,0 20,0a10,10 0 1,0 -20,0"/>
-
+    android:width="100dp"
+    android:height="100dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
     <path
         android:fillColor="#14171E"
-        android:pathData="M195,350 V355 H199"
-        android:strokeWidth="1.5"
-        android:strokeColor="#14171E"/>
-
-    <!-- Campus Trees & Foliage -->
+        android:fillAlpha="0.05"
+        android:pathData="M0,70 Q25,60 50,70 T100,70 L100,100 L0,100 Z" />
     <path
-        android:fillColor="#B5AB88"
-        android:pathData="M25,650 C10,630 10,590 30,580 C45,570 65,580 70,600 C75,620 60,650 25,650 Z"/>
-
-    <path
-        android:fillColor="#B5AB88"
-        android:pathData="M330,650 C315,630 315,590 335,580 C350,570 370,580 375,600 C380,620 365,650 330,650 Z"/>
-
-    <!-- Campus Walkway / Foreground Lawn -->
-    <path
-        android:fillColor="#A09472"
-        android:pathData="M0,700 Q195,660 390,700 L390,844 L0,844 Z"/>
-
+        android:fillColor="#F5B726"
+        android:fillAlpha="0.08"
+        android:pathData="M0,80 Q35,70 70,78 T100,75 L100,100 L0,100 Z" />
 </vector>
