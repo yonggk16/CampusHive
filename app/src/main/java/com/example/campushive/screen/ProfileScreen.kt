@@ -51,6 +51,7 @@ import com.example.campushive.viewmodel.AuthUiState
 import com.example.campushive.viewmodel.AuthViewModel
 import com.example.campushive.viewmodel.ListingViewModel
 import com.example.campushive.viewmodel.ReviewViewModel
+import kotlin.time.Duration.Companion.milliseconds
 
 private val emptyStateCategories = listOf("Tutoring", "Design", "Tech Help", "Errands")
 
@@ -72,7 +73,7 @@ fun ProfileScreen(
     val displayName = userProfile?.displayName?.ifBlank { currentUser?.displayName ?: "ken" } ?: "ken"
     val email = userProfile?.email?.ifBlank { currentUser?.email ?: "yonggk07@gmail.com" } ?: "yonggk07@gmail.com"
     val bio = userProfile?.bio ?: "CampusHive Member"
-    val campus = userProfile?.campusLocation ?: "Subang 2 Campus"
+    val campus = userProfile?.campusLocation ?: "HELP University S2"
     val major = userProfile?.facultyOrMajor ?: "General Student"
     val phone = userProfile?.phoneNumber ?: ""
 
@@ -250,7 +251,7 @@ fun ProfileScreen(
                 authViewModel.fetchUserProfile()
                 listingViewModel.refreshUserListings()
                 reviewViewModel.loadReviewsForProvider()
-                delay(800)
+                delay(800.milliseconds)
                 isRefreshing = false
                 Toast.makeText(context, "Profile data refreshed", Toast.LENGTH_SHORT).show()
             }

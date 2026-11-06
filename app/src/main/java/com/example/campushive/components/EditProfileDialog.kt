@@ -26,7 +26,7 @@ fun EditProfileDialog(
 ) {
     var displayName by remember { mutableStateOf(userProfile?.displayName?.ifBlank { currentDisplayName } ?: currentDisplayName) }
     var bio by remember { mutableStateOf(userProfile?.bio ?: "CampusHive Member") }
-    var campusLocation by remember { mutableStateOf(userProfile?.campusLocation ?: "Subang 2 Campus") }
+    var campusLocation by remember { mutableStateOf(userProfile?.campusLocation ?: "HELP University S2") }
     var facultyOrMajor by remember { mutableStateOf(userProfile?.facultyOrMajor ?: "School of Computing & IT") }
     var phoneNumber by remember { mutableStateOf(userProfile?.phoneNumber ?: "") }
 
