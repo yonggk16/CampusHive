@@ -35,7 +35,6 @@ import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlin.time.Duration.Companion.milliseconds
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -96,7 +95,7 @@ fun MyReportsScreen(
                 helpdeskViewModel.refreshModeratorAccess(userProfile)
                 helpdeskViewModel.loadAllReports(userProfile)
                 helpdeskViewModel.loadUserReports()
-                delay(800.milliseconds)
+                delay(800)
                 isRefreshing = false
                 Toast.makeText(context, "Tickets refreshed", Toast.LENGTH_SHORT).show()
             }

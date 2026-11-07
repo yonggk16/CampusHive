@@ -68,6 +68,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.core.graphics.scale
 
 private data class PendingAttachment(
     val type: String, // "IMAGE" | "FILE"
@@ -949,7 +950,7 @@ private fun MessageBubble(
             try {
                 val bytes = Base64.decode(message.attachmentBase64, Base64.DEFAULT)
                 BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 null
             }
         } else {
@@ -1163,7 +1164,7 @@ private fun processImageUri(context: Context, uri: Uri): PendingAttachment? {
         )
         val targetWidth = (originalBitmap.width * ratio).toInt().coerceAtLeast(1)
         val targetHeight = (originalBitmap.height * ratio).toInt().coerceAtLeast(1)
-        val scaledBitmap = Bitmap.createScaledBitmap(originalBitmap, targetWidth, targetHeight, true)
+        val scaledBitmap = originalBitmap.scale(targetWidth, targetHeight)
 
         val outputStream = ByteArrayOutputStream()
         scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 65, outputStream)
@@ -1177,7 +1178,7 @@ private fun processImageUri(context: Context, uri: Uri): PendingAttachment? {
             base64Data = base64Str,
             previewBitmap = scaledBitmap.asImageBitmap()
         )
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         null
     }
 }
@@ -1210,7 +1211,7 @@ private fun processFileUri(context: Context, uri: Uri): PendingAttachment? {
             base64Data = base64Str,
             previewBitmap = null
         )
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         null
     }
 }
@@ -1256,7 +1257,7 @@ private fun saveAndNotifyFile(context: Context, message: ChatMessage) {
         } else {
             Toast.makeText(context, "Attachment: $safeName (${message.attachmentSize})", Toast.LENGTH_SHORT).show()
         }
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         Toast.makeText(context, "Could not save file: ${message.attachmentName}", Toast.LENGTH_SHORT).show()
     }
 }
