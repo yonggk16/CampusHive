@@ -78,7 +78,7 @@ fun CreateServiceScreen(
         ) {
             Text(
                 text = "New listing",
-                fontSize = 28.sp,
+                fontSize = 34.sp,
                 fontWeight = FontWeight.Bold,
                 color = Charcoal
             )
@@ -110,8 +110,6 @@ fun CreateServiceScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .navigationBarsPadding()
-                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -425,13 +423,16 @@ fun CreateServiceScreen(
 
         // Sticky Bottom Publish Button
         Surface(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .imePadding(),
             color = Color.Transparent
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 16.dp)
+                    .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 20.dp)
             ) {
                 Button(
                     onClick = {
@@ -464,7 +465,7 @@ fun CreateServiceScreen(
 
                             val newListing = Listing(
                                 id = "srv_${System.currentTimeMillis()}",
-                                providerUID = currentUid,
+                                providerUid = currentUid,
                                 title = title.trim(),
                                 category = selectedCategory,
                                 price = parsedPrice,

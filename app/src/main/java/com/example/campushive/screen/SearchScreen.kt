@@ -188,7 +188,7 @@ fun SearchScreen(
                 Column {
                     Text(
                         text = "Explore Services",
-                        fontSize = 28.sp,
+                        fontSize = 34.sp,
                         fontWeight = FontWeight.Bold,
                         color = Charcoal
                     )
@@ -201,6 +201,7 @@ fun SearchScreen(
                         onValueChange = { searchQuery = it },
                         modifier = Modifier
                             .fillMaxWidth()
+                            .height(52.dp)
                             .graphicsLayer {
                                 scaleX = searchScale
                                 scaleY = searchScale
@@ -215,7 +216,15 @@ fun SearchScreen(
                             .onFocusChanged { focusState ->
                                 isSearchFocused = focusState.isFocused
                             },
-                        placeholder = { Text("Search services, skills, or courses...", fontSize = 14.sp, color = MutedText) },
+                        placeholder = {
+                            Text(
+                                text = "Search services, skills, or courses...",
+                                fontSize = 13.sp,
+                                color = MutedText,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Outlined.Search,

@@ -64,7 +64,7 @@ fun getCategoryVisual(category: String): CategoryVisual {
 
 data class Listing(
     val id: String,
-    val providerUID: String = "",
+    val providerUid: String = "",
     val title: String,
     val category: String,
     val price: Double,

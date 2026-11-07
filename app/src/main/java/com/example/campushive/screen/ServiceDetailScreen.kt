@@ -53,7 +53,7 @@ fun ServiceDetailScreen(
     reviewViewModel: ReviewViewModel = viewModel(),
     helpdeskViewModel: HelpdeskViewModel = viewModel(),
     onBackClick: () -> Unit,
-    onChatClick: (studentName: String, serviceTitle: String) -> Unit
+    onChatClick: (providerUid: String, providerName: String, serviceTitle: String) -> Unit
 ) {
     val context = LocalContext.current
     val liveListings by listingViewModel.listings.collectAsState()
@@ -88,7 +88,7 @@ fun ServiceDetailScreen(
         ?: currentUser?.email?.substringBefore("@")?.trim()
         ?: ""
 
-    val isOwnListing = (currentUid.isNotBlank() && listing.providerUID.isNotBlank() && currentUid == listing.providerUID) ||
+    val isOwnListing = (currentUid.isNotBlank() && listing.providerUid.isNotBlank() && currentUid == listing.providerUid) ||
         (currentUserName.isNotBlank() && listing.providerName.isNotBlank() && currentUserName.equals(listing.providerName, ignoreCase = true))
 
     val initials = listing.providerName.split(" ").mapNotNull { it.firstOrNull()?.toString() }.joinToString("")
@@ -751,7 +751,7 @@ fun ServiceDetailScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
-                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                    .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 28.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -772,7 +772,7 @@ fun ServiceDetailScreen(
                 }
 
                 Button(
-                    onClick = { onChatClick(listing.providerName, listing.title) },
+                    onClick = { onChatClick(listing.providerUid, listing.providerName, listing.title) },
                     shape = RoundedCornerShape(50),
                     colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
                     contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),

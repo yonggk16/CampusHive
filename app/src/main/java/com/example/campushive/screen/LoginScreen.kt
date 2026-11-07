@@ -11,6 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -142,8 +143,8 @@ fun LoginScreen(
                 painter = painterResource(id = R.drawable.app_logo),
                 contentDescription = "CampusHive Logo",
                 modifier = Modifier
-                    .size(54.dp)
-                    .clip(RoundedCornerShape(14.dp)),
+                    .size(64.dp)
+                    .clip(RoundedCornerShape(16.dp)),
                 contentScale = ContentScale.Fit
             )
 
@@ -151,22 +152,30 @@ fun LoginScreen(
             Surface(
                 color = CardWhite,
                 shape = RoundedCornerShape(20.dp),
-                border = BorderStroke(1.dp, Hairline)
+                border = BorderStroke(1.dp, Hairline),
+                shadowElevation = 2.dp
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFD97706))
+                    )
+                    Spacer(Modifier.width(6.dp))
                     Icon(
                         imageVector = Icons.Outlined.LocationOn,
                         contentDescription = null,
                         tint = Charcoal,
-                        modifier = Modifier.size(13.dp)
+                        modifier = Modifier.size(14.dp)
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        text = "HELP University Subang 2",
-                        fontSize = 11.sp,
+                        text = "HELP Subang 2 Campus",
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = Charcoal
                     )
@@ -174,12 +183,12 @@ fun LoginScreen(
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(20.dp))
 
         // Small Brand Header
         Text(
             text = "WELCOME TO THE HIVE",
-            fontSize = 11.sp,
+            fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             color = MutedText,
             letterSpacing = 0.8.sp
@@ -190,10 +199,10 @@ fun LoginScreen(
         // Headline
         Text(
             text = "Campus skills,\none tap away.",
-            fontSize = 28.sp,
+            fontSize = 32.sp,
             fontWeight = FontWeight.Bold,
             color = Charcoal,
-            lineHeight = 34.sp
+            lineHeight = 38.sp
         )
 
         Spacer(Modifier.height(32.dp))
@@ -205,10 +214,10 @@ fun LoginScreen(
             colors = CardDefaults.cardColors(containerColor = CardWhite),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
-            Column(Modifier.padding(16.dp)) {
+            Column(Modifier.padding(18.dp)) {
                 Text(
                     text = "EMAIL",
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = MutedText,
                     letterSpacing = 0.8.sp
@@ -218,7 +227,7 @@ fun LoginScreen(
                     if (email.isEmpty()) {
                         Text(
                             text = "@helplive.edu.my or @gmail.com",
-                            fontSize = 15.sp,
+                            fontSize = 16.sp,
                             color = MutedText.copy(alpha = 0.5f)
                         )
                     }
@@ -226,7 +235,7 @@ fun LoginScreen(
                         value = email,
                         onValueChange = { email = it },
                         textStyle = TextStyle(
-                            fontSize = 15.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Medium,
                             color = Charcoal
                         ),
@@ -239,7 +248,7 @@ fun LoginScreen(
             }
         }
 
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(16.dp))
 
         // PASSWORD Card
         Card(
@@ -248,7 +257,7 @@ fun LoginScreen(
             colors = CardDefaults.cardColors(containerColor = CardWhite),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
-            Column(Modifier.padding(16.dp)) {
+            Column(Modifier.padding(18.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -256,7 +265,7 @@ fun LoginScreen(
                 ) {
                     Text(
                         text = "PASSWORD",
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = MutedText,
                         letterSpacing = 0.8.sp
@@ -264,8 +273,9 @@ fun LoginScreen(
 
                     Text(
                         text = "Forgot password?",
-                        fontSize = 12.sp,
-                        color = MutedText,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Charcoal,
                         modifier = Modifier.clickable {
                             authViewModel.sendPasswordReset(email)
                         }
@@ -282,7 +292,7 @@ fun LoginScreen(
                         if (password.isEmpty()) {
                             Text(
                                 text = "Min. 8 characters",
-                                fontSize = 15.sp,
+                                fontSize = 16.sp,
                                 color = MutedText.copy(alpha = 0.5f)
                             )
                         }
@@ -290,7 +300,7 @@ fun LoginScreen(
                             value = password,
                             onValueChange = { password = it },
                             textStyle = TextStyle(
-                                fontSize = 15.sp,
+                                fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = Charcoal
                             ),
@@ -331,12 +341,12 @@ fun LoginScreen(
             colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(54.dp)
+                .height(56.dp)
                 .bounceClick(scaleDown = 0.96f)
         ) {
             if (isLoading) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(22.dp),
                     color = CardWhite,
                     strokeWidth = 2.dp
                 )
@@ -344,7 +354,7 @@ fun LoginScreen(
                 Text(
                     text = "Login",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
+                    fontSize = 17.sp,
                     color = CardWhite
                 )
                 Spacer(Modifier.width(8.dp))
@@ -367,12 +377,12 @@ fun LoginScreen(
         ) {
             Text(
                 text = "Don't have an account? ",
-                fontSize = 13.sp,
+                fontSize = 14.sp,
                 color = MutedText
             )
             Text(
                 text = "Sign up",
-                fontSize = 13.sp,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 color = Charcoal,
                 modifier = Modifier.clickable { onNavigateToSignUp() }

@@ -76,7 +76,7 @@ fun BottomBar(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 26.dp)
     ) {
         // Floating Pill Base Surface
         Surface(

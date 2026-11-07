@@ -1,5 +1,6 @@
 package com.example.campushive.screen
 
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -12,11 +13,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -26,36 +29,49 @@ import com.example.campushive.model.HelpReport
 import com.example.campushive.model.ReportStatus
 import com.example.campushive.model.ReportType
 import com.example.campushive.ui.theme.*
+import com.example.campushive.viewmodel.AuthViewModel
 import com.example.campushive.viewmodel.HelpdeskViewModel
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyReportsScreen(
     helpdeskViewModel: HelpdeskViewModel = viewModel(),
+    authViewModel: AuthViewModel = viewModel(),
     initialModeratorTab: Boolean = false,
     onBackClick: () -> Unit,
     onReportClick: (String) -> Unit,
 ) {
+    val context = LocalContext.current
     val userReports by helpdeskViewModel.userReports.collectAsState()
     val allReports by helpdeskViewModel.allReports.collectAsState()
     val isModeratorMode by helpdeskViewModel.isModeratorMode.collectAsState()
+    val userProfile by authViewModel.userProfile.collectAsState()
+    var isRefreshing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) {
-        helpdeskViewModel.refreshModeratorAccess()
-        helpdeskViewModel.loadAllReports()
+    val isDynamicModerator = userProfile?.isModerator == true || HelpdeskViewModel.isModeratorEmail(Firebase.auth.currentUser?.email)
+
+    LaunchedEffect(userProfile) {
+        helpdeskViewModel.refreshModeratorAccess(userProfile)
+        helpdeskViewModel.loadAllReports(userProfile)
         helpdeskViewModel.loadUserReports()
     }
 
-    var showAllCampusQueue by remember(initialModeratorTab) {
-        mutableStateOf(initialModeratorTab)
+    var showAllCampusQueue by remember(initialModeratorTab, isDynamicModerator) {
+        mutableStateOf(initialModeratorTab && isDynamicModerator)
     }
     var selectedFilter by remember { mutableStateOf("All") }
 
-    val baseReports = if (showAllCampusQueue && isModeratorMode) allReports else userReports
+    val baseReports = if (showAllCampusQueue && isDynamicModerator && isModeratorMode) allReports else userReports
 
-    val filteredReports = remember(baseReports, selectedFilter, showAllCampusQueue, isModeratorMode) {
-        if (!showAllCampusQueue || !isModeratorMode) {
+    val filteredReports = remember(baseReports, selectedFilter, showAllCampusQueue, isModeratorMode, isDynamicModerator) {
+        if (!showAllCampusQueue || !isModeratorMode || !isDynamicModerator) {
             baseReports
         } else {
             when (selectedFilter) {
@@ -70,12 +86,28 @@ fun MyReportsScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(HoneyBottomGradient)
-            .statusBarsPadding()
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = {
+            isRefreshing = true
+            scope.launch {
+                authViewModel.fetchUserProfile()
+                helpdeskViewModel.refreshModeratorAccess(userProfile)
+                helpdeskViewModel.loadAllReports(userProfile)
+                helpdeskViewModel.loadUserReports()
+                delay(800)
+                isRefreshing = false
+                Toast.makeText(context, "Tickets refreshed", Toast.LENGTH_SHORT).show()
+            }
+        },
+        modifier = Modifier.fillMaxSize()
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(HoneyBottomGradient)
+                .statusBarsPadding()
+        ) {
         // Top Header
         Row(
             modifier = Modifier
@@ -96,8 +128,8 @@ fun MyReportsScreen(
 
         HorizontalDivider(color = Hairline)
 
-        // Moderator Segmented Switcher ("My Tickets" vs "All Campus Queue")
-        if (isModeratorMode) {
+        // Moderator Segmented Switcher ("My Tickets" vs "All Campus Queue") - ONLY visible for Platform Moderators
+        if (isDynamicModerator && isModeratorMode) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -211,13 +243,14 @@ fun MyReportsScreen(
                 items(filteredReports) { report ->
                     ReportTicketItem(
                         report = report,
-                        showReporterInfo = showAllCampusQueue && isModeratorMode,
+                        showReporterInfo = showAllCampusQueue && isModeratorMode && isDynamicModerator,
                         onReportClick = onReportClick
                     )
                 }
             }
         }
     }
+}
 }
 
 @Composable

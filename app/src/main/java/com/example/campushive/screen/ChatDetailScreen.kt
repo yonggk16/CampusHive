@@ -109,6 +109,20 @@ fun ChatDetailScreen(
     val userLastSeenMillis by chatViewModel.userLastSeenMillis.collectAsState()
     val listState = rememberLazyListState()
 
+    // Track active open chat & mark conversation read automatically
+    DisposableEffect(chatId) {
+        chatViewModel.setActiveOpenChat(chatId)
+        onDispose {
+            chatViewModel.setActiveOpenChat("")
+        }
+    }
+
+    LaunchedEffect(chatId, liveMessages.size) {
+        if (chatId.isNotBlank()) {
+            chatViewModel.markConversationAsRead(chatId)
+        }
+    }
+
     val currentUid = Firebase.auth.currentUser?.uid ?: ""
     val myName = run {
         val user = Firebase.auth.currentUser
@@ -162,7 +176,7 @@ fun ChatDetailScreen(
         } else if (currentConversation.isProvider) {
             currentConversation.seekerUid
         } else {
-            currentConversation.providerUID
+            currentConversation.providerUid
         }
     }
 
@@ -296,6 +310,8 @@ fun ChatDetailScreen(
             .fillMaxSize()
             .background(HoneyBottomGradient)
             .statusBarsPadding()
+            .navigationBarsPadding()
+            .imePadding()
     ) {
         // Top Header Bar
         Surface(
@@ -600,21 +616,22 @@ fun ChatDetailScreen(
             shadowElevation = 8.dp
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
+                modifier = Modifier.fillMaxWidth()
             ) {
-                // Inline Editing Message Banner Bar
+                // Inline Editing Message Banner Bar (CampusHive Themed)
                 editingMessage?.let { editing ->
                     Surface(
-                        color = CardWhite,
-                        border = BorderStroke(1.dp, Hairline),
-                        modifier = Modifier.fillMaxWidth()
+                        color = HoneyTint,
+                        border = BorderStroke(1.dp, Color(0xFFFFE082)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 6.dp)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
@@ -622,24 +639,32 @@ fun ChatDetailScreen(
                                 modifier = Modifier.weight(1f),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Edit,
-                                    contentDescription = null,
-                                    tint = Charcoal,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(Modifier.width(8.dp))
+                                Surface(
+                                    shape = CircleShape,
+                                    color = CardWhite,
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Edit,
+                                            contentDescription = null,
+                                            tint = Charcoal,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(Modifier.width(10.dp))
                                 Column {
                                     Text(
-                                        text = "Editing message",
+                                        text = "Editing Message",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = MutedText
+                                        color = Charcoal
                                     )
                                     Text(
                                         text = editing.text,
                                         fontSize = 12.sp,
-                                        color = Charcoal,
+                                        color = MutedText,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -808,7 +833,7 @@ fun ChatDetailScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 22.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Plus button on left to toggle Picture / File upload options
@@ -882,7 +907,10 @@ fun ChatDetailScreen(
                                         attachmentType = currentStaged?.type ?: "",
                                         attachmentName = currentStaged?.name ?: "",
                                         attachmentSize = currentStaged?.sizeLabel ?: "",
-                                        attachmentBase64 = currentStaged?.base64Data ?: ""
+                                        attachmentBase64 = currentStaged?.base64Data ?: "",
+                                        listingIdHint = resolvedListingId,
+                                        providerUidHint = matchedListing?.providerUid.orEmpty()
+                                            .ifBlank { currentConversation?.providerUid.orEmpty() }
                                     )
                                 }
                             }
@@ -1049,27 +1077,53 @@ private fun MessageBubble(
                     }
                 }
 
-                // Long-Press Options Context Menu
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false }
+                // Long-Press Message Context Menu (CampusHive Themed)
+                MaterialTheme(
+                    colorScheme = MaterialTheme.colorScheme.copy(
+                        surface = CardWhite,
+                        onSurface = Charcoal
+                    )
                 ) {
-                    DropdownMenuItem(
-                        text = { Text("Edit Message", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Charcoal) },
-                        leadingIcon = { Icon(Icons.Outlined.Edit, contentDescription = "Edit", modifier = Modifier.size(18.dp)) },
-                        onClick = {
-                            showMenu = false
-                            onEditMessage(message)
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Delete Message", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD32F2F)) },
-                        leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = "Delete", tint = Color(0xFFD32F2F), modifier = Modifier.size(18.dp)) },
-                        onClick = {
-                            showMenu = false
-                            onDeleteMessage(message)
-                        }
-                    )
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false },
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(1.dp, Hairline),
+                        shadowElevation = 6.dp,
+                        modifier = Modifier.background(CardWhite)
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Edit Message", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Charcoal) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Edit,
+                                    contentDescription = "Edit",
+                                    tint = Charcoal,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            },
+                            onClick = {
+                                showMenu = false
+                                onEditMessage(message)
+                            }
+                        )
+                        HorizontalDivider(color = Hairline)
+                        DropdownMenuItem(
+                            text = { Text("Delete Message", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD32F2F)) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Delete,
+                                    contentDescription = "Delete",
+                                    tint = Color(0xFFD32F2F),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            },
+                            onClick = {
+                                showMenu = false
+                                onDeleteMessage(message)
+                            }
+                        )
+                    }
                 }
             }
 
