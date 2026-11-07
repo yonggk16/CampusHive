@@ -696,7 +696,8 @@ fun ReportDetailScreen(
                                 helpdeskViewModel.moderateReport(
                                     reportId = report.reportId,
                                     newStatus = selectedModStatus,
-                                    moderatorNote = moderatorNoteInput
+                                    moderatorNote = moderatorNoteInput,
+                                    targetId = report.targetId
                                 ) { success ->
                                     isModerating = false
                                     if (success) {
@@ -766,7 +767,8 @@ fun ReportDetailScreen(
                                                 helpdeskViewModel.moderateReport(
                                                     reportId = report.reportId,
                                                     newStatus = ReportStatus.RESOLVED,
-                                                    moderatorNote = moderatorNoteInput
+                                                    moderatorNote = moderatorNoteInput,
+                                                    targetId = report.targetId
                                                 )
                                                 Toast.makeText(context, "Listing paused & ticket marked RESOLVED", Toast.LENGTH_LONG).show()
                                             }

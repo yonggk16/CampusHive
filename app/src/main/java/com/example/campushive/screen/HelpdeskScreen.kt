@@ -1,11 +1,13 @@
 package com.example.campushive.screen
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -17,20 +19,27 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import com.example.campushive.components.ReportDialog
 import com.example.campushive.model.ReportStatus
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.example.campushive.model.ReportType
 import com.example.campushive.ui.theme.*
+import com.example.campushive.viewmodel.AuthViewModel
 import com.example.campushive.viewmodel.HelpdeskViewModel
 
 private data class FaqItem(val question: String, val answer: String)
@@ -57,17 +66,24 @@ private val faqList = listOf(
 @Composable
 fun HelpdeskScreen(
     helpdeskViewModel: HelpdeskViewModel = viewModel(),
+    authViewModel: AuthViewModel = viewModel(),
     onBackClick: () -> Unit,
     onNavigateToMyReports: () -> Unit = {},
     onNavigateToModeratorQueue: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     val userReports by helpdeskViewModel.userReports.collectAsState()
     val allReports by helpdeskViewModel.allReports.collectAsState()
     val isModeratorMode by helpdeskViewModel.isModeratorMode.collectAsState()
+    val userProfile by authViewModel.userProfile.collectAsState()
+    var isRefreshing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) {
-        helpdeskViewModel.refreshModeratorAccess()
-        helpdeskViewModel.loadAllReports()
+    val isDynamicModerator = userProfile?.isModerator == true || HelpdeskViewModel.isModeratorEmail(Firebase.auth.currentUser?.email)
+
+    LaunchedEffect(userProfile) {
+        helpdeskViewModel.refreshModeratorAccess(userProfile)
+        helpdeskViewModel.loadAllReports(userProfile)
         helpdeskViewModel.loadUserReports()
     }
 
@@ -93,12 +109,28 @@ fun HelpdeskScreen(
         )
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(HoneyBottomGradient)
-            .statusBarsPadding()
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = {
+            isRefreshing = true
+            scope.launch {
+                authViewModel.fetchUserProfile()
+                helpdeskViewModel.refreshModeratorAccess(userProfile)
+                helpdeskViewModel.loadAllReports(userProfile)
+                helpdeskViewModel.loadUserReports()
+                delay(800)
+                isRefreshing = false
+                Toast.makeText(context, "Helpdesk data refreshed", Toast.LENGTH_SHORT).show()
+            }
+        },
+        modifier = Modifier.fillMaxSize()
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(HoneyBottomGradient)
+                .statusBarsPadding()
+        ) {
         // Top Header with Moderator Mode Switch
         Row(
             modifier = Modifier
@@ -119,8 +151,8 @@ fun HelpdeskScreen(
                 )
             }
 
-            // Moderator Role Pill Toggle (ONLY visible for whitelisted moderator emails)
-            if (HelpdeskViewModel.isModeratorEmail(Firebase.auth.currentUser?.email)) {
+            // Moderator Role Pill Toggle (Visible for whitelisted or Firestore-marked moderators)
+            if (isDynamicModerator) {
                 Surface(
                     color = if (isModeratorMode) Charcoal else CardWhite,
                     contentColor = if (isModeratorMode) CardWhite else Charcoal,
@@ -128,7 +160,7 @@ fun HelpdeskScreen(
                     border = BorderStroke(1.dp, if (isModeratorMode) Charcoal else Hairline),
                     modifier = Modifier
                         .padding(end = 8.dp)
-                        .clickable { helpdeskViewModel.toggleModeratorMode() }
+                        .clickable { helpdeskViewModel.toggleModeratorMode(userProfile) }
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -161,17 +193,19 @@ fun HelpdeskScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Moderator Portal Card (ONLY visible for whitelisted moderators in Moderator Mode)
-            AnimatedVisibility(visible = isModeratorMode && HelpdeskViewModel.isModeratorEmail(Firebase.auth.currentUser?.email)) {
+            // Moderator Portal Card (Visible for whitelisted or Firestore-marked moderators)
+            // Moderator Portal Card (Redesigned CampusHive Theme)
+            AnimatedVisibility(visible = isModeratorMode && isDynamicModerator) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onNavigateToModeratorQueue() },
-                    shape = RoundedCornerShape(20.dp),
+                        .bounceClick(scaleDown = 0.98f) { onNavigateToModeratorQueue() },
+                    shape = RoundedCornerShape(22.dp),
                     colors = CardDefaults.cardColors(containerColor = CardWhite),
-                    border = BorderStroke(1.dp, Hairline)
+                    border = BorderStroke(1.dp, Hairline),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    Column(Modifier.padding(18.dp)) {
+                    Column(Modifier.padding(20.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -179,44 +213,65 @@ fun HelpdeskScreen(
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Security,
-                                    contentDescription = null,
-                                    tint = Charcoal,
-                                    modifier = Modifier.size(16.dp)
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(30.dp)
+                                        .clip(CircleShape)
+                                        .background(HoneyTint),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Security,
+                                        contentDescription = null,
+                                        tint = Charcoal,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
                                 Text(
-                                    text = "CAMPUSHIVE MODERATOR PORTAL",
-                                    fontSize = 10.sp,
+                                    text = "MODERATOR PORTAL",
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = MutedText,
+                                    color = Charcoal,
                                     letterSpacing = 0.8.sp
                                 )
                             }
 
                             Surface(
-                                color = HoneyTint,
-                                shape = RoundedCornerShape(8.dp)
+                                color = if (openReportsCount > 0) Color(0xFFFFF3C4) else HoneyTint,
+                                shape = RoundedCornerShape(20.dp),
+                                border = BorderStroke(1.dp, if (openReportsCount > 0) Color(0xFFE5C158) else Color(0xFFFFE082))
                             ) {
-                                Text(
-                                    text = "$openReportsCount PENDING",
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Charcoal
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(if (openReportsCount > 0) Color(0xFFD32F2F) else VerifiedGreen)
+                                    )
+                                    Text(
+                                        text = "$openReportsCount PENDING",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Charcoal
+                                    )
+                                }
                             }
                         }
 
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(12.dp))
 
                         Text(
                             text = "Campus Incident & Report Queue",
                             style = MaterialTheme.typography.titleMedium,
                             color = Charcoal,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 17.sp
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
@@ -226,7 +281,7 @@ fun HelpdeskScreen(
                             lineHeight = 16.sp
                         )
 
-                        Spacer(Modifier.height(14.dp))
+                        Spacer(Modifier.height(16.dp))
 
                         // Quick Stats Row
                         Row(
@@ -236,30 +291,42 @@ fun HelpdeskScreen(
                             ModeratorStatChip(
                                 label = "Total",
                                 count = allReports.size,
+                                containerColor = CardWhite,
+                                borderColor = Hairline,
+                                countColor = Charcoal,
                                 modifier = Modifier.weight(1f)
                             )
                             ModeratorStatChip(
                                 label = "Listing Flags",
                                 count = flaggedListingsCount,
+                                containerColor = Color(0xFFFFF7DB),
+                                borderColor = Color(0xFFFFE8A3),
+                                countColor = Color(0xFFD97706),
                                 modifier = Modifier.weight(1f)
                             )
                             ModeratorStatChip(
                                 label = "User Safety",
                                 count = safetyReportsCount,
+                                containerColor = Color(0xFFFFF0F0),
+                                borderColor = Color(0xFFFFCDD2),
+                                countColor = Color(0xFFD32F2F),
                                 modifier = Modifier.weight(1f)
                             )
                         }
 
-                        Spacer(Modifier.height(14.dp))
+                        Spacer(Modifier.height(16.dp))
 
                         Button(
                             onClick = onNavigateToModeratorQueue,
                             colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
+                            shape = RoundedCornerShape(50),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .bounceClick(scaleDown = 0.95f)
                         ) {
-                            Text("Open Moderator Queue (${allReports.size})", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = CardWhite)
-                            Spacer(Modifier.width(6.dp))
+                            Text("Open Moderator Queue (${allReports.size})", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = CardWhite)
+                            Spacer(Modifier.width(8.dp))
                             Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = CardWhite, modifier = Modifier.size(16.dp))
                         }
                     }
@@ -378,34 +445,41 @@ fun HelpdeskScreen(
         }
     }
 }
+}
 
 @Composable
 private fun ModeratorStatChip(
     label: String,
     count: Int,
+    containerColor: Color = CardWhite,
+    borderColor: Color = Hairline,
+    countColor: Color = Charcoal,
     modifier: Modifier = Modifier
 ) {
     Surface(
-        color = HoneyTint,
-        shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, Hairline),
+        color = containerColor,
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, borderColor),
         modifier = modifier
     ) {
         Column(
-            modifier = Modifier.padding(vertical = 8.dp, horizontal = 10.dp),
+            modifier = Modifier.padding(vertical = 10.dp, horizontal = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = count.toString(),
-                fontSize = 16.sp,
+                fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = Charcoal
+                color = countColor
             )
+            Spacer(Modifier.height(2.dp))
             Text(
                 text = label,
                 fontSize = 10.sp,
-                fontWeight = FontWeight.Medium,
-                color = MutedText
+                fontWeight = FontWeight.Bold,
+                color = MutedText,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }

@@ -73,7 +73,7 @@ class ListingViewModel(
             ?: "Student User"
 
         val listingWithUid = listing.copy(
-            providerUID = listing.providerUID.ifBlank { currentUserId },
+            providerUid = listing.providerUid.ifBlank { currentUserId },
             providerName = listing.providerName.ifBlank { currentUserName }
         )
 

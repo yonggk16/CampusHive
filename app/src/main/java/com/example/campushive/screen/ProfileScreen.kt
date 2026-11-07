@@ -88,15 +88,15 @@ fun ProfileScreen(
 
     val reviewsReceived = remember(providerReviews, currentUid, displayName) {
         providerReviews.filter {
-            (currentUid.isNotBlank() && it.providerUID == currentUid) ||
+            (currentUid.isNotBlank() && it.providerUid == currentUid) ||
             (displayName.isNotBlank() && it.providerName.equals(displayName, ignoreCase = true)) ||
-            it.providerUID.isBlank()
+            it.providerUid.isBlank()
         }
     }
 
     val reviewsGiven = remember(providerReviews, currentUid, displayName) {
         providerReviews.filter {
-            (currentUid.isNotBlank() && it.reviewerUID == currentUid) ||
+            (currentUid.isNotBlank() && it.reviewerUid == currentUid) ||
             (displayName.isNotBlank() && it.reviewerName.equals(displayName, ignoreCase = true))
         }
     }
@@ -274,7 +274,7 @@ fun ProfileScreen(
         ) {
             Text(
                 text = "Profile",
-                fontSize = 28.sp,
+                fontSize = 34.sp,
                 fontWeight = FontWeight.Bold,
                 color = Charcoal
             )

@@ -27,7 +27,7 @@ import java.math.RoundingMode
  */
 data class ListingEntity(
     var listingId: String = "",          // PK
-    var providerUID: String = "",        // FK -> USER.uid
+    var providerUid: String = "",        // FK -> USER.uid
     var providerName: String = "Daniel Wong",
     var title: String = "",
     var category: String = "",
@@ -82,7 +82,7 @@ class FirestoreRepository(
     /**
      * Real-time Flow listener for user's managed listings (ACTIVE & INACTIVE)
      */
-    fun getMyListingsFlow(providerUID: String = Firebase.auth.currentUser?.uid ?: ""): Flow<List<Listing>> = callbackFlow {
+    fun getMyListingsFlow(providerUid: String = Firebase.auth.currentUser?.uid ?: ""): Flow<List<Listing>> = callbackFlow {
         val listener = listingsRef.addSnapshotListener { snapshot, error ->
             if (error != null) {
                 Log.e("FirestoreRepository", "Error listening to my listings", error)
@@ -90,16 +90,23 @@ class FirestoreRepository(
             }
             if (snapshot == null) return@addSnapshotListener
 
-            val currentUid = providerUID.ifBlank { Firebase.auth.currentUser?.uid.orEmpty() }
+            val user = Firebase.auth.currentUser
+            val currentUid = providerUid.ifBlank { user?.uid.orEmpty() }.trim().lowercase()
+            val currentEmail = user?.email.orEmpty().trim().lowercase()
+            val currentEmailPrefix = currentEmail.substringBefore("@")
+            val currentDisplayName = user?.displayName.orEmpty().trim().lowercase()
 
             val myListings = snapshot.documents
                 .mapNotNull { doc -> doc.toListingOrNull() }
                 .filter { listing ->
-                    if (currentUid.isNotBlank()) {
-                        listing.providerUID == currentUid && listing.status != "DELETED" && listing.title.isNotBlank()
-                    } else {
-                        false
-                    }
+                    val pUid = listing.providerUid.trim().lowercase()
+                    val pName = listing.providerName.trim().lowercase()
+
+                    val matchesUid = currentUid.isNotBlank() && pUid == currentUid
+                    val matchesName = currentDisplayName.isNotBlank() && pName == currentDisplayName
+                    val matchesEmailPrefix = currentEmailPrefix.isNotBlank() && pName == currentEmailPrefix
+
+                    (matchesUid || matchesName || matchesEmailPrefix) && listing.status != "DELETED" && listing.title.isNotBlank()
                 }
                 .sortedByDescending { it.createdAt }
 
@@ -114,22 +121,17 @@ class FirestoreRepository(
      */
     suspend fun createListing(
         listing: Listing,
-        providerUID: String = "",
+        providerUid: String = "",
     ): Boolean {
         return try {
-            val docRef = if (listing.id.isNotBlank() && !listing.id.startsWith("srv_")) {
+            val docRef = if (listing.id.isNotBlank()) {
                 listingsRef.document(listing.id)
             } else {
                 listingsRef.document()
             }
 
             val currentAuthUid = Firebase.auth.currentUser?.uid.orEmpty()
-            val effectiveUid = when {
-                listing.providerUID.isNotBlank() -> listing.providerUID
-                providerUID.isNotBlank() -> providerUID
-                currentAuthUid.isNotBlank() -> currentAuthUid
-                else -> ""
-            }
+            val effectiveUid = currentAuthUid.ifBlank { listing.providerUid.ifBlank { providerUid } }
 
             val currentAuthName = Firebase.auth.currentUser?.displayName.orEmpty()
                 .ifBlank { Firebase.auth.currentUser?.email?.substringBefore("@").orEmpty() }
@@ -228,16 +230,16 @@ class FirestoreRepository(
             val currentUserId = Firebase.auth.currentUser?.uid ?: "usr_reviewer"
             val currentUserName = Firebase.auth.currentUser?.displayName.orEmpty().ifBlank { review.reviewerName.ifBlank { "Student Reviewer" } }
 
-            var resolvedProviderUID = review.providerUID
+            var resolvedProviderUid = review.providerUid
             var resolvedProviderName = review.providerName
 
-            if (resolvedProviderUID.isBlank() && review.listingId.isNotBlank()) {
+            if (resolvedProviderUid.isBlank() && review.listingId.isNotBlank()) {
                 try {
                     val listingSnap = listingsRef.document(review.listingId).get().await()
                     if (listingSnap.exists()) {
                         val pUid = listingSnap.getString("providerUID") ?: ""
                         val pName = listingSnap.getString("providerName") ?: ""
-                        if (pUid.isNotBlank()) resolvedProviderUID = pUid
+                        if (pUid.isNotBlank()) resolvedProviderUid = pUid
                         if (pName.isNotBlank()) resolvedProviderName = pName
                     }
                 } catch (e: Exception) {
@@ -248,7 +250,7 @@ class FirestoreRepository(
             val reviewData = hashMapOf(
                 "reviewId" to reviewDocRef.id,
                 "listingId" to review.listingId,
-                "providerUID" to resolvedProviderUID,
+                "providerUID" to resolvedProviderUid,
                 "providerName" to resolvedProviderName,
                 "reviewerUID" to currentUserId,
                 "reviewerName" to currentUserName,
@@ -335,7 +337,7 @@ class FirestoreRepository(
     /**
      * Real-time Flow listener for reviews matching a provider or all reviews
      */
-    fun getReviewsForProviderFlow(providerUID: String = ""): Flow<List<Review>> = callbackFlow {
+    fun getReviewsForProviderFlow(providerUid: String = ""): Flow<List<Review>> = callbackFlow {
         val listener = reviewsRef.addSnapshotListener { snapshot, error ->
             if (error != null) {
                 Log.e("FirestoreRepository", "Error listening to provider reviews", error)
@@ -343,14 +345,14 @@ class FirestoreRepository(
             }
             if (snapshot == null) return@addSnapshotListener
 
-            val currentUid = providerUID.ifBlank { Firebase.auth.currentUser?.uid.orEmpty() }
+            val currentUid = providerUid.ifBlank { Firebase.auth.currentUser?.uid.orEmpty() }
 
             val allReviews = snapshot.documents
                 .mapNotNull { it.toReviewOrNull() }
                 .sortedByDescending { it.createdAt.toDate().time }
 
             val filtered = if (currentUid.isNotBlank()) {
-                allReviews.filter { it.providerUID == currentUid || it.reviewerUID == currentUid }
+                allReviews.filter { it.providerUid == currentUid || it.reviewerUid == currentUid }
             } else {
                 emptyList()
             }
@@ -596,7 +598,7 @@ private fun DocumentSnapshot.toListingOrNull(): Listing? {
         val price = getDouble("price") ?: (getLong("price")?.toDouble() ?: 0.0)
         val pricingTypeStr = getString("pricingType") ?: "PER_HOUR"
         val providerName = getString("providerName")?.takeIf { it.isNotBlank() } ?: "Daniel Wong"
-        val providerUID = getString("providerUID") ?: ""
+        val providerUid = getString("providerUID") ?: ""
         val status = getString("status") ?: "ACTIVE"
         val rating = getDouble("rating") ?: (getLong("rating")?.toDouble() ?: 5.0)
         val reviewCount = getLong("reviewCount")?.toInt() ?: 1
@@ -609,7 +611,7 @@ private fun DocumentSnapshot.toListingOrNull(): Listing? {
 
         Listing(
             id = getString("listingId")?.takeIf { it.isNotBlank() } ?: id,
-            providerUID = providerUID,
+            providerUid = providerUid,
             title = title,
             category = category,
             price = price,
@@ -641,9 +643,9 @@ private fun DocumentSnapshot.toReviewOrNull(): Review? {
         Review(
             id = getString("reviewId") ?: id,
             listingId = getString("listingId") ?: "",
-            providerUID = getString("providerUID") ?: "",
+            providerUid = getString("providerUID") ?: "",
             providerName = getString("providerName") ?: "Student Provider",
-            reviewerUID = getString("reviewerUID") ?: "",
+            reviewerUid = getString("reviewerUID") ?: "",
             reviewerName = reviewerName,
             serviceTitle = serviceTitle,
             rating = rating,
@@ -721,7 +723,7 @@ private fun DocumentSnapshot.toHelpReportOrNull(): HelpReport? {
 fun ListingEntity.toUIModel(): Listing {
     return Listing(
         id = listingId,
-        providerUID = providerUID,
+        providerUid = providerUid,
         title = title,
         category = category,
         price = price,
