@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 import com.example.campushive.model.ChatConversation
 import com.example.campushive.ui.theme.*
 import com.example.campushive.viewmodel.ChatViewModel
@@ -75,7 +76,7 @@ fun ChatsScreen(
             scope.launch {
                 chatViewModel.refreshConversations()
                 reviewViewModel.loadReviewsForProvider()
-                delay(800)
+                delay(800.milliseconds)
                 isRefreshing = false
                 Toast.makeText(context, "Conversations refreshed", Toast.LENGTH_SHORT).show()
             }
