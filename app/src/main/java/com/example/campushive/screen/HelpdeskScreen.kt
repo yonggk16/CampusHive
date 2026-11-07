@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 import com.example.campushive.components.ReportDialog
 import com.example.campushive.model.ReportStatus
 import com.google.firebase.Firebase
@@ -118,7 +119,7 @@ fun HelpdeskScreen(
                 helpdeskViewModel.refreshModeratorAccess(userProfile)
                 helpdeskViewModel.loadAllReports(userProfile)
                 helpdeskViewModel.loadUserReports()
-                delay(800)
+                delay(800.milliseconds)
                 isRefreshing = false
                 Toast.makeText(context, "Helpdesk data refreshed", Toast.LENGTH_SHORT).show()
             }
@@ -451,10 +452,10 @@ fun HelpdeskScreen(
 private fun ModeratorStatChip(
     label: String,
     count: Int,
+    modifier: Modifier = Modifier,
     containerColor: Color = CardWhite,
     borderColor: Color = Hairline,
-    countColor: Color = Charcoal,
-    modifier: Modifier = Modifier
+    countColor: Color = Charcoal
 ) {
     Surface(
         color = containerColor,

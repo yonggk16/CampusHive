@@ -38,6 +38,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -117,7 +118,7 @@ fun SearchScreen(
                 searchFocusRequester.requestFocus()
                 keyboardController?.show()
             }
-            delay(60)
+            delay(60.milliseconds)
             runCatching {
                 searchFocusRequester.requestFocus()
                 keyboardController?.show()
@@ -165,7 +166,7 @@ fun SearchScreen(
             isRefreshing = true
             scope.launch {
                 listingViewModel.refreshUserListings()
-                delay(800)
+                delay(800.milliseconds)
                 isRefreshing = false
                 Toast.makeText(context, "Search results updated", Toast.LENGTH_SHORT).show()
             }
