@@ -26,7 +26,7 @@ import java.util.Date
 import java.util.Locale
 
 class ChatViewModel(
-    private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
+    db: FirebaseFirestore = FirebaseFirestore.getInstance()
 ) : ViewModel() {
 
     // ==========================================================================
@@ -135,7 +135,6 @@ class ChatViewModel(
     }
 
     override fun onCleared() {
-        super.onCleared()
         auth.removeAuthStateListener(authStateListener)
         stopFirestoreListeners()
     }
@@ -728,7 +727,7 @@ class ChatViewModel(
                 if (isNewIncomingMessage) {
                     lastNotifiedTimestampMap[convId] = effectiveMsgMillis
                     if (newestNotificationCandidate == null ||
-                        effectiveMsgMillis >= (newestNotificationCandidate?.lastMessageMillis ?: 0L)
+                        effectiveMsgMillis >= newestNotificationCandidate.lastMessageMillis
                     ) {
                         newestNotificationCandidate = chatConv
                     }
@@ -1462,7 +1461,7 @@ class ChatViewModel(
             val cleanListingId = listingId.trim()
             val cleanSeekerUid = seekerUid.trim()
             return if (cleanSeekerUid.isNotBlank()) {
-                "chat_${cleanListingId}_${cleanSeekerUid}"
+                "chat_${cleanListingId}_$cleanSeekerUid"
             } else {
                 "chat_$cleanListingId"
             }

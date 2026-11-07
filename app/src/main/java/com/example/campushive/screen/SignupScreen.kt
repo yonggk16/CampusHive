@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.example.campushive.screen
 
 import android.widget.Toast
