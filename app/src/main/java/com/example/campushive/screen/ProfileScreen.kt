@@ -323,7 +323,8 @@ fun ProfileScreen(
                         modifier = Modifier
                             .size(72.dp)
                             .clip(CircleShape)
-                            .background(HoneyTint),
+                            .background(HoneyTint)
+                            .border(BorderStroke(1.5.dp, AvatarOutline), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -708,7 +709,8 @@ fun ProfileScreen(
                             modifier = Modifier
                                 .size(48.dp)
                                 .clip(CircleShape)
-                                .background(HoneyTint),
+                                .background(HoneyTint)
+                                .border(BorderStroke(1.5.dp, AvatarOutline), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -993,7 +995,7 @@ fun ProfileScreen(
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Box(
-                                            modifier = Modifier.size(28.dp).clip(CircleShape).background(HoneyTint),
+                                            modifier = Modifier.size(28.dp).clip(CircleShape).background(HoneyTint).border(BorderStroke(1.5.dp, AvatarOutline), CircleShape),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(

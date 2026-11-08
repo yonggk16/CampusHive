@@ -56,6 +56,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campushive.components.ReportDialog
 import com.example.campushive.components.ServiceCategoryIconBox
+import com.example.campushive.components.ChatNotificationHelper
+import com.example.campushive.components.ProviderProfileSheet
 import com.example.campushive.model.ChatMessage
 import com.example.campushive.model.ReportType
 import com.example.campushive.ui.theme.*
@@ -98,6 +100,7 @@ fun ChatDetailScreen(
 
     // 3-dots header menu and ReportDialog state
     var showMoreMenu by remember { mutableStateOf(false) }
+    var showPartnerProfile by remember { mutableStateOf(false) }
     var activeReportType by remember { mutableStateOf<ReportType?>(null) }
     var activeReportTargetId by remember { mutableStateOf("") }
     var activeReportTargetName by remember { mutableStateOf("") }
@@ -114,6 +117,9 @@ fun ChatDetailScreen(
     // Track active open chat & mark conversation read automatically
     DisposableEffect(chatId) {
         chatViewModel.setActiveOpenChat(chatId)
+        // Opening the chat makes its heads-up notification stale — dismiss it so it
+        // doesn't linger in the shade after the user has already read the message.
+        ChatNotificationHelper.clearChatNotification(context, chatId)
         onDispose {
             chatViewModel.setActiveOpenChat("")
         }
@@ -219,6 +225,21 @@ fun ChatDetailScreen(
     }
 
     // Report Dialog triggered from the 3-dots menu
+    // Partner profile preview — opened from the chat header (avatar or name)
+    if (showPartnerProfile && partnerUid.isNotBlank()) {
+        ProviderProfileSheet(
+            uid = partnerUid,
+            displayName = partnerName,
+            isOnline = isPartnerOnline,
+            serviceTitle = serviceTitle,
+            onDismiss = { showPartnerProfile = false },
+            onListingClick = { listing ->
+                showPartnerProfile = false
+                onViewServiceClick(listing.id)
+            }
+        )
+    }
+
     if (activeReportType != null) {
         ReportDialog(
             initialType = activeReportType!!,
@@ -331,6 +352,19 @@ fun ChatDetailScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Charcoal)
                     }
 
+                    // Avatar + name = one tap target that opens the profile preview.
+                    // Keep this a SINGLE clickable region: nesting a bouncing child
+                    // inside a bouncing parent makes the header squirm on tap.
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(Radius.Inner)
+                            .bounceClick(scaleDown = 0.98f) {
+                                if (partnerUid.isNotBlank()) showPartnerProfile = true
+                            }
+                            .padding(end = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                     // Avatar with properly positioned, unclipped presence badge dot
                     Box(
                         modifier = Modifier.size(42.dp),
@@ -340,7 +374,8 @@ fun ChatDetailScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .clip(CircleShape)
-                                .background(HoneyTint),
+                                .background(HoneyTint)
+                                .border(BorderStroke(1.5.dp, AvatarOutline), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -367,7 +402,9 @@ fun ChatDetailScreen(
                             text = partnerName,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp,
-                            color = Charcoal
+                            color = Charcoal,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = statusLabel,
@@ -378,6 +415,7 @@ fun ChatDetailScreen(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
+                    } // end avatar+name tap target
 
                     // 3 vertical dots menu for reporting
                     Box {
@@ -787,7 +825,8 @@ fun ChatDetailScreen(
                                     modifier = Modifier
                                         .size(44.dp)
                                         .clip(Radius.Tile)
-                                        .background(HoneyTint),
+                                        .background(HoneyTint)
+                                        .border(BorderStroke(1.5.dp, AvatarOutline), Radius.Tile),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(

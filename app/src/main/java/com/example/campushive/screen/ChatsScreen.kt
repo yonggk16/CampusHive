@@ -236,7 +236,8 @@ private fun ChatItem(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(CircleShape)
-                    .background(HoneyTint),
+                    .background(HoneyTint)
+                    .border(BorderStroke(1.5.dp, AvatarOutline), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
