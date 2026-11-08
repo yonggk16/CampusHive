@@ -4,7 +4,7 @@ import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import com.example.campushive.ui.theme.bounceClick
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -135,7 +135,7 @@ fun HelpdeskScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 8.dp, end = 8.dp, top = 26.dp, bottom = 8.dp),
+                .padding(start = Spacing.gutter, end = Spacing.gutter, top = Spacing.topInset, bottom = Spacing.sm),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -156,11 +156,11 @@ fun HelpdeskScreen(
                 Surface(
                     color = if (isModeratorMode) Charcoal else CardWhite,
                     contentColor = if (isModeratorMode) CardWhite else Charcoal,
-                    shape = RoundedCornerShape(20.dp),
+                    shape = Radius.Card,
                     border = BorderStroke(1.dp, if (isModeratorMode) Charcoal else Hairline),
                     modifier = Modifier
                         .padding(end = 8.dp)
-                        .clickable { helpdeskViewModel.toggleModeratorMode(userProfile) }
+                        .bounceClick { helpdeskViewModel.toggleModeratorMode(userProfile) }
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -200,7 +200,7 @@ fun HelpdeskScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .bounceClick(scaleDown = 0.98f) { onNavigateToModeratorQueue() },
-                    shape = RoundedCornerShape(22.dp),
+                    shape = Radius.Card,
                     colors = CardDefaults.cardColors(containerColor = CardWhite),
                     border = BorderStroke(1.dp, Hairline),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -239,9 +239,9 @@ fun HelpdeskScreen(
                             }
 
                             Surface(
-                                color = if (openReportsCount > 0) Color(0xFFFFF3C4) else HoneyTint,
-                                shape = RoundedCornerShape(20.dp),
-                                border = BorderStroke(1.dp, if (openReportsCount > 0) Color(0xFFE5C158) else Color(0xFFFFE082))
+                                color = if (openReportsCount > 0) WarningBg else HoneyTint,
+                                shape = Radius.Card,
+                                border = BorderStroke(1.dp, if (openReportsCount > 0) WarningBorder else WarningBorderSoft)
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
@@ -252,7 +252,7 @@ fun HelpdeskScreen(
                                         modifier = Modifier
                                             .size(6.dp)
                                             .clip(CircleShape)
-                                            .background(if (openReportsCount > 0) Color(0xFFD32F2F) else VerifiedGreen)
+                                            .background(if (openReportsCount > 0) DangerFgStrong else VerifiedGreen)
                                     )
                                     Text(
                                         text = "$openReportsCount PENDING",
@@ -299,17 +299,17 @@ fun HelpdeskScreen(
                             ModeratorStatChip(
                                 label = "Listing Flags",
                                 count = flaggedListingsCount,
-                                containerColor = Color(0xFFFFF7DB),
-                                borderColor = Color(0xFFFFE8A3),
-                                countColor = Color(0xFFD97706),
+                                containerColor = WarningBgSoft,
+                                borderColor = WarningBorderSoft,
+                                countColor = WarningFgVivid,
                                 modifier = Modifier.weight(1f)
                             )
                             ModeratorStatChip(
                                 label = "User Safety",
                                 count = safetyReportsCount,
-                                containerColor = Color(0xFFFFF0F0),
-                                borderColor = Color(0xFFFFCDD2),
-                                countColor = Color(0xFFD32F2F),
+                                containerColor = DangerBgSoft,
+                                borderColor = DangerBorder,
+                                countColor = DangerFgStrong,
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -319,7 +319,7 @@ fun HelpdeskScreen(
                         Button(
                             onClick = onNavigateToModeratorQueue,
                             colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
-                            shape = RoundedCornerShape(50),
+                            shape = Radius.Pill,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(48.dp)
@@ -336,7 +336,7 @@ fun HelpdeskScreen(
             // CAMPUSHIVE HELPDESK Banner
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
+                shape = Radius.Card,
                 colors = CardDefaults.cardColors(containerColor = CardWhite),
                 border = BorderStroke(1.dp, Hairline)
             ) {
@@ -369,7 +369,7 @@ fun HelpdeskScreen(
                             showReportDialog = true
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = Radius.Tile,
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                     ) {
                         Text("Report a problem", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = CardWhite)
@@ -381,8 +381,8 @@ fun HelpdeskScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onNavigateToMyReports() },
-                shape = RoundedCornerShape(16.dp),
+                    .bounceClick { onNavigateToMyReports() },
+                shape = Radius.Inner,
                 colors = CardDefaults.cardColors(containerColor = CardWhite),
                 border = BorderStroke(1.dp, Hairline)
             ) {
@@ -399,7 +399,7 @@ fun HelpdeskScreen(
                     ) {
                         Surface(
                             color = HoneyTint,
-                            shape = RoundedCornerShape(12.dp),
+                            shape = Radius.Tile,
                             modifier = Modifier.size(40.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
@@ -429,7 +429,7 @@ fun HelpdeskScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable {
+                    .bounceClick {
                         reportDialogType = ReportType.USER_SAFETY
                         showReportDialog = true
                     }
@@ -458,7 +458,7 @@ private fun ModeratorStatChip(
 ) {
     Surface(
         color = containerColor,
-        shape = RoundedCornerShape(16.dp),
+        shape = Radius.Inner,
         border = BorderStroke(1.dp, borderColor),
         modifier = modifier
     ) {
@@ -492,9 +492,9 @@ private fun FaqExpandableCard(faq: FaqItem) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .clickable { expanded = !expanded },
-        shape = RoundedCornerShape(14.dp),
+            .clip(Radius.Inner)
+            .bounceClick { expanded = !expanded },
+        shape = Radius.Inner,
         colors = CardDefaults.cardColors(containerColor = CardWhite),
         border = BorderStroke(1.dp, Hairline)
     ) {

@@ -14,8 +14,9 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
+import com.example.campushive.ui.theme.bounceClick
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -277,7 +278,7 @@ fun ChatDetailScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
+                    .clip(Radius.Card)
                     .background(Charcoal)
                     .padding(12.dp),
                 contentAlignment = Alignment.Center
@@ -288,7 +289,7 @@ fun ChatDetailScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = 480.dp)
-                        .clip(RoundedCornerShape(14.dp)),
+                        .clip(Radius.Inner),
                     contentScale = ContentScale.Fit
                 )
                 IconButton(
@@ -388,7 +389,7 @@ fun ChatDetailScreen(
                             expanded = showMoreMenu,
                             onDismissRequest = { showMoreMenu = false },
                             containerColor = CardWhite,
-                            shape = RoundedCornerShape(16.dp)
+                            shape = Radius.Inner
                         ) {
                             DropdownMenuItem(
                                 text = {
@@ -410,7 +411,7 @@ fun ChatDetailScreen(
                                     Icon(
                                         imageVector = Icons.Outlined.ReportProblem,
                                         contentDescription = null,
-                                        tint = Color(0xFFD32F2F),
+                                        tint = DangerFgStrong,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 },
@@ -497,7 +498,7 @@ fun ChatDetailScreen(
                 Surface(
                     color = CardWhite,
                     border = BorderStroke(1.dp, Hairline),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = Radius.Inner,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 6.dp)
@@ -514,7 +515,7 @@ fun ChatDetailScreen(
                             ServiceCategoryIconBox(
                                 category = resolvedCategory,
                                 size = 36.dp,
-                                shape = RoundedCornerShape(10.dp),
+                                shape = Radius.Tile,
                                 symbolFontSize = 14.sp,
                                 iconSize = 18.dp
                             )
@@ -527,7 +528,7 @@ fun ChatDetailScreen(
 
                         Surface(
                             color = HoneyTint,
-                            shape = RoundedCornerShape(8.dp)
+                            shape = Radius.Tag
                         ) {
                             Text(
                                 text = "VIEW",
@@ -563,8 +564,8 @@ fun ChatDetailScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Surface(
-                        color = Color(0xFFF6F3EE),
-                        shape = RoundedCornerShape(12.dp)
+                        color = CreamTint,
+                        shape = Radius.Tile
                     ) {
                         Text(
                             text = "TODAY",
@@ -623,8 +624,8 @@ fun ChatDetailScreen(
                 editingMessage?.let { editing ->
                     Surface(
                         color = HoneyTint,
-                        border = BorderStroke(1.dp, Color(0xFFFFE082)),
-                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, WarningBorderSoft),
+                        shape = Radius.Tile,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 14.dp, vertical = 6.dp)
@@ -699,7 +700,7 @@ fun ChatDetailScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Surface(
-                            shape = RoundedCornerShape(20.dp),
+                            shape = Radius.Card,
                             color = HoneyTint,
                             border = BorderStroke(1.dp, Hairline),
                             modifier = Modifier
@@ -728,7 +729,7 @@ fun ChatDetailScreen(
                         }
 
                         Surface(
-                            shape = RoundedCornerShape(20.dp),
+                            shape = Radius.Card,
                             color = CardWhite,
                             border = BorderStroke(1.dp, Hairline),
                             modifier = Modifier
@@ -762,7 +763,7 @@ fun ChatDetailScreen(
                 pendingAttachment?.let { staged ->
                     Surface(
                         color = CardWhite,
-                        shape = RoundedCornerShape(14.dp),
+                        shape = Radius.Inner,
                         border = BorderStroke(1.dp, Hairline),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -778,21 +779,21 @@ fun ChatDetailScreen(
                                     contentDescription = staged.name,
                                     modifier = Modifier
                                         .size(48.dp)
-                                        .clip(RoundedCornerShape(10.dp)),
+                                        .clip(Radius.Tile),
                                     contentScale = ContentScale.Crop
                                 )
                             } else {
                                 Box(
                                     modifier = Modifier
                                         .size(44.dp)
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(Color(0xFFEFEBFF)),
+                                        .clip(Radius.Tile)
+                                        .background(HoneyTint),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Outlined.Description,
                                         contentDescription = null,
-                                        tint = Color(0xFF6C5CE7),
+                                        tint = Charcoal,
                                         modifier = Modifier.size(22.dp)
                                     )
                                 }
@@ -843,7 +844,7 @@ fun ChatDetailScreen(
                             .size(38.dp)
                             .clip(CircleShape)
                             .background(if (showAttachMenu) Honey else CardWhite)
-                            .clickable { showAttachMenu = !showAttachMenu },
+                            .bounceClick { showAttachMenu = !showAttachMenu },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -873,7 +874,7 @@ fun ChatDetailScreen(
                         },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
-                        shape = RoundedCornerShape(24.dp),
+                        shape = Radius.Card,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = CardWhite,
                             unfocusedContainerColor = CardWhite,
@@ -967,7 +968,7 @@ private fun MessageBubble(
         ) {
             Box {
                 Surface(
-                    color = if (isMe) (if (message.isDeleted) Color(0xFF333333) else Charcoal) else CardWhite,
+                    color = if (isMe) (if (message.isDeleted) OnDarkStrong else Charcoal) else CardWhite,
                     shape = RoundedCornerShape(
                         topStart = 18.dp,
                         topEnd = 18.dp,
@@ -1001,8 +1002,8 @@ private fun MessageBubble(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .heightIn(min = 120.dp, max = 220.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .clickable { onImageClick(decodedBitmap) },
+                                    .clip(Radius.Tile)
+                                    .bounceClick { onImageClick(decodedBitmap) },
                                 contentScale = ContentScale.Crop
                             )
                             if (message.text.isNotBlank()) {
@@ -1013,12 +1014,12 @@ private fun MessageBubble(
                         // 2. File / Document Attachment Card
                         if (message.attachmentType == "FILE") {
                             Surface(
-                                color = if (isMe) Color(0xFF2E2E2E) else Cream,
-                                shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(1.dp, if (isMe) Color(0xFF444444) else Hairline),
+                                color = if (isMe) OnDarkSurface else Cream,
+                                shape = Radius.Tile,
+                                border = BorderStroke(1.dp, if (isMe) OnDarkBorder else Hairline),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { onFileClick(message) }
+                                    .bounceClick { onFileClick(message) }
                             ) {
                                 Row(
                                     modifier = Modifier.padding(10.dp),
@@ -1027,7 +1028,7 @@ private fun MessageBubble(
                                     Box(
                                         modifier = Modifier
                                             .size(36.dp)
-                                            .clip(RoundedCornerShape(8.dp))
+                                            .clip(Radius.Tag)
                                             .background(Honey),
                                         contentAlignment = Alignment.Center
                                     ) {
@@ -1050,7 +1051,7 @@ private fun MessageBubble(
                                         )
                                         Text(
                                             text = "${message.attachmentSize.ifBlank { "File" }} • Tap to save",
-                                            color = if (isMe) Color(0xFFBDBDBD) else MutedText,
+                                            color = if (isMe) OnDarkMuted else MutedText,
                                             fontSize = 10.sp
                                         )
                                     }
@@ -1088,7 +1089,7 @@ private fun MessageBubble(
                     DropdownMenu(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false },
-                        shape = RoundedCornerShape(16.dp),
+                        shape = Radius.Inner,
                         border = BorderStroke(1.dp, Hairline),
                         shadowElevation = 6.dp,
                         modifier = Modifier.background(CardWhite)
@@ -1110,12 +1111,12 @@ private fun MessageBubble(
                         )
                         HorizontalDivider(color = Hairline)
                         DropdownMenuItem(
-                            text = { Text("Delete Message", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD32F2F)) },
+                            text = { Text("Delete Message", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = DangerFgStrong) },
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Outlined.Delete,
                                     contentDescription = "Delete",
-                                    tint = Color(0xFFD32F2F),
+                                    tint = DangerFgStrong,
                                     modifier = Modifier.size(18.dp)
                                 )
                             },

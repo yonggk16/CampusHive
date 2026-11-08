@@ -8,7 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import com.example.campushive.ui.theme.bounceClick
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -18,7 +18,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.*
@@ -41,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campushive.R
+import com.example.campushive.components.CampusLocationIndicator
 import com.example.campushive.ui.theme.*
 import com.example.campushive.viewmodel.AuthUiState
 import com.example.campushive.viewmodel.AuthViewModel
@@ -128,7 +128,7 @@ fun LoginScreen(
                 .navigationBarsPadding()
                 .imePadding()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 20.dp),
+                .padding(horizontal = Spacing.gutter, vertical = Spacing.lg),
             horizontalAlignment = Alignment.Start
         ) {
         Spacer(Modifier.weight(1f))
@@ -144,43 +144,12 @@ fun LoginScreen(
                 contentDescription = "CampusHive Logo",
                 modifier = Modifier
                     .size(64.dp)
-                    .clip(RoundedCornerShape(16.dp)),
+                    .clip(Radius.Inner),
                 contentScale = ContentScale.Fit
             )
 
-            // Location Tag: HELP University Subang 2
-            Surface(
-                color = CardWhite,
-                shape = RoundedCornerShape(20.dp),
-                border = BorderStroke(1.dp, Hairline),
-                shadowElevation = 2.dp
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(7.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFD97706))
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Icon(
-                        imageVector = Icons.Outlined.LocationOn,
-                        contentDescription = null,
-                        tint = Charcoal,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = "HELP Subang 2 Campus",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Charcoal
-                    )
-                }
-            }
+            // Location Indicator: HELP University Subang 2 Campus
+            CampusLocationIndicator(campusName = "HELP Subang 2 Campus")
         }
 
         Spacer(Modifier.height(20.dp))
@@ -199,7 +168,7 @@ fun LoginScreen(
         // Headline
         Text(
             text = "Campus skills,\none tap away.",
-            fontSize = 32.sp,
+            fontSize = 34.sp,
             fontWeight = FontWeight.Bold,
             color = Charcoal,
             lineHeight = 38.sp
@@ -210,7 +179,7 @@ fun LoginScreen(
         // UNIVERSITY EMAIL Card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
+            shape = Radius.Card,
             colors = CardDefaults.cardColors(containerColor = CardWhite),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
@@ -253,7 +222,7 @@ fun LoginScreen(
         // PASSWORD Card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
+            shape = Radius.Card,
             colors = CardDefaults.cardColors(containerColor = CardWhite),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
@@ -276,7 +245,7 @@ fun LoginScreen(
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = Charcoal,
-                        modifier = Modifier.clickable {
+                        modifier = Modifier.bounceClick {
                             authViewModel.sendPasswordReset(email)
                         }
                     )
@@ -337,7 +306,7 @@ fun LoginScreen(
                 }
             },
             enabled = !isLoading,
-            shape = RoundedCornerShape(50),
+            shape = Radius.Pill,
             colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
             modifier = Modifier
                 .fillMaxWidth()
@@ -385,7 +354,7 @@ fun LoginScreen(
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 color = Charcoal,
-                modifier = Modifier.clickable { onNavigateToSignUp() }
+                modifier = Modifier.bounceClick { onNavigateToSignUp() }
             )
         }
 
@@ -401,7 +370,7 @@ fun LoginScreen(
                 .fillMaxWidth()
                 .height(54.dp)
                 .bounceClick(scaleDown = 0.96f),
-            shape = RoundedCornerShape(50),
+            shape = Radius.Pill,
             border = BorderStroke(1.dp, Hairline),
             colors = ButtonDefaults.outlinedButtonColors(containerColor = CardWhite, contentColor = Charcoal)
         ) {
@@ -427,3 +396,4 @@ fun LoginScreen(
     }
 }
 }
+

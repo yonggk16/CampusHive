@@ -4,7 +4,7 @@ import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import com.example.campushive.ui.theme.bounceClick
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -123,7 +123,7 @@ fun HomeScreen(
     if (showNotificationsDialog) {
         Dialog(onDismissRequest = { showNotificationsDialog = false }) {
             Surface(
-                shape = RoundedCornerShape(26.dp),
+                shape = Radius.Card,
                 color = CardWhite,
                 border = BorderStroke(1.dp, Hairline),
                 shadowElevation = 14.dp,
@@ -149,8 +149,8 @@ fun HomeScreen(
                                 Spacer(Modifier.width(8.dp))
                                 Surface(
                                     color = HoneyTint,
-                                    shape = RoundedCornerShape(20.dp),
-                                    border = BorderStroke(1.dp, Color(0xFFFFE082))
+                                    shape = Radius.Card,
+                                    border = BorderStroke(1.dp, WarningBorderSoft)
                                 ) {
                                     Text(
                                         text = "$totalUnreadCount new",
@@ -173,7 +173,7 @@ fun HomeScreen(
                                         text = "Mark all read",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFFD97706)
+                                        color = WarningFgVivid
                                     )
                                 }
                             }
@@ -240,7 +240,7 @@ fun HomeScreen(
                             items(notificationConversations) { chat ->
                                 val isUnread = chat.unreadCount > 0
                                 Surface(
-                                    shape = RoundedCornerShape(18.dp),
+                                    shape = Radius.Card,
                                     color = if (isUnread) HoneyTint.copy(alpha = 0.5f) else CardWhite,
                                     border = BorderStroke(1.dp, if (isUnread) Honey else Hairline),
                                     shadowElevation = if (isUnread) 2.dp else 0.5.dp,
@@ -341,7 +341,7 @@ fun HomeScreen(
                                                 modifier = Modifier
                                                     .size(22.dp)
                                                     .clip(CircleShape)
-                                                    .background(Color(0xFFD32F2F)),
+                                                    .background(DangerFgStrong),
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Text(
@@ -383,7 +383,7 @@ fun HomeScreen(
                 .background(HoneyBottomGradient)
                 .statusBarsPadding()
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = 96.dp)
+                .padding(bottom = Spacing.bottomBarClearance)
         ) {
             Spacer(Modifier.height(28.dp))
 
@@ -391,13 +391,13 @@ fun HomeScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
+                    .padding(horizontal = Spacing.gutter),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "Hi, $firstName",
-                    fontSize = 36.sp,
+                    fontSize = 34.sp,
                     fontWeight = FontWeight.Bold,
                     color = Charcoal,
                     letterSpacing = (-0.8).sp
@@ -431,7 +431,7 @@ fun HomeScreen(
 
                     if (totalUnreadCount > 0) {
                         Surface(
-                            color = Color(0xFFD32F2F),
+                            color = DangerFgStrong,
                             shape = CircleShape,
                             border = BorderStroke(2.dp, CardWhite),
                             shadowElevation = 1.dp,
@@ -459,14 +459,14 @@ fun HomeScreen(
 
             // 2. Search Services Bar
             Surface(
-                shape = RoundedCornerShape(50),
+                shape = Radius.Pill,
                 color = CardWhite,
                 border = BorderStroke(1.dp, Hairline),
                 shadowElevation = 1.dp,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
-                    .padding(horizontal = 20.dp)
+                    .padding(horizontal = Spacing.gutter)
                     .bounceClick(scaleDown = 0.98f) { onSearchBarClick() }
             ) {
                 Row(
@@ -498,12 +498,12 @@ fun HomeScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp)
+                        .padding(horizontal = Spacing.gutter)
                         .bounceClick(scaleDown = 0.98f) {
                             chatViewModel.markConversationAsRead(upNextChat.id)
                             onOpenChat(upNextChat.id, upNextChat.studentName, upNextChat.serviceTitle)
                         },
-                    shape = RoundedCornerShape(20.dp),
+                    shape = Radius.Card,
                     colors = CardDefaults.cardColors(containerColor = Charcoal),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
@@ -543,10 +543,10 @@ fun HomeScreen(
                                 chatViewModel.markConversationAsRead(upNextChat.id)
                                 onOpenChat(upNextChat.id, upNextChat.studentName, upNextChat.serviceTitle)
                             },
-                            shape = RoundedCornerShape(50),
+                            shape = Radius.Pill,
                             colors = ButtonDefaults.buttonColors(containerColor = CardWhite, contentColor = Charcoal),
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                            modifier = Modifier.height(34.dp)
+                            modifier = Modifier.heightIn(min = 44.dp)
                         ) {
                             Text(
                                 text = "Open",
@@ -565,7 +565,7 @@ fun HomeScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
+                    .padding(horizontal = Spacing.gutter),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -590,16 +590,16 @@ fun HomeScreen(
             // 5. Browse Services Carousel
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
-                contentPadding = PaddingValues(horizontal = 20.dp)
+                contentPadding = PaddingValues(horizontal = Spacing.gutter)
             ) {
                 items(homeCategories) { cat ->
                     Card(
                         modifier = Modifier
                             .width(140.dp)
                             .height(120.dp)
-                            .clip(RoundedCornerShape(24.dp))
+                            .clip(Radius.Card)
                             .bounceClick(scaleDown = 0.94f) { onNavigateToSearch(cat.name) },
-                        shape = RoundedCornerShape(24.dp),
+                        shape = Radius.Card,
                         colors = CardDefaults.cardColors(containerColor = CardWhite),
                         border = BorderStroke(1.dp, Hairline),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -613,7 +613,7 @@ fun HomeScreen(
                             Box(
                                 modifier = Modifier
                                     .size(38.dp)
-                                    .clip(RoundedCornerShape(13.dp))
+                                    .clip(Radius.Tile)
                                     .background(HoneyTint),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -665,7 +665,7 @@ fun HomeScreen(
             Spacer(Modifier.height(20.dp))
 
             // 6. Section Header: "What do you need help with?"
-            Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+            Column(modifier = Modifier.padding(horizontal = Spacing.gutter)) {
                 Text(
                     text = "What do you need help with?",
                     fontSize = 17.sp,
@@ -678,9 +678,9 @@ fun HomeScreen(
             Spacer(Modifier.height(10.dp))
 
             // 7. Grouped Help Action List
-            Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+            Column(modifier = Modifier.padding(horizontal = Spacing.gutter)) {
                 Surface(
-                    shape = RoundedCornerShape(20.dp),
+                    shape = Radius.Card,
                     color = CardWhite,
                     border = BorderStroke(1.dp, Hairline),
                     modifier = Modifier.fillMaxWidth()
@@ -690,7 +690,7 @@ fun HomeScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { onNavigateToSearch(item.categoryQuery) }
+                                    .bounceClick { onNavigateToSearch(item.categoryQuery) }
                                     .padding(horizontal = 14.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -705,14 +705,14 @@ fun HomeScreen(
                                 )
 
                                 Surface(
-                                    shape = RoundedCornerShape(50),
+                                    shape = Radius.Pill,
                                     color = Charcoal,
-                                    border = BorderStroke(1.dp, Color(0xFF8C6B10)),
-                                    modifier = Modifier.bounceClick(scaleDown = 0.92f) { onNavigateToSearch(item.categoryQuery) }
+                                    border = BorderStroke(1.dp, WarningFgStrong),
+                                    modifier = Modifier
                                 ) {
                                     Box(
                                         modifier = Modifier
-                                            .height(32.dp)
+                                            .heightIn(min = 44.dp)
                                             .padding(horizontal = 16.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
@@ -744,9 +744,9 @@ fun HomeScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
+                    .padding(horizontal = Spacing.gutter)
                     .bounceClick(scaleDown = 0.98f) { onNavigateToCreateService() },
-                shape = RoundedCornerShape(22.dp),
+                shape = Radius.Card,
                 colors = CardDefaults.cardColors(containerColor = CardWhite),
                 border = BorderStroke(1.dp, Hairline),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)

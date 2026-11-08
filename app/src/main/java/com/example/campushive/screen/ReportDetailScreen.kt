@@ -3,7 +3,7 @@ package com.example.campushive.screen
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import com.example.campushive.ui.theme.bounceClick
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -100,8 +100,8 @@ fun ReportDetailScreen(
                             }
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F), contentColor = CardWhite),
-                    shape = RoundedCornerShape(12.dp)
+                    colors = ButtonDefaults.buttonColors(containerColor = DangerFgStrong, contentColor = CardWhite),
+                    shape = Radius.Tile
                 ) {
                     Text("Delete Ticket", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = CardWhite)
                 }
@@ -109,14 +109,14 @@ fun ReportDetailScreen(
             dismissButton = {
                 OutlinedButton(
                     onClick = { showDeleteTicketConfirmDialog = false },
-                    shape = RoundedCornerShape(12.dp),
+                    shape = Radius.Tile,
                     border = BorderStroke(1.dp, Hairline)
                 ) {
                     Text("Cancel", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Charcoal)
                 }
             },
             containerColor = CardWhite,
-            shape = RoundedCornerShape(20.dp)
+            shape = Radius.Card
         )
     }
 
@@ -155,8 +155,8 @@ fun ReportDetailScreen(
                             Toast.makeText(context, "Listing removed from CampusHive & ticket resolved", Toast.LENGTH_LONG).show()
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F), contentColor = CardWhite),
-                    shape = RoundedCornerShape(12.dp)
+                    colors = ButtonDefaults.buttonColors(containerColor = DangerFgStrong, contentColor = CardWhite),
+                    shape = Radius.Tile
                 ) {
                     Text("Remove Listing", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = CardWhite)
                 }
@@ -164,14 +164,14 @@ fun ReportDetailScreen(
             dismissButton = {
                 OutlinedButton(
                     onClick = { showRemoveListingConfirmDialog = false },
-                    shape = RoundedCornerShape(12.dp),
+                    shape = Radius.Tile,
                     border = BorderStroke(1.dp, Hairline)
                 ) {
                     Text("Cancel", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Charcoal)
                 }
             },
             containerColor = CardWhite,
-            shape = RoundedCornerShape(20.dp)
+            shape = Radius.Card
         )
     }
 
@@ -186,7 +186,7 @@ fun ReportDetailScreen(
                 .fillMaxSize()
                 .background(HoneyBottomGradient)
                 .statusBarsPadding()
-                .padding(24.dp),
+                .padding(Spacing.gutter),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -256,7 +256,7 @@ fun ReportDetailScreen(
             // Status & Date Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
+                shape = Radius.Inner,
                 colors = CardDefaults.cardColors(containerColor = CardWhite),
                 border = BorderStroke(1.dp, Hairline)
             ) {
@@ -285,12 +285,12 @@ fun ReportDetailScreen(
 
                         val (statusText, bgColor, textColor) = when (report.status) {
                             ReportStatus.OPEN -> Triple("OPEN", HoneyTint, Charcoal)
-                            ReportStatus.UNDER_REVIEW -> Triple("UNDER REVIEW", Color(0xFFFFF3C4), Color(0xFF7A5800))
-                            ReportStatus.RESOLVED -> Triple("RESOLVED", Color(0xFFE3FCEF), Color(0xFF006644))
-                            ReportStatus.CLOSED -> Triple("CLOSED", Color(0xFFF1F2F4), MutedText)
+                            ReportStatus.UNDER_REVIEW -> Triple("UNDER REVIEW", WarningBg, WarningFg)
+                            ReportStatus.RESOLVED -> Triple("RESOLVED", SuccessBgSoft, SuccessFg)
+                            ReportStatus.CLOSED -> Triple("CLOSED", NeutralBg, MutedText)
                         }
 
-                        Surface(color = bgColor, shape = RoundedCornerShape(10.dp)) {
+                        Surface(color = bgColor, shape = Radius.Tile) {
                             Text(
                                 text = statusText,
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
@@ -335,7 +335,7 @@ fun ReportDetailScreen(
                                 text = report.targetName,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF6C5CE7)
+                                color = Charcoal
                             )
                         }
                     }
@@ -346,9 +346,9 @@ fun ReportDetailScreen(
             if (report.moderatorNote.isNotBlank() || report.resolvedBy.isNotBlank()) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFEBFBF3)),
-                    border = BorderStroke(1.dp, Color(0xFFA6E9C5))
+                    shape = Radius.Inner,
+                    colors = CardDefaults.cardColors(containerColor = SuccessBg),
+                    border = BorderStroke(1.dp, SuccessBorder)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(
@@ -358,14 +358,14 @@ fun ReportDetailScreen(
                             Icon(
                                 imageVector = Icons.Filled.CheckCircle,
                                 contentDescription = null,
-                                tint = Color(0xFF006644),
+                                tint = SuccessFg,
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
                                 text = "OFFICIAL MODERATOR RESPONSE",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF006644),
+                                color = SuccessFg,
                                 letterSpacing = 0.8.sp
                             )
                         }
@@ -384,7 +384,7 @@ fun ReportDetailScreen(
                                 text = "Handled by: ${report.resolvedBy}",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color(0xFF006644)
+                                color = SuccessFg
                             )
                         }
                     }
@@ -394,7 +394,7 @@ fun ReportDetailScreen(
             // Category & Description Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
+                shape = Radius.Inner,
                 colors = CardDefaults.cardColors(containerColor = CardWhite),
                 border = BorderStroke(1.dp, Hairline)
             ) {
@@ -417,11 +417,11 @@ fun ReportDetailScreen(
                             categories.forEach { cat ->
                                 val isSelected = editedCategory.value == cat
                                 Surface(
-                                    shape = RoundedCornerShape(20.dp),
+                                    shape = Radius.Card,
                                     color = if (isSelected) Charcoal else CardWhite,
                                     contentColor = if (isSelected) CardWhite else Charcoal,
                                     border = BorderStroke(1.dp, if (isSelected) Charcoal else Hairline),
-                                    modifier = Modifier.clickable { editedCategory.value = cat }
+                                    modifier = Modifier.bounceClick { editedCategory.value = cat }
                                 ) {
                                     Text(
                                         text = cat,
@@ -436,7 +436,7 @@ fun ReportDetailScreen(
                     } else {
                         Surface(
                             color = Cream,
-                            shape = RoundedCornerShape(10.dp),
+                            shape = Radius.Tile,
                             border = BorderStroke(1.dp, Hairline)
                         ) {
                             Text(
@@ -467,7 +467,7 @@ fun ReportDetailScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(130.dp),
-                            shape = RoundedCornerShape(14.dp),
+                            shape = Radius.Inner,
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = Honey,
                                 unfocusedBorderColor = Hairline,
@@ -502,7 +502,7 @@ fun ReportDetailScreen(
                             },
                             enabled = !isSaving,
                             colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
-                            shape = RoundedCornerShape(14.dp),
+                            shape = Radius.Inner,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(48.dp)
@@ -516,7 +516,7 @@ fun ReportDetailScreen(
                     } else {
                         Surface(
                             color = Cream,
-                            shape = RoundedCornerShape(12.dp),
+                            shape = Radius.Tile,
                             border = BorderStroke(1.dp, Hairline),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -536,7 +536,7 @@ fun ReportDetailScreen(
             if (isModeratorMode) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(18.dp),
+                    shape = Radius.Card,
                     colors = CardDefaults.cardColors(containerColor = CardWhite),
                     border = BorderStroke(1.5.dp, Charcoal)
                 ) {
@@ -547,7 +547,7 @@ fun ReportDetailScreen(
                         ) {
                             Surface(
                                 color = HoneyTint,
-                                shape = RoundedCornerShape(10.dp)
+                                shape = Radius.Tile
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.AdminPanelSettings,
@@ -595,11 +595,11 @@ fun ReportDetailScreen(
                             ReportStatus.entries.forEach { statusOption ->
                                 val isSelected = selectedModStatus == statusOption
                                 Surface(
-                                    shape = RoundedCornerShape(20.dp),
+                                    shape = Radius.Card,
                                     color = if (isSelected) Charcoal else CardWhite,
                                     contentColor = if (isSelected) CardWhite else Charcoal,
                                     border = BorderStroke(1.dp, if (isSelected) Charcoal else Hairline),
-                                    modifier = Modifier.clickable { selectedModStatus = statusOption }
+                                    modifier = Modifier.bounceClick { selectedModStatus = statusOption }
                                 ) {
                                     Text(
                                         text = statusOption.name.replace("_", " "),
@@ -634,12 +634,12 @@ fun ReportDetailScreen(
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             quickTemplates.forEach { (templateText, suggestedStatus) ->
                                 Surface(
-                                    shape = RoundedCornerShape(10.dp),
+                                    shape = Radius.Tile,
                                     color = Cream,
                                     border = BorderStroke(1.dp, Hairline),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clickable {
+                                        .bounceClick {
                                             moderatorNoteInput = templateText
                                             selectedModStatus = suggestedStatus
                                         }
@@ -679,7 +679,7 @@ fun ReportDetailScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(105.dp),
-                            shape = RoundedCornerShape(14.dp),
+                            shape = Radius.Inner,
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = Charcoal,
                                 unfocusedBorderColor = Hairline,
@@ -709,7 +709,7 @@ fun ReportDetailScreen(
                             },
                             enabled = !isModerating,
                             colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
-                            shape = RoundedCornerShape(14.dp),
+                            shape = Radius.Inner,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(46.dp)
@@ -741,7 +741,7 @@ fun ReportDetailScreen(
                             if (report.targetId.isNotBlank()) {
                                 OutlinedButton(
                                     onClick = { onViewListing(report.targetId) },
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = Radius.Tile,
                                     border = BorderStroke(1.dp, Charcoal),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
@@ -773,8 +773,8 @@ fun ReportDetailScreen(
                                                 Toast.makeText(context, "Listing paused & ticket marked RESOLVED", Toast.LENGTH_LONG).show()
                                             }
                                         },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFF3E0), contentColor = Color(0xFFE65100)),
-                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = WarningBgSoft, contentColor = DangerFg),
+                                        shape = Radius.Tile,
                                         modifier = Modifier.weight(1f)
                                     ) {
                                         Icon(Icons.Filled.PauseCircle, contentDescription = null, modifier = Modifier.size(15.dp))
@@ -789,8 +789,8 @@ fun ReportDetailScreen(
                                                 Toast.makeText(context, "Listing restored to ACTIVE", Toast.LENGTH_SHORT).show()
                                             }
                                         },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE3FCEF), contentColor = Color(0xFF006644)),
-                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = SuccessBgSoft, contentColor = SuccessFg),
+                                        shape = Radius.Tile,
                                         modifier = Modifier.weight(1f)
                                     ) {
                                         Icon(Icons.Filled.PlayCircle, contentDescription = null, modifier = Modifier.size(15.dp))
@@ -804,8 +804,8 @@ fun ReportDetailScreen(
                                 // Remove Listing
                                 Button(
                                     onClick = { showRemoveListingConfirmDialog = true },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFEBEE), contentColor = Color(0xFFC62828)),
-                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = DangerBg, contentColor = DangerFg),
+                                    shape = Radius.Tile,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(15.dp))

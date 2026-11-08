@@ -40,7 +40,7 @@ fun EditProfileDialog(
                 .wrapContentHeight()
                 .navigationBarsPadding()
                 .imePadding(),
-            shape = RoundedCornerShape(24.dp),
+            shape = Radius.Card,
             color = Cream,
             border = BorderStroke(1.dp, Hairline)
         ) {
@@ -69,7 +69,7 @@ fun EditProfileDialog(
                     onValueChange = { displayName = it },
                     label = { Text("Full Name", fontSize = 12.sp) },
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = Radius.Tile,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = CardWhite,
                         unfocusedContainerColor = CardWhite,
@@ -88,7 +88,7 @@ fun EditProfileDialog(
                     label = { Text("Bio / Tagline", fontSize = 12.sp) },
                     minLines = 2,
                     maxLines = 3,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = Radius.Tile,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = CardWhite,
                         unfocusedContainerColor = CardWhite,
@@ -106,7 +106,7 @@ fun EditProfileDialog(
                     onValueChange = { campusLocation = it },
                     label = { Text("Campus / Location", fontSize = 12.sp) },
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = Radius.Tile,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = CardWhite,
                         unfocusedContainerColor = CardWhite,
@@ -124,7 +124,7 @@ fun EditProfileDialog(
                     onValueChange = { facultyOrMajor = it },
                     label = { Text("Faculty / Major", fontSize = 12.sp) },
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = Radius.Tile,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = CardWhite,
                         unfocusedContainerColor = CardWhite,
@@ -142,7 +142,7 @@ fun EditProfileDialog(
                     onValueChange = { phoneNumber = it },
                     label = { Text("Contact Number (WhatsApp/Phone)", fontSize = 12.sp) },
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = Radius.Tile,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = CardWhite,
                         unfocusedContainerColor = CardWhite,
@@ -162,7 +162,7 @@ fun EditProfileDialog(
                 ) {
                     TextButton(
                         onClick = onDismiss,
-                        shape = RoundedCornerShape(12.dp)
+                        shape = Radius.Tile
                     ) {
                         Text("Cancel", fontWeight = FontWeight.Bold, color = Charcoal)
                     }
@@ -176,7 +176,7 @@ fun EditProfileDialog(
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = Radius.Tile,
                         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
                     ) {
                         Text("Save Profile", fontWeight = FontWeight.Bold, color = CardWhite)

@@ -3,7 +3,7 @@ package com.example.campushive.screen
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import com.example.campushive.ui.theme.bounceClick
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -112,7 +112,7 @@ fun MyReportsScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 8.dp, end = 8.dp, top = 26.dp, bottom = 8.dp),
+                .padding(start = Spacing.gutter, end = Spacing.gutter, top = Spacing.topInset, bottom = Spacing.sm),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBackClick) {
@@ -137,7 +137,7 @@ fun MyReportsScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = Radius.Inner,
                     color = CardWhite,
                     border = BorderStroke(1.dp, Hairline),
                     modifier = Modifier.fillMaxWidth()
@@ -151,9 +151,9 @@ fun MyReportsScreen(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .clip(RoundedCornerShape(12.dp))
+                                    .clip(Radius.Tile)
                                     .background(if (isSelected) Charcoal else Color.Transparent)
-                                    .clickable { showAllCampusQueue = isQueueTab }
+                                    .bounceClick { showAllCampusQueue = isQueueTab }
                                     .padding(vertical = 8.dp),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -180,10 +180,10 @@ fun MyReportsScreen(
                         filters.forEach { filter ->
                             val selected = selectedFilter == filter
                             Surface(
-                                shape = RoundedCornerShape(20.dp),
+                                shape = Radius.Card,
                                 color = if (selected) Charcoal else CardWhite,
                                 border = BorderStroke(1.dp, if (selected) Charcoal else Hairline),
-                                modifier = Modifier.clickable { selectedFilter = filter }
+                                modifier = Modifier.bounceClick { selectedFilter = filter }
                             ) {
                                 Text(
                                     text = filter,
@@ -265,16 +265,16 @@ private fun ReportTicketItem(
     }
 
     val (typeLabel, typeBg, typeColor) = when (report.type) {
-        ReportType.LISTING_FLAG -> Triple("LISTING FLAG", Color(0xFFFFEBEE), Color(0xFFC62828))
-        ReportType.USER_SAFETY -> Triple("USER SAFETY", Color(0xFFFFF3E0), Color(0xFFE65100))
-        ReportType.PROBLEM -> Triple("HELPDESK", Color(0xFFE8EAF6), Color(0xFF283593))
+        ReportType.LISTING_FLAG -> Triple("LISTING FLAG", DangerBg, DangerFg)
+        ReportType.USER_SAFETY -> Triple("USER SAFETY", WarningBgSoft, DangerFg)
+        ReportType.PROBLEM -> Triple("HELPDESK", NeutralBg, Charcoal)
     }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onReportClick(report.reportId) },
-        shape = RoundedCornerShape(16.dp),
+            .bounceClick { onReportClick(report.reportId) },
+        shape = Radius.Inner,
         colors = CardDefaults.cardColors(containerColor = CardWhite),
         border = BorderStroke(1.dp, Hairline)
     ) {
@@ -292,11 +292,11 @@ private fun ReportTicketItem(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Surface(color = typeBg, shape = RoundedCornerShape(6.dp)) {
+                    Surface(color = typeBg, shape = Radius.Tag) {
                         Text(
                             text = typeLabel,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            fontSize = 9.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = typeColor
                         )
@@ -311,16 +311,16 @@ private fun ReportTicketItem(
 
                 val (statusText, bgColor, textColor) = when (report.status) {
                     ReportStatus.OPEN -> Triple("OPEN", HoneyTint, Charcoal)
-                    ReportStatus.UNDER_REVIEW -> Triple("UNDER REVIEW", Color(0xFFFFF3C4), Color(0xFF7A5800))
-                    ReportStatus.RESOLVED -> Triple("RESOLVED", Color(0xFFE3FCEF), Color(0xFF006644))
-                    ReportStatus.CLOSED -> Triple("CLOSED", Color(0xFFF1F2F4), MutedText)
+                    ReportStatus.UNDER_REVIEW -> Triple("UNDER REVIEW", WarningBg, WarningFg)
+                    ReportStatus.RESOLVED -> Triple("RESOLVED", SuccessBgSoft, SuccessFg)
+                    ReportStatus.CLOSED -> Triple("CLOSED", NeutralBg, MutedText)
                 }
 
-                Surface(color = bgColor, shape = RoundedCornerShape(8.dp)) {
+                Surface(color = bgColor, shape = Radius.Tag) {
                     Text(
                         text = statusText,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                        fontSize = 9.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = textColor
                     )
@@ -341,7 +341,7 @@ private fun ReportTicketItem(
                     text = "Target: ${report.targetName}",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF6C5CE7)
+                    color = Charcoal
                 )
             }
 
@@ -358,15 +358,15 @@ private fun ReportTicketItem(
             if (report.moderatorNote.isNotBlank()) {
                 Spacer(Modifier.height(8.dp))
                 Surface(
-                    color = Color(0xFFEBFBF3),
-                    shape = RoundedCornerShape(10.dp),
+                    color = SuccessBg,
+                    shape = Radius.Tile,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
                         text = "Moderator Note: ${report.moderatorNote}",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF006644),
+                        color = SuccessFg,
                         maxLines = 1,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                     )

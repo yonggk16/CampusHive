@@ -18,13 +18,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.campushive.model.getCategoryVisual
 import com.example.campushive.ui.theme.Charcoal
+import com.example.campushive.ui.theme.Radius
 
 @Composable
 fun ServiceCategoryIconBox(
     category: String,
     modifier: Modifier = Modifier,
     size: Dp = 44.dp,
-    shape: Shape = RoundedCornerShape(14.dp),
+    shape: Shape = Radius.Inner,
     symbolFontSize: TextUnit = 18.sp,
     iconSize: Dp = 20.dp
 ) {
