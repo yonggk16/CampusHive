@@ -2,7 +2,7 @@ package com.example.campushive.components
 
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
+import com.example.campushive.ui.theme.bounceClick
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -59,7 +59,7 @@ fun ReportDialog(
                 .navigationBarsPadding()
                 .imePadding()
                 .padding(16.dp),
-            shape = RoundedCornerShape(24.dp),
+            shape = Radius.Card,
             colors = CardDefaults.cardColors(containerColor = CardWhite),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
@@ -80,7 +80,7 @@ fun ReportDialog(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Surface(
-                            shape = RoundedCornerShape(10.dp),
+                            shape = Radius.Tile,
                             color = HoneyTint
                         ) {
                             Icon(
@@ -115,7 +115,7 @@ fun ReportDialog(
                 if (targetName.isNotBlank()) {
                     Surface(
                         color = Cream,
-                        shape = RoundedCornerShape(12.dp),
+                        shape = Radius.Tile,
                         border = BorderStroke(1.dp, Hairline),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -149,11 +149,11 @@ fun ReportDialog(
                     categories.forEach { cat ->
                         val isSelected = selectedCategory == cat
                         Surface(
-                            shape = RoundedCornerShape(20.dp),
+                            shape = Radius.Card,
                             color = if (isSelected) Charcoal else CardWhite,
                             contentColor = if (isSelected) CardWhite else Charcoal,
                             border = BorderStroke(1.dp, if (isSelected) Charcoal else Hairline),
-                            modifier = Modifier.clickable { selectedCategory = cat }
+                            modifier = Modifier.bounceClick { selectedCategory = cat }
                         ) {
                             Text(
                                 text = cat,
@@ -191,7 +191,7 @@ fun ReportDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(110.dp),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = Radius.Inner,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Honey,
                         unfocusedBorderColor = Hairline,
@@ -228,7 +228,7 @@ fun ReportDialog(
                     },
                     enabled = !isSubmitting,
                     colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = Radius.Inner,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp)

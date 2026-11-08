@@ -4,7 +4,7 @@ import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import com.example.campushive.ui.theme.bounceClick
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -92,7 +92,7 @@ fun ChatsScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 20.dp, end = 20.dp, top = 28.dp, bottom = 12.dp)
+                .padding(start = Spacing.gutter, end = Spacing.gutter, top = Spacing.topInset, bottom = Spacing.md)
         ) {
             Text(
                 text = "Chats",
@@ -111,7 +111,7 @@ fun ChatsScreen(
                 placeholder = { Text("Search conversations", fontSize = 14.sp, color = MutedText) },
                 leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = "Search", tint = Charcoal) },
                 singleLine = true,
-                shape = RoundedCornerShape(20.dp),
+                shape = Radius.Card,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = CardWhite,
                     unfocusedContainerColor = CardWhite,
@@ -127,7 +127,7 @@ fun ChatsScreen(
                 items(roleFilters) { role ->
                     val isSelected = selectedRoleFilter == role
                     Surface(
-                        shape = RoundedCornerShape(20.dp),
+                        shape = Radius.Card,
                         color = if (isSelected) Charcoal else CardWhite,
                         contentColor = if (isSelected) CardWhite else Charcoal,
                         border = if (isSelected) null else BorderStroke(1.dp, Hairline),
@@ -223,7 +223,7 @@ private fun ChatItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .bounceClick(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -330,13 +330,13 @@ private fun ChatItem(
                 if (isReviewed) {
                     Surface(
                         color = CreamTint,
-                        shape = RoundedCornerShape(8.dp),
+                        shape = Radius.Tag,
                         border = BorderStroke(1.dp, Hairline)
                     ) {
                         Text(
                             text = "REVIEWED ✓",
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                            fontSize = 9.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = MutedText
                         )
@@ -345,11 +345,11 @@ private fun ChatItem(
                     Button(
                         onClick = onReviewClick,
                         colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                        modifier = Modifier.height(24.dp)
+                        shape = Radius.Tag,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
+                        modifier = Modifier.heightIn(min = 44.dp)
                     ) {
-                        Text("REVIEW", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = CardWhite)
+                        Text("REVIEW", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = CardWhite)
                     }
                 }
             }

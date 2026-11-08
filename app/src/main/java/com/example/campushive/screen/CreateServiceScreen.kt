@@ -4,7 +4,7 @@ import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import com.example.campushive.ui.theme.bounceClick
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -72,7 +72,7 @@ fun CreateServiceScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 12.dp),
+                .padding(start = Spacing.gutter, end = Spacing.gutter, top = Spacing.topInset, bottom = Spacing.md),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -111,15 +111,15 @@ fun CreateServiceScreen(
                 .fillMaxWidth()
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp),
+                .padding(horizontal = Spacing.gutter),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Unverified Student Warning Banner
             if (!isVerifiedStudent) {
                 Surface(
-                    color = Color(0xFFFFF3C4),
-                    shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(1.dp, Color(0xFFE5C158)),
+                    color = WarningBg,
+                    shape = Radius.Inner,
+                    border = BorderStroke(1.dp, WarningBorder),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -130,7 +130,7 @@ fun CreateServiceScreen(
                         Icon(
                             imageVector = Icons.Outlined.Security,
                             contentDescription = null,
-                            tint = Color(0xFF7A5800),
+                            tint = WarningFg,
                             modifier = Modifier.size(24.dp)
                         )
                         Column(modifier = Modifier.weight(1f)) {
@@ -138,13 +138,13 @@ fun CreateServiceScreen(
                                 text = "Verification Required to Offer Services",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp,
-                                color = Color(0xFF7A5800)
+                                color = WarningFg
                             )
                             Spacer(Modifier.height(2.dp))
                             Text(
                                 text = "Only verified students can publish service listings. Please verify your student email in your profile first.",
                                 fontSize = 11.sp,
-                                color = Color(0xFF7A5800),
+                                color = WarningFg,
                                 lineHeight = 15.sp
                             )
                         }
@@ -165,7 +165,7 @@ fun CreateServiceScreen(
                     items(categories) { cat ->
                         val isSelected = selectedCategory == cat
                         Surface(
-                            shape = RoundedCornerShape(20.dp),
+                            shape = Radius.Card,
                             color = if (isSelected) Charcoal else CardWhite,
                             contentColor = if (isSelected) CardWhite else Charcoal,
                             border = if (isSelected) null else BorderStroke(1.dp, Hairline),
@@ -195,7 +195,7 @@ fun CreateServiceScreen(
 
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
+                    shape = Radius.Card,
                     color = CardWhite,
                     border = BorderStroke(1.dp, Hairline)
                 ) {
@@ -208,7 +208,7 @@ fun CreateServiceScreen(
                         ServiceCategoryIconBox(
                             category = selectedCategory,
                             size = 40.dp,
-                            shape = RoundedCornerShape(12.dp),
+                            shape = Radius.Tile,
                             symbolFontSize = 18.sp,
                             iconSize = 20.dp
                         )
@@ -261,7 +261,7 @@ fun CreateServiceScreen(
 
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
+                    shape = Radius.Card,
                     color = CardWhite,
                     border = BorderStroke(1.dp, Hairline)
                 ) {
@@ -324,7 +324,7 @@ fun CreateServiceScreen(
                         modifier = Modifier
                             .weight(1f)
                             .height(54.dp),
-                        shape = RoundedCornerShape(20.dp),
+                        shape = Radius.Card,
                         color = CardWhite,
                         border = BorderStroke(1.dp, Hairline)
                     ) {
@@ -370,7 +370,7 @@ fun CreateServiceScreen(
                     // Right Pricing Type Segmented Toggle Pill (Per hour | Fixed)
                     Surface(
                         modifier = Modifier.height(54.dp),
-                        shape = RoundedCornerShape(50),
+                        shape = Radius.Pill,
                         color = CreamTint
                     ) {
                         Row(
@@ -381,9 +381,9 @@ fun CreateServiceScreen(
                                 val isSelected = selectedPricingType == pType
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(50))
+                                        .clip(Radius.Pill)
                                         .background(if (isSelected) Charcoal else Color.Transparent)
-                                        .clickable { selectedPricingType = pType }
+                                        .bounceClick { selectedPricingType = pType }
                                         .padding(horizontal = 18.dp, vertical = 10.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -491,7 +491,7 @@ fun CreateServiceScreen(
                         }
                     },
                     enabled = !isPublishing,
-                    shape = RoundedCornerShape(50),
+                    shape = Radius.Pill,
                     colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
                     modifier = Modifier
                         .fillMaxWidth()

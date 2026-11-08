@@ -3,7 +3,7 @@ package com.example.campushive.screen
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import com.example.campushive.ui.theme.bounceClick
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -151,7 +151,7 @@ fun ServiceDetailScreen(
                     Icon(
                         imageVector = Icons.Filled.WarningAmber,
                         contentDescription = null,
-                        tint = Color(0xFFE65100),
+                        tint = DangerFg,
                         modifier = Modifier.size(22.dp)
                     )
                     Text(
@@ -174,13 +174,13 @@ fun ServiceDetailScreen(
                 Button(
                     onClick = { showReportNoticeDialog = false },
                     colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = Radius.Tile
                 ) {
                     Text("Got it", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
             },
             containerColor = CardWhite,
-            shape = RoundedCornerShape(20.dp)
+            shape = Radius.Card
         )
     }
 
@@ -210,7 +210,7 @@ fun ServiceDetailScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .statusBarsPadding()
-                        .padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp),
+                        .padding(start = Spacing.gutter, end = Spacing.gutter, top = Spacing.topInset, bottom = Spacing.md),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -259,7 +259,7 @@ fun ServiceDetailScreen(
                     ServiceCategoryIconBox(
                         category = listing.category,
                         size = 72.dp,
-                        shape = RoundedCornerShape(24.dp),
+                        shape = Radius.Card,
                         symbolFontSize = 28.sp,
                         iconSize = 34.dp
                     )
@@ -268,7 +268,7 @@ fun ServiceDetailScreen(
 
                     Surface(
                         color = CardWhite,
-                        shape = RoundedCornerShape(20.dp),
+                        shape = Radius.Card,
                         border = BorderStroke(1.dp, Hairline)
                     ) {
                         Text(
@@ -291,10 +291,10 @@ fun ServiceDetailScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (listingReport != null || reportSubmittedLocally) {
                         Surface(
-                            color = Color(0xFFFFF3C4),
-                            shape = RoundedCornerShape(20.dp),
-                            border = BorderStroke(1.dp, Color(0xFFE5C158)),
-                            modifier = Modifier.clickable { showReportNoticeDialog = true }
+                            color = WarningBg,
+                            shape = Radius.Card,
+                            border = BorderStroke(1.dp, WarningBorder),
+                            modifier = Modifier.bounceClick { showReportNoticeDialog = true }
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -304,14 +304,14 @@ fun ServiceDetailScreen(
                                 Icon(
                                     imageVector = Icons.Filled.WarningAmber,
                                     contentDescription = null,
-                                    tint = Color(0xFF7A5800),
+                                    tint = WarningFg,
                                     modifier = Modifier.size(13.dp)
                                 )
                                 Text(
                                     text = "Report Pending (${listingReport?.status?.name ?: "OPEN"})",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF7A5800)
+                                    color = WarningFg
                                 )
                             }
                         }
@@ -323,7 +323,7 @@ fun ServiceDetailScreen(
                     ) {
                         Surface(
                             color = HoneyTint,
-                            shape = RoundedCornerShape(20.dp)
+                            shape = Radius.Card
                         ) {
                             Text(
                                 text = listing.category.uppercase(),
@@ -337,7 +337,7 @@ fun ServiceDetailScreen(
                         Surface(
                             color = CardWhite,
                             border = BorderStroke(1.dp, Hairline),
-                            shape = RoundedCornerShape(20.dp)
+                            shape = Radius.Card
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -381,7 +381,7 @@ fun ServiceDetailScreen(
                         Icon(
                             imageVector = Icons.Filled.Star,
                             contentDescription = "Rating",
-                            tint = Color(0xFFFFB800),
+                            tint = StarGold,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(Modifier.width(4.dp))
@@ -399,8 +399,8 @@ fun ServiceDetailScreen(
                     }
 
                     Surface(
-                        color = Color(0xFFEBFBF3),
-                        shape = RoundedCornerShape(12.dp)
+                        color = SuccessBg,
+                        shape = Radius.Tile
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -428,7 +428,7 @@ fun ServiceDetailScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .bounceClick(scaleDown = 0.98f),
-                    shape = RoundedCornerShape(20.dp),
+                    shape = Radius.Card,
                     colors = CardDefaults.cardColors(containerColor = CardWhite),
                     border = BorderStroke(1.dp, Hairline)
                 ) {
@@ -513,7 +513,7 @@ fun ServiceDetailScreen(
                 // Specs Chips Row
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Surface(
-                        shape = RoundedCornerShape(20.dp),
+                        shape = Radius.Card,
                         color = CardWhite,
                         border = BorderStroke(1.dp, Hairline)
                     ) {
@@ -527,7 +527,7 @@ fun ServiceDetailScreen(
                     }
 
                     Surface(
-                        shape = RoundedCornerShape(20.dp),
+                        shape = Radius.Card,
                         color = CardWhite,
                         border = BorderStroke(1.dp, Hairline)
                     ) {
@@ -559,9 +559,9 @@ fun ServiceDetailScreen(
                         if (!isOwnListing) {
                             Surface(
                                 color = HoneyTint,
-                                shape = RoundedCornerShape(16.dp),
+                                shape = Radius.Inner,
                                 modifier = Modifier
-                                    .clickable { showReviewDialog = true }
+                                    .bounceClick { showReviewDialog = true }
                                     .bounceClick(scaleDown = 0.95f)
                             ) {
                                 Row(
@@ -591,7 +591,7 @@ fun ServiceDetailScreen(
                     if (listingReviews.isEmpty()) {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
+                            shape = Radius.Inner,
                             colors = CardDefaults.cardColors(containerColor = CardWhite),
                             border = BorderStroke(1.dp, Hairline)
                         ) {
@@ -617,7 +617,7 @@ fun ServiceDetailScreen(
                                     Button(
                                         onClick = { showReviewDialog = true },
                                         colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
-                                        shape = RoundedCornerShape(12.dp),
+                                        shape = Radius.Tile,
                                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
                                     ) {
                                         Text("Write a Review", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = CardWhite)
@@ -630,7 +630,7 @@ fun ServiceDetailScreen(
                             listingReviews.forEach { review ->
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(16.dp),
+                                    shape = Radius.Inner,
                                     colors = CardDefaults.cardColors(containerColor = CardWhite),
                                     border = BorderStroke(1.dp, Hairline)
                                 ) {
@@ -668,7 +668,7 @@ fun ServiceDetailScreen(
                                                 Icon(
                                                     imageVector = Icons.Filled.Star,
                                                     contentDescription = null,
-                                                    tint = Color(0xFFFFB800),
+                                                    tint = StarGold,
                                                     modifier = Modifier.size(13.dp)
                                                 )
                                                 Spacer(Modifier.width(2.dp))
@@ -687,7 +687,7 @@ fun ServiceDetailScreen(
                                                 review.tags.forEach { tag ->
                                                     Surface(
                                                         color = HoneyTint,
-                                                        shape = RoundedCornerShape(10.dp)
+                                                        shape = Radius.Tile
                                                     ) {
                                                         Text(
                                                             text = tag,
@@ -724,7 +724,7 @@ fun ServiceDetailScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { showReportDialog = true }
+                            .bounceClick { showReportDialog = true }
                             .padding(vertical = 8.dp),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
@@ -773,7 +773,7 @@ fun ServiceDetailScreen(
 
                 Button(
                     onClick = { onChatClick(listing.providerUid, listing.providerName, listing.title) },
-                    shape = RoundedCornerShape(50),
+                    shape = Radius.Pill,
                     colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
                     contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
                     modifier = Modifier.bounceClick(scaleDown = 0.95f)

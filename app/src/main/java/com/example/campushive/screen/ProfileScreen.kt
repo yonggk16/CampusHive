@@ -4,7 +4,7 @@ import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import com.example.campushive.ui.theme.bounceClick
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -217,10 +217,10 @@ fun ProfileScreen(
                         }
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFD32F2F),
+                        containerColor = DangerFgStrong,
                         contentColor = CardWhite
                     ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = Radius.Tile
                 ) {
                     Text("Log Out", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = CardWhite)
                 }
@@ -228,14 +228,14 @@ fun ProfileScreen(
             dismissButton = {
                 OutlinedButton(
                     onClick = { showSignOutConfirmDialog = false },
-                    shape = RoundedCornerShape(12.dp),
+                    shape = Radius.Tile,
                     border = BorderStroke(1.dp, Hairline)
                 ) {
                     Text("Cancel", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Charcoal)
                 }
             },
             containerColor = CardWhite,
-            shape = RoundedCornerShape(20.dp)
+            shape = Radius.Card
         )
     }
 
@@ -264,7 +264,7 @@ fun ProfileScreen(
                 .background(HoneyBottomGradient)
                 .statusBarsPadding()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 96.dp)
+                .padding(start = Spacing.gutter, end = Spacing.gutter, top = Spacing.topInset, bottom = Spacing.bottomBarClearance)
         ) {
         // Top Header (Title + Settings Icon)
         Row(
@@ -304,7 +304,7 @@ fun ProfileScreen(
         // Profile Header Card (Matching New Image Layout)
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
+            shape = Radius.Card,
             colors = CardDefaults.cardColors(containerColor = CardWhite),
             border = BorderStroke(1.dp, Hairline)
         ) {
@@ -366,7 +366,7 @@ fun ProfileScreen(
                             Spacer(Modifier.height(6.dp))
                             Surface(
                                 color = HoneyTint,
-                                shape = RoundedCornerShape(10.dp)
+                                shape = Radius.Tile
                             ) {
                                 Text(
                                     text = bio,
@@ -385,7 +385,7 @@ fun ProfileScreen(
                 // Location & Major Info Pills (Stacked Vertically)
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Surface(
-                        shape = RoundedCornerShape(20.dp),
+                        shape = Radius.Card,
                         color = CardWhite,
                         border = BorderStroke(1.dp, Hairline)
                     ) {
@@ -410,7 +410,7 @@ fun ProfileScreen(
                     }
 
                     Surface(
-                        shape = RoundedCornerShape(20.dp),
+                        shape = Radius.Card,
                         color = CardWhite,
                         border = BorderStroke(1.dp, Hairline)
                     ) {
@@ -436,7 +436,7 @@ fun ProfileScreen(
 
                     if (phone.isNotBlank()) {
                         Surface(
-                            shape = RoundedCornerShape(20.dp),
+                            shape = Radius.Card,
                             color = HoneyTint,
                             border = BorderStroke(1.dp, Hairline)
                         ) {
@@ -467,7 +467,7 @@ fun ProfileScreen(
                 // Stats Row Card Box
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = Radius.Inner,
                     color = CardWhite,
                     border = BorderStroke(1.dp, Hairline)
                 ) {
@@ -552,7 +552,7 @@ fun ProfileScreen(
                 OutlinedButton(
                     onClick = { showEditProfileDialog = true },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = Radius.Tile,
                     border = BorderStroke(1.dp, Hairline)
                 ) {
                     Icon(
@@ -577,16 +577,16 @@ fun ProfileScreen(
             Spacer(Modifier.height(14.dp))
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0)),
-                border = BorderStroke(1.dp, Color(0xFFFFB74D))
+                shape = Radius.Card,
+                colors = CardDefaults.cardColors(containerColor = WarningBgSoft),
+                border = BorderStroke(1.dp, WarningBorder)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Outlined.MarkEmailUnread,
                             contentDescription = null,
-                            tint = Color(0xFFE65100),
+                            tint = DangerFg,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(Modifier.width(8.dp))
@@ -594,7 +594,7 @@ fun ProfileScreen(
                             text = "Unverified Student Email",
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
-                            color = Color(0xFFE65100)
+                            color = DangerFg
                         )
                     }
 
@@ -619,8 +619,8 @@ fun ProfileScreen(
                                     Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                                 }
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE65100), contentColor = CardWhite),
-                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = DangerFg, contentColor = CardWhite),
+                            shape = Radius.Tile,
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                             modifier = Modifier.weight(1f)
                         ) {
@@ -637,8 +637,8 @@ fun ProfileScreen(
                                     }
                                 }
                             },
-                            shape = RoundedCornerShape(10.dp),
-                            border = BorderStroke(1.dp, Color(0xFFE65100)),
+                            shape = Radius.Tile,
+                            border = BorderStroke(1.dp, DangerFg),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                             modifier = Modifier.weight(1f)
                         ) {
@@ -646,7 +646,7 @@ fun ProfileScreen(
                                 "Check Status",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp,
-                                color = Color(0xFFE65100)
+                                color = DangerFg
                             )
                         }
                     }
@@ -658,7 +658,7 @@ fun ProfileScreen(
 
         // Segmented Tabs: My listings | Reviews
         Surface(
-            shape = RoundedCornerShape(20.dp),
+            shape = Radius.Card,
             color = CardWhite,
             border = BorderStroke(1.dp, Hairline),
             modifier = Modifier.fillMaxWidth()
@@ -669,9 +669,9 @@ fun ProfileScreen(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(16.dp))
+                            .clip(Radius.Inner)
                             .background(if (isSelected) Charcoal else Color.Transparent)
-                            .clickable { selectedTab = tab }
+                            .bounceClick { selectedTab = tab }
                             .padding(vertical = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -694,7 +694,7 @@ fun ProfileScreen(
                 // Empty State Box matching reference image
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
+                    shape = Radius.Card,
                     color = CardWhite,
                     border = BorderStroke(1.dp, Hairline)
                 ) {
@@ -747,7 +747,7 @@ fun ProfileScreen(
                         ) {
                             items(emptyStateCategories) { cat ->
                                 Surface(
-                                    shape = RoundedCornerShape(20.dp),
+                                    shape = Radius.Card,
                                     color = CardWhite,
                                     border = BorderStroke(1.dp, Hairline),
                                     modifier = Modifier.bounceClick(scaleDown = 0.93f) { onCreateServiceClick() }
@@ -769,7 +769,7 @@ fun ProfileScreen(
                         Button(
                             onClick = onCreateServiceClick,
                             colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
-                            shape = RoundedCornerShape(50),
+                            shape = Radius.Pill,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(48.dp)
@@ -790,7 +790,7 @@ fun ProfileScreen(
                         val isActive = listing.status == "ACTIVE"
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
+                            shape = Radius.Inner,
                             colors = CardDefaults.cardColors(containerColor = CardWhite),
                             border = BorderStroke(1.dp, Hairline)
                         ) {
@@ -802,7 +802,7 @@ fun ProfileScreen(
                                     ServiceCategoryIconBox(
                                         category = listing.category,
                                         size = 42.dp,
-                                        shape = RoundedCornerShape(12.dp),
+                                        shape = Radius.Tile,
                                         symbolFontSize = 16.sp,
                                         iconSize = 20.dp
                                     )
@@ -817,7 +817,7 @@ fun ProfileScreen(
                                         ) {
                                             Surface(
                                                 color = HoneyTint,
-                                                shape = RoundedCornerShape(6.dp)
+                                                shape = Radius.Tag
                                             ) {
                                                 Text(
                                                     text = listing.category.uppercase(),
@@ -825,7 +825,7 @@ fun ProfileScreen(
                                                         horizontal = 6.dp,
                                                         vertical = 2.dp
                                                     ),
-                                                    fontSize = 9.sp,
+                                                    fontSize = 11.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     color = Charcoal
                                                 )
@@ -835,7 +835,7 @@ fun ProfileScreen(
                                                 text = if (isActive) "• Active" else "• Paused",
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = if (isActive) VerifiedGreen else Color(0xFFE65100)
+                                                color = if (isActive) VerifiedGreen else DangerFg
                                             )
                                         }
 
@@ -890,7 +890,7 @@ fun ProfileScreen(
                                                 containerColor = Charcoal,
                                                 contentColor = CardWhite
                                             ),
-                                            shape = RoundedCornerShape(10.dp),
+                                            shape = Radius.Tile,
                                             contentPadding = PaddingValues(
                                                 horizontal = 12.dp,
                                                 vertical = 4.dp
@@ -925,9 +925,9 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
+                        shape = Radius.Inner,
                         color = if (selectedReviewType == "Received") Charcoal else CreamTint,
-                        modifier = Modifier.clickable { selectedReviewType = "Received" }
+                        modifier = Modifier.bounceClick { selectedReviewType = "Received" }
                     ) {
                         Text(
                             text = "Received (${reviewsReceived.size})",
@@ -939,9 +939,9 @@ fun ProfileScreen(
                     }
 
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
+                        shape = Radius.Inner,
                         color = if (selectedReviewType == "Given") Charcoal else CreamTint,
-                        modifier = Modifier.clickable { selectedReviewType = "Given" }
+                        modifier = Modifier.bounceClick { selectedReviewType = "Given" }
                     ) {
                         Text(
                             text = "Given (${reviewsGiven.size})",
@@ -958,7 +958,7 @@ fun ProfileScreen(
                 if (activeReviews.isEmpty()) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = Radius.Inner,
                         colors = CardDefaults.cardColors(containerColor = CardWhite),
                         border = BorderStroke(1.dp, Hairline)
                     ) {
@@ -981,7 +981,7 @@ fun ProfileScreen(
 
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
+                            shape = Radius.Inner,
                             colors = CardDefaults.cardColors(containerColor = CardWhite),
                             border = BorderStroke(1.dp, Hairline)
                         ) {
@@ -1044,7 +1044,7 @@ fun ProfileScreen(
                                         review.tags.forEach { tag ->
                                             Surface(
                                                 color = HoneyTint,
-                                                shape = RoundedCornerShape(10.dp)
+                                                shape = Radius.Tile
                                             ) {
                                                 Text(
                                                     text = tag,
@@ -1079,7 +1079,7 @@ fun ProfileScreen(
         // Unified Bottom Menu Card (Helpdesk & FAQ + Log out)
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = Radius.Inner,
             colors = CardDefaults.cardColors(containerColor = CardWhite),
             border = BorderStroke(1.dp, Hairline)
         ) {
@@ -1088,7 +1088,7 @@ fun ProfileScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable(onClick = onHelpdeskClick)
+                        .bounceClick(onClick = onHelpdeskClick)
                         .padding(16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
@@ -1124,7 +1124,7 @@ fun ProfileScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { showSignOutConfirmDialog = true }
+                        .bounceClick { showSignOutConfirmDialog = true }
                         .padding(16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
@@ -1133,7 +1133,7 @@ fun ProfileScreen(
                         Icon(
                             Icons.AutoMirrored.Outlined.ExitToApp,
                             contentDescription = null,
-                            tint = Color(0xFFD32F2F),
+                            tint = DangerFgStrong,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(Modifier.width(12.dp))
@@ -1141,7 +1141,7 @@ fun ProfileScreen(
                             "Log out",
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
-                            color = Color(0xFFD32F2F)
+                            color = DangerFgStrong
                         )
                     }
                     Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MutedText)
