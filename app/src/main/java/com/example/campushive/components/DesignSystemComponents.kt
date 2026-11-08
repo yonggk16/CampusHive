@@ -442,7 +442,7 @@ fun AvatarTile(
                 .fillMaxSize()
                 .clip(CircleShape)
                 .background(HoneyTint)
-                .border(BorderStroke(1.dp, Hairline), CircleShape),
+                .border(BorderStroke(1.5.dp, AvatarOutline), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Text(

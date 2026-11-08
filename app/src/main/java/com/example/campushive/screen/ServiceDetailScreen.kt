@@ -3,6 +3,7 @@ package com.example.campushive.screen
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import com.example.campushive.ui.theme.bounceClick
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -37,6 +38,7 @@ import com.example.campushive.components.ReviewDialog
 import com.example.campushive.components.ServiceCategoryIconBox
 import com.example.campushive.model.Listing
 import com.example.campushive.model.PricingType
+import com.example.campushive.components.ProviderProfileSheet
 import com.example.campushive.model.ReportStatus
 import com.example.campushive.model.ReportType
 import com.example.campushive.ui.theme.*
@@ -59,6 +61,7 @@ fun ServiceDetailScreen(
     val liveListings by listingViewModel.listings.collectAsState()
     val listingReviews by reviewViewModel.listingReviews.collectAsState()
     var showReviewDialog by remember { mutableStateOf(false) }
+    var showProviderProfile by remember { mutableStateOf(false) }
     var showReportDialog by remember { mutableStateOf(false) }
     var reportSubmittedLocally by remember { mutableStateOf(false) }
 
@@ -101,6 +104,20 @@ fun ServiceDetailScreen(
             reviewViewModel = reviewViewModel,
             onDismiss = { showReviewDialog = false },
             onSubmit = { showReviewDialog = false }
+        )
+    }
+
+    // Provider profile preview — opened from the provider card
+    if (showProviderProfile) {
+        ProviderProfileSheet(
+            uid = listing.providerUid,
+            displayName = listing.providerName,
+            serviceTitle = listing.title,
+            onDismiss = { showProviderProfile = false },
+            onMessageClick = {
+                showProviderProfile = false
+                onChatClick(listing.providerUid, listing.providerName, listing.title)
+            }
         )
     }
 
@@ -423,11 +440,13 @@ fun ServiceDetailScreen(
                     }
                 }
 
-                // Dynamic Provider Info Card
+                // Dynamic Provider Info Card — tap to preview the provider
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .bounceClick(scaleDown = 0.98f),
+                        .bounceClick(scaleDown = 0.98f) {
+                            if (!isOwnListing) showProviderProfile = true
+                        },
                     shape = Radius.Card,
                     colors = CardDefaults.cardColors(containerColor = CardWhite),
                     border = BorderStroke(1.dp, Hairline)
@@ -444,7 +463,8 @@ fun ServiceDetailScreen(
                                 modifier = Modifier
                                     .size(44.dp)
                                     .clip(CircleShape)
-                                    .background(HoneyTint),
+                                    .background(HoneyTint)
+                                    .border(BorderStroke(1.5.dp, AvatarOutline), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
@@ -645,7 +665,8 @@ fun ServiceDetailScreen(
                                                     modifier = Modifier
                                                         .size(28.dp)
                                                         .clip(CircleShape)
-                                                        .background(HoneyTint),
+                                                        .background(HoneyTint)
+                                                        .border(BorderStroke(1.5.dp, AvatarOutline), CircleShape),
                                                     contentAlignment = Alignment.Center
                                                 ) {
                                                     Text(

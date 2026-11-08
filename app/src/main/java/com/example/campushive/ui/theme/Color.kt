@@ -73,6 +73,16 @@ val OnDarkStrong = Color(0xFF333333)  // disabled / de-emphasised dark fill
 val OnDarkBorder = Color(0xFF444444)  // hairline on dark
 val OnDarkMuted = Color(0xFFBDBDBD)   // secondary text on dark
 
+// -----------------------------------------------------------------------------
+// AVATAR / ICON-TILE OUTLINE
+// One outline for every identity mark (avatars, category icon tiles, glyph boxes)
+// so initials circles and category tiles read as the same family instead of a
+// mix of Charcoal 1dp / Hairline 1dp / no border at all.
+// -----------------------------------------------------------------------------
+val AvatarOutline = Color(0xFF14171E) // matches Charcoal; the "black outline"
+val AvatarOutlineWidth = 1.5f          // dp, applied by CampusAvatar
+val TileOutline = Color(0xFF14171E)
+
 // Dynamic Gradient Tokens (evaluates AppMainBackground automatically)
 val PageGradient: Brush get() = Brush.verticalGradient(colors = listOf(AppMainBackground, AppMainBackground))
 val AppBackgroundGradient: Brush get() = PageGradient

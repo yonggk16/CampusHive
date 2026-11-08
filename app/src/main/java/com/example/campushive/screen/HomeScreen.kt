@@ -15,7 +15,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
@@ -34,12 +33,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.campushive.components.NotificationCenterDialog
 import com.example.campushive.model.ChatConversation
 import com.example.campushive.model.Listing
 import com.example.campushive.ui.theme.*
@@ -119,247 +117,18 @@ fun HomeScreen(
 
     val firstName = currentUserName.split(" ").firstOrNull() ?: "Student"
 
-    // In-App Notification Center Dialog (Redesigned CampusHive Theme)
+    // In-app notification centre (compact dialog)
     if (showNotificationsDialog) {
-        Dialog(onDismissRequest = { showNotificationsDialog = false }) {
-            Surface(
-                shape = Radius.Card,
-                color = CardWhite,
-                border = BorderStroke(1.dp, Hairline),
-                shadowElevation = 14.dp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 520.dp)
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    // Header Row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "Notifications",
-                                fontSize = 22.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Charcoal
-                            )
-                            if (totalUnreadCount > 0) {
-                                Spacer(Modifier.width(8.dp))
-                                Surface(
-                                    color = HoneyTint,
-                                    shape = Radius.Card,
-                                    border = BorderStroke(1.dp, WarningBorderSoft)
-                                ) {
-                                    Text(
-                                        text = "$totalUnreadCount new",
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Charcoal
-                                    )
-                                }
-                            }
-                        }
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (totalUnreadCount > 0) {
-                                TextButton(
-                                    onClick = { chatViewModel.markAllConversationsAsRead() },
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                                ) {
-                                    Text(
-                                        text = "Mark all read",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = WarningFgVivid
-                                    )
-                                }
-                            }
-                            IconButton(
-                                onClick = { showNotificationsDialog = false },
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Close,
-                                    contentDescription = "Close",
-                                    tint = Charcoal,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(Modifier.height(14.dp))
-                    HorizontalDivider(color = Hairline)
-                    Spacer(Modifier.height(14.dp))
-
-                    if (notificationConversations.isEmpty()) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 36.dp, horizontal = 16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(52.dp)
-                                    .clip(CircleShape)
-                                    .background(HoneyTint),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Notifications,
-                                    contentDescription = null,
-                                    tint = Charcoal,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                            Spacer(Modifier.height(12.dp))
-                            Text(
-                                text = "You're all caught up!",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Charcoal
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = "New messages from seekers and providers will appear here in real time.",
-                                fontSize = 12.sp,
-                                color = MutedText,
-                                textAlign = TextAlign.Center,
-                                lineHeight = 17.sp
-                            )
-                        }
-                    } else {
-                        LazyColumn(
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            items(notificationConversations) { chat ->
-                                val isUnread = chat.unreadCount > 0
-                                Surface(
-                                    shape = Radius.Card,
-                                    color = if (isUnread) HoneyTint.copy(alpha = 0.5f) else CardWhite,
-                                    border = BorderStroke(1.dp, if (isUnread) Honey else Hairline),
-                                    shadowElevation = if (isUnread) 2.dp else 0.5.dp,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .bounceClick(scaleDown = 0.97f) {
-                                            showNotificationsDialog = false
-                                            chatViewModel.markConversationAsRead(chat.id)
-                                            onOpenChat(chat.id, chat.studentName, chat.serviceTitle)
-                                        }
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(14.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        // Initials Avatar
-                                        Box(
-                                            modifier = Modifier.size(44.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxSize()
-                                                    .clip(CircleShape)
-                                                    .background(if (isUnread) Honey else HoneyTint),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Text(
-                                                    text = chat.studentName.split(" ").mapNotNull { it.firstOrNull()?.toString() }.take(2).joinToString("").uppercase().ifBlank { "S" },
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 14.sp,
-                                                    color = Charcoal
-                                                )
-                                            }
-                                        }
-
-                                        Spacer(Modifier.width(12.dp))
-
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    Text(
-                                                        text = chat.studentName,
-                                                        fontWeight = FontWeight.Bold,
-                                                        fontSize = 14.sp,
-                                                        color = Charcoal,
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis
-                                                    )
-                                                    if (chat.isVerifiedStudent) {
-                                                        Spacer(Modifier.width(4.dp))
-                                                        Icon(
-                                                            imageVector = Icons.Filled.CheckCircle,
-                                                            contentDescription = "Verified Student",
-                                                            tint = VerifiedGreen,
-                                                            modifier = Modifier.size(13.dp)
-                                                        )
-                                                    }
-                                                }
-
-                                                Text(
-                                                    text = chat.timestamp,
-                                                    fontSize = 11.sp,
-                                                    color = MutedText
-                                                )
-                                            }
-
-                                            Spacer(Modifier.height(2.dp))
-
-                                            Text(
-                                                text = "${if (chat.isProvider) "Seeker inquiry" else "Provider reply"} · ${chat.serviceTitle}",
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = MutedText,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-
-                                            Spacer(Modifier.height(4.dp))
-
-                                            Text(
-                                                text = chat.lastMessage,
-                                                fontSize = 13.sp,
-                                                fontWeight = if (isUnread) FontWeight.Bold else FontWeight.Normal,
-                                                color = Charcoal,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                        }
-
-                                        if (isUnread) {
-                                            Spacer(Modifier.width(10.dp))
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(22.dp)
-                                                    .clip(CircleShape)
-                                                    .background(DangerFgStrong),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Text(
-                                                    text = chat.unreadCount.toString(),
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = CardWhite
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+        NotificationCenterDialog(
+            conversations = notificationConversations,
+            onDismiss = { showNotificationsDialog = false },
+            onMarkAllRead = { chatViewModel.markAllConversationsAsRead() },
+            onOpenChat = { chat ->
+                showNotificationsDialog = false
+                chatViewModel.markConversationAsRead(chat.id)
+                onOpenChat(chat.id, chat.studentName, chat.serviceTitle)
             }
-        }
+        )
     }
 
     PullToRefreshBox(
@@ -614,7 +383,8 @@ fun HomeScreen(
                                 modifier = Modifier
                                     .size(38.dp)
                                     .clip(Radius.Tile)
-                                    .background(HoneyTint),
+                                    .background(HoneyTint)
+                                    .border(BorderStroke(1.5.dp, TileOutline), Radius.Tile),
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (cat.symbolText != null) {
