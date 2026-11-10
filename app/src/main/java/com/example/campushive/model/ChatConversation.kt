@@ -10,10 +10,13 @@ data class ChatConversation(
     val isVerifiedStudent: Boolean = false,
     val listingId: String = "",
     val seekerUid: String = "",
-    val providerUID: String = "",
+    val providerUid: String = "",
     val providerName: String = "",
     val seekerName: String = "",
     val isProvider: Boolean = false,
     val isOnline: Boolean = false,
-    val lastSeenMillis: Long = 0L
+    val lastSeenMillis: Long = 0L,
+    val lastMessageMillis: Long = 0L,
+    val lastSenderUid: String = "",
+    val lastSenderName: String = ""
 )

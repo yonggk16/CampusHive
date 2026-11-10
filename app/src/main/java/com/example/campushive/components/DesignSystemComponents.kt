@@ -57,7 +57,7 @@ fun CampusField(
     Column(modifier = modifier.fillMaxWidth()) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
+            shape = Radius.Card,
             color = SurfaceWhite,
             border = BorderStroke(
                 width = if (isFocused) 1.5.dp else 1.dp,
@@ -147,7 +147,7 @@ fun CampusField(
                 if (isHintHighlighted) {
                     Surface(
                         color = HoneyTint,
-                        shape = RoundedCornerShape(8.dp)
+                        shape = Radius.Tag
                     ) {
                         Text(
                             text = hintText,
@@ -184,7 +184,7 @@ fun PrimaryButton(
     Button(
         onClick = onClick,
         enabled = enabled && !isLoading,
-        shape = RoundedCornerShape(50),
+        shape = Radius.Pill,
         colors = ButtonDefaults.buttonColors(
             containerColor = Ink,
             contentColor = SurfaceWhite,
@@ -238,7 +238,7 @@ fun SmallButton(
     trailingIcon: ImageVector? = null
 ) {
     Surface(
-        shape = RoundedCornerShape(50),
+        shape = Radius.Pill,
         color = containerColor,
         border = border,
         modifier = modifier
@@ -297,7 +297,7 @@ fun CampusChip(
     leadingIcon: ImageVector? = null
 ) {
     Surface(
-        shape = RoundedCornerShape(50),
+        shape = Radius.Pill,
         color = if (selected) Ink else SurfaceWhite,
         border = if (selected) null else BorderStroke(1.dp, Hairline),
         modifier = modifier
@@ -341,7 +341,7 @@ fun CampusTag(
 ) {
     Surface(
         color = HoneyTint,
-        shape = RoundedCornerShape(6.dp),
+        shape = Radius.Tag,
         modifier = modifier
     ) {
         Text(
@@ -364,7 +364,7 @@ fun VerifiedBadge(
 ) {
     Surface(
         color = HoneyTint,
-        shape = RoundedCornerShape(50),
+        shape = Radius.Pill,
         modifier = modifier
     ) {
         Text(
@@ -442,7 +442,7 @@ fun AvatarTile(
                 .fillMaxSize()
                 .clip(CircleShape)
                 .background(HoneyTint)
-                .border(BorderStroke(1.dp, Hairline), CircleShape),
+                .border(BorderStroke(1.5.dp, AvatarOutline), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Text(

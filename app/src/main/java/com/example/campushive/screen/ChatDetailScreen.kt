@@ -14,8 +14,9 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
+import com.example.campushive.ui.theme.bounceClick
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -55,6 +56,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campushive.components.ReportDialog
 import com.example.campushive.components.ServiceCategoryIconBox
+import com.example.campushive.components.ChatNotificationHelper
+import com.example.campushive.components.ProviderProfileSheet
 import com.example.campushive.model.ChatMessage
 import com.example.campushive.model.ReportType
 import com.example.campushive.ui.theme.*
@@ -68,6 +71,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.core.graphics.scale
 
 private data class PendingAttachment(
     val type: String, // "IMAGE" | "FILE"
@@ -96,6 +100,7 @@ fun ChatDetailScreen(
 
     // 3-dots header menu and ReportDialog state
     var showMoreMenu by remember { mutableStateOf(false) }
+    var showPartnerProfile by remember { mutableStateOf(false) }
     var activeReportType by remember { mutableStateOf<ReportType?>(null) }
     var activeReportTargetId by remember { mutableStateOf("") }
     var activeReportTargetName by remember { mutableStateOf("") }
@@ -108,6 +113,23 @@ fun ChatDetailScreen(
     val userOnlineStatus by chatViewModel.userOnlineStatus.collectAsState()
     val userLastSeenMillis by chatViewModel.userLastSeenMillis.collectAsState()
     val listState = rememberLazyListState()
+
+    // Track active open chat & mark conversation read automatically
+    DisposableEffect(chatId) {
+        chatViewModel.setActiveOpenChat(chatId)
+        // Opening the chat makes its heads-up notification stale — dismiss it so it
+        // doesn't linger in the shade after the user has already read the message.
+        ChatNotificationHelper.clearChatNotification(context, chatId)
+        onDispose {
+            chatViewModel.setActiveOpenChat("")
+        }
+    }
+
+    LaunchedEffect(chatId, liveMessages.size) {
+        if (chatId.isNotBlank()) {
+            chatViewModel.markConversationAsRead(chatId)
+        }
+    }
 
     val currentUid = Firebase.auth.currentUser?.uid ?: ""
     val myName = run {
@@ -162,7 +184,7 @@ fun ChatDetailScreen(
         } else if (currentConversation.isProvider) {
             currentConversation.seekerUid
         } else {
-            currentConversation.providerUID
+            currentConversation.providerUid
         }
     }
 
@@ -203,6 +225,21 @@ fun ChatDetailScreen(
     }
 
     // Report Dialog triggered from the 3-dots menu
+    // Partner profile preview — opened from the chat header (avatar or name)
+    if (showPartnerProfile && partnerUid.isNotBlank()) {
+        ProviderProfileSheet(
+            uid = partnerUid,
+            displayName = partnerName,
+            isOnline = isPartnerOnline,
+            serviceTitle = serviceTitle,
+            onDismiss = { showPartnerProfile = false },
+            onListingClick = { listing ->
+                showPartnerProfile = false
+                onViewServiceClick(listing.id)
+            }
+        )
+    }
+
     if (activeReportType != null) {
         ReportDialog(
             initialType = activeReportType!!,
@@ -262,7 +299,7 @@ fun ChatDetailScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
+                    .clip(Radius.Card)
                     .background(Charcoal)
                     .padding(12.dp),
                 contentAlignment = Alignment.Center
@@ -273,7 +310,7 @@ fun ChatDetailScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = 480.dp)
-                        .clip(RoundedCornerShape(14.dp)),
+                        .clip(Radius.Inner),
                     contentScale = ContentScale.Fit
                 )
                 IconButton(
@@ -296,6 +333,8 @@ fun ChatDetailScreen(
             .fillMaxSize()
             .background(HoneyBottomGradient)
             .statusBarsPadding()
+            .navigationBarsPadding()
+            .imePadding()
     ) {
         // Top Header Bar
         Surface(
@@ -313,6 +352,19 @@ fun ChatDetailScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Charcoal)
                     }
 
+                    // Avatar + name = one tap target that opens the profile preview.
+                    // Keep this a SINGLE clickable region: nesting a bouncing child
+                    // inside a bouncing parent makes the header squirm on tap.
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(Radius.Inner)
+                            .bounceClick(scaleDown = 0.98f) {
+                                if (partnerUid.isNotBlank()) showPartnerProfile = true
+                            }
+                            .padding(end = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                     // Avatar with properly positioned, unclipped presence badge dot
                     Box(
                         modifier = Modifier.size(42.dp),
@@ -322,7 +374,8 @@ fun ChatDetailScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .clip(CircleShape)
-                                .background(HoneyTint),
+                                .background(HoneyTint)
+                                .border(BorderStroke(1.5.dp, AvatarOutline), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -349,7 +402,9 @@ fun ChatDetailScreen(
                             text = partnerName,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp,
-                            color = Charcoal
+                            color = Charcoal,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = statusLabel,
@@ -360,6 +415,7 @@ fun ChatDetailScreen(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
+                    } // end avatar+name tap target
 
                     // 3 vertical dots menu for reporting
                     Box {
@@ -371,7 +427,7 @@ fun ChatDetailScreen(
                             expanded = showMoreMenu,
                             onDismissRequest = { showMoreMenu = false },
                             containerColor = CardWhite,
-                            shape = RoundedCornerShape(16.dp)
+                            shape = Radius.Inner
                         ) {
                             DropdownMenuItem(
                                 text = {
@@ -393,7 +449,7 @@ fun ChatDetailScreen(
                                     Icon(
                                         imageVector = Icons.Outlined.ReportProblem,
                                         contentDescription = null,
-                                        tint = Color(0xFFD32F2F),
+                                        tint = DangerFgStrong,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 },
@@ -480,7 +536,7 @@ fun ChatDetailScreen(
                 Surface(
                     color = CardWhite,
                     border = BorderStroke(1.dp, Hairline),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = Radius.Inner,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 6.dp)
@@ -497,7 +553,7 @@ fun ChatDetailScreen(
                             ServiceCategoryIconBox(
                                 category = resolvedCategory,
                                 size = 36.dp,
-                                shape = RoundedCornerShape(10.dp),
+                                shape = Radius.Tile,
                                 symbolFontSize = 14.sp,
                                 iconSize = 18.dp
                             )
@@ -510,7 +566,7 @@ fun ChatDetailScreen(
 
                         Surface(
                             color = HoneyTint,
-                            shape = RoundedCornerShape(8.dp)
+                            shape = Radius.Tag
                         ) {
                             Text(
                                 text = "VIEW",
@@ -546,8 +602,8 @@ fun ChatDetailScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Surface(
-                        color = Color(0xFFF6F3EE),
-                        shape = RoundedCornerShape(12.dp)
+                        color = CreamTint,
+                        shape = Radius.Tile
                     ) {
                         Text(
                             text = "TODAY",
@@ -600,21 +656,22 @@ fun ChatDetailScreen(
             shadowElevation = 8.dp
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
+                modifier = Modifier.fillMaxWidth()
             ) {
-                // Inline Editing Message Banner Bar
+                // Inline Editing Message Banner Bar (CampusHive Themed)
                 editingMessage?.let { editing ->
                     Surface(
-                        color = CardWhite,
-                        border = BorderStroke(1.dp, Hairline),
-                        modifier = Modifier.fillMaxWidth()
+                        color = HoneyTint,
+                        border = BorderStroke(1.dp, WarningBorderSoft),
+                        shape = Radius.Tile,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 6.dp)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
@@ -622,24 +679,32 @@ fun ChatDetailScreen(
                                 modifier = Modifier.weight(1f),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Edit,
-                                    contentDescription = null,
-                                    tint = Charcoal,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(Modifier.width(8.dp))
+                                Surface(
+                                    shape = CircleShape,
+                                    color = CardWhite,
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Edit,
+                                            contentDescription = null,
+                                            tint = Charcoal,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(Modifier.width(10.dp))
                                 Column {
                                     Text(
-                                        text = "Editing message",
+                                        text = "Editing Message",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = MutedText
+                                        color = Charcoal
                                     )
                                     Text(
                                         text = editing.text,
                                         fontSize = 12.sp,
-                                        color = Charcoal,
+                                        color = MutedText,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -673,7 +738,7 @@ fun ChatDetailScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Surface(
-                            shape = RoundedCornerShape(20.dp),
+                            shape = Radius.Card,
                             color = HoneyTint,
                             border = BorderStroke(1.dp, Hairline),
                             modifier = Modifier
@@ -702,7 +767,7 @@ fun ChatDetailScreen(
                         }
 
                         Surface(
-                            shape = RoundedCornerShape(20.dp),
+                            shape = Radius.Card,
                             color = CardWhite,
                             border = BorderStroke(1.dp, Hairline),
                             modifier = Modifier
@@ -736,7 +801,7 @@ fun ChatDetailScreen(
                 pendingAttachment?.let { staged ->
                     Surface(
                         color = CardWhite,
-                        shape = RoundedCornerShape(14.dp),
+                        shape = Radius.Inner,
                         border = BorderStroke(1.dp, Hairline),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -752,21 +817,22 @@ fun ChatDetailScreen(
                                     contentDescription = staged.name,
                                     modifier = Modifier
                                         .size(48.dp)
-                                        .clip(RoundedCornerShape(10.dp)),
+                                        .clip(Radius.Tile),
                                     contentScale = ContentScale.Crop
                                 )
                             } else {
                                 Box(
                                     modifier = Modifier
                                         .size(44.dp)
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(Color(0xFFEFEBFF)),
+                                        .clip(Radius.Tile)
+                                        .background(HoneyTint)
+                                        .border(BorderStroke(1.5.dp, AvatarOutline), Radius.Tile),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Outlined.Description,
                                         contentDescription = null,
-                                        tint = Color(0xFF6C5CE7),
+                                        tint = Charcoal,
                                         modifier = Modifier.size(22.dp)
                                     )
                                 }
@@ -808,7 +874,7 @@ fun ChatDetailScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 22.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Plus button on left to toggle Picture / File upload options
@@ -817,7 +883,7 @@ fun ChatDetailScreen(
                             .size(38.dp)
                             .clip(CircleShape)
                             .background(if (showAttachMenu) Honey else CardWhite)
-                            .clickable { showAttachMenu = !showAttachMenu },
+                            .bounceClick { showAttachMenu = !showAttachMenu },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -847,7 +913,7 @@ fun ChatDetailScreen(
                         },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
-                        shape = RoundedCornerShape(24.dp),
+                        shape = Radius.Card,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = CardWhite,
                             unfocusedContainerColor = CardWhite,
@@ -882,7 +948,10 @@ fun ChatDetailScreen(
                                         attachmentType = currentStaged?.type ?: "",
                                         attachmentName = currentStaged?.name ?: "",
                                         attachmentSize = currentStaged?.sizeLabel ?: "",
-                                        attachmentBase64 = currentStaged?.base64Data ?: ""
+                                        attachmentBase64 = currentStaged?.base64Data ?: "",
+                                        listingIdHint = resolvedListingId,
+                                        providerUidHint = matchedListing?.providerUid.orEmpty()
+                                            .ifBlank { currentConversation?.providerUid.orEmpty() }
                                     )
                                 }
                             }
@@ -921,7 +990,7 @@ private fun MessageBubble(
             try {
                 val bytes = Base64.decode(message.attachmentBase64, Base64.DEFAULT)
                 BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 null
             }
         } else {
@@ -938,7 +1007,7 @@ private fun MessageBubble(
         ) {
             Box {
                 Surface(
-                    color = if (isMe) (if (message.isDeleted) Color(0xFF333333) else Charcoal) else CardWhite,
+                    color = if (isMe) (if (message.isDeleted) OnDarkStrong else Charcoal) else CardWhite,
                     shape = RoundedCornerShape(
                         topStart = 18.dp,
                         topEnd = 18.dp,
@@ -972,8 +1041,8 @@ private fun MessageBubble(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .heightIn(min = 120.dp, max = 220.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .clickable { onImageClick(decodedBitmap) },
+                                    .clip(Radius.Tile)
+                                    .bounceClick { onImageClick(decodedBitmap) },
                                 contentScale = ContentScale.Crop
                             )
                             if (message.text.isNotBlank()) {
@@ -984,12 +1053,12 @@ private fun MessageBubble(
                         // 2. File / Document Attachment Card
                         if (message.attachmentType == "FILE") {
                             Surface(
-                                color = if (isMe) Color(0xFF2E2E2E) else Cream,
-                                shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(1.dp, if (isMe) Color(0xFF444444) else Hairline),
+                                color = if (isMe) OnDarkSurface else Cream,
+                                shape = Radius.Tile,
+                                border = BorderStroke(1.dp, if (isMe) OnDarkBorder else Hairline),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { onFileClick(message) }
+                                    .bounceClick { onFileClick(message) }
                             ) {
                                 Row(
                                     modifier = Modifier.padding(10.dp),
@@ -998,7 +1067,7 @@ private fun MessageBubble(
                                     Box(
                                         modifier = Modifier
                                             .size(36.dp)
-                                            .clip(RoundedCornerShape(8.dp))
+                                            .clip(Radius.Tag)
                                             .background(Honey),
                                         contentAlignment = Alignment.Center
                                     ) {
@@ -1021,7 +1090,7 @@ private fun MessageBubble(
                                         )
                                         Text(
                                             text = "${message.attachmentSize.ifBlank { "File" }} • Tap to save",
-                                            color = if (isMe) Color(0xFFBDBDBD) else MutedText,
+                                            color = if (isMe) OnDarkMuted else MutedText,
                                             fontSize = 10.sp
                                         )
                                     }
@@ -1049,27 +1118,53 @@ private fun MessageBubble(
                     }
                 }
 
-                // Long-Press Options Context Menu
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false }
+                // Long-Press Message Context Menu (CampusHive Themed)
+                MaterialTheme(
+                    colorScheme = MaterialTheme.colorScheme.copy(
+                        surface = CardWhite,
+                        onSurface = Charcoal
+                    )
                 ) {
-                    DropdownMenuItem(
-                        text = { Text("Edit Message", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Charcoal) },
-                        leadingIcon = { Icon(Icons.Outlined.Edit, contentDescription = "Edit", modifier = Modifier.size(18.dp)) },
-                        onClick = {
-                            showMenu = false
-                            onEditMessage(message)
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Delete Message", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD32F2F)) },
-                        leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = "Delete", tint = Color(0xFFD32F2F), modifier = Modifier.size(18.dp)) },
-                        onClick = {
-                            showMenu = false
-                            onDeleteMessage(message)
-                        }
-                    )
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false },
+                        shape = Radius.Inner,
+                        border = BorderStroke(1.dp, Hairline),
+                        shadowElevation = 6.dp,
+                        modifier = Modifier.background(CardWhite)
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Edit Message", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Charcoal) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Edit,
+                                    contentDescription = "Edit",
+                                    tint = Charcoal,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            },
+                            onClick = {
+                                showMenu = false
+                                onEditMessage(message)
+                            }
+                        )
+                        HorizontalDivider(color = Hairline)
+                        DropdownMenuItem(
+                            text = { Text("Delete Message", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = DangerFgStrong) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Delete,
+                                    contentDescription = "Delete",
+                                    tint = DangerFgStrong,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            },
+                            onClick = {
+                                showMenu = false
+                                onDeleteMessage(message)
+                            }
+                        )
+                    }
                 }
             }
 
@@ -1109,7 +1204,7 @@ private fun processImageUri(context: Context, uri: Uri): PendingAttachment? {
         )
         val targetWidth = (originalBitmap.width * ratio).toInt().coerceAtLeast(1)
         val targetHeight = (originalBitmap.height * ratio).toInt().coerceAtLeast(1)
-        val scaledBitmap = Bitmap.createScaledBitmap(originalBitmap, targetWidth, targetHeight, true)
+        val scaledBitmap = originalBitmap.scale(targetWidth, targetHeight)
 
         val outputStream = ByteArrayOutputStream()
         scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 65, outputStream)
@@ -1123,7 +1218,7 @@ private fun processImageUri(context: Context, uri: Uri): PendingAttachment? {
             base64Data = base64Str,
             previewBitmap = scaledBitmap.asImageBitmap()
         )
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         null
     }
 }
@@ -1156,7 +1251,7 @@ private fun processFileUri(context: Context, uri: Uri): PendingAttachment? {
             base64Data = base64Str,
             previewBitmap = null
         )
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         null
     }
 }
@@ -1202,7 +1297,7 @@ private fun saveAndNotifyFile(context: Context, message: ChatMessage) {
         } else {
             Toast.makeText(context, "Attachment: $safeName (${message.attachmentSize})", Toast.LENGTH_SHORT).show()
         }
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         Toast.makeText(context, "Could not save file: ${message.attachmentName}", Toast.LENGTH_SHORT).show()
     }
 }

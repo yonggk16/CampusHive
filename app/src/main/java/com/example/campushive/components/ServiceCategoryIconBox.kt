@@ -1,6 +1,7 @@
 package com.example.campushive.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,22 +19,29 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.campushive.model.getCategoryVisual
 import com.example.campushive.ui.theme.Charcoal
+import com.example.campushive.ui.theme.Radius
+import com.example.campushive.ui.theme.TileOutline
 
 @Composable
 fun ServiceCategoryIconBox(
     category: String,
     modifier: Modifier = Modifier,
     size: Dp = 44.dp,
-    shape: Shape = RoundedCornerShape(14.dp),
+    shape: Shape = Radius.Inner,
     symbolFontSize: TextUnit = 18.sp,
-    iconSize: Dp = 20.dp
+    iconSize: Dp = 20.dp,
+    showOutline: Boolean = true,
+    outlineWidth: Dp = 1.5.dp,
 ) {
     val visual = getCategoryVisual(category)
     Box(
         modifier = modifier
             .size(size)
             .clip(shape)
-            .background(visual.bgColor),
+            .background(visual.bgColor)
+            .then(
+                if (showOutline) Modifier.border(outlineWidth, TileOutline, shape) else Modifier
+            ),
         contentAlignment = Alignment.Center
     ) {
         if (visual.symbol != null) {

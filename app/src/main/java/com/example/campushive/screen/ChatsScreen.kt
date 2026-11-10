@@ -1,9 +1,10 @@
 package com.example.campushive.screen
 
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import com.example.campushive.ui.theme.bounceClick
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -14,16 +15,20 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import com.example.campushive.model.ChatConversation
 import com.example.campushive.ui.theme.*
 import com.example.campushive.viewmodel.ChatViewModel
@@ -31,6 +36,7 @@ import com.example.campushive.viewmodel.ReviewViewModel
 
 private val roleFilters = listOf("All", "As seeker", "As provider")
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatsScreen(
     chatViewModel: ChatViewModel = viewModel(),
@@ -38,10 +44,13 @@ fun ChatsScreen(
     onChatClick: (ChatConversation) -> Unit = {},
     onReviewClick: (ChatConversation) -> Unit = {}
 ) {
+    val context = LocalContext.current
     val conversations by chatViewModel.conversations.collectAsState()
     val providerReviews by reviewViewModel.providerReviews.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
     var selectedRoleFilter by remember { mutableStateOf("All") }
+    var isRefreshing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     val filteredChats = remember(searchQuery, selectedRoleFilter, conversations) {
         conversations.filter { chat ->
@@ -59,21 +68,35 @@ fun ChatsScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(HoneyBottomGradient)
-            .statusBarsPadding()
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = {
+            isRefreshing = true
+            scope.launch {
+                chatViewModel.refreshConversations()
+                reviewViewModel.loadReviewsForProvider()
+                delay(800)
+                isRefreshing = false
+                Toast.makeText(context, "Conversations refreshed", Toast.LENGTH_SHORT).show()
+            }
+        },
+        modifier = Modifier.fillMaxSize()
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(HoneyBottomGradient)
+                .statusBarsPadding()
+        ) {
         // Header, Search Field & Role Filter Chips
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 20.dp, end = 20.dp, top = 28.dp, bottom = 12.dp)
+                .padding(start = Spacing.gutter, end = Spacing.gutter, top = Spacing.topInset, bottom = Spacing.md)
         ) {
             Text(
                 text = "Chats",
-                fontSize = 28.sp,
+                fontSize = 34.sp,
                 fontWeight = FontWeight.Bold,
                 color = Charcoal
             )
@@ -88,7 +111,7 @@ fun ChatsScreen(
                 placeholder = { Text("Search conversations", fontSize = 14.sp, color = MutedText) },
                 leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = "Search", tint = Charcoal) },
                 singleLine = true,
-                shape = RoundedCornerShape(20.dp),
+                shape = Radius.Card,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = CardWhite,
                     unfocusedContainerColor = CardWhite,
@@ -104,7 +127,7 @@ fun ChatsScreen(
                 items(roleFilters) { role ->
                     val isSelected = selectedRoleFilter == role
                     Surface(
-                        shape = RoundedCornerShape(20.dp),
+                        shape = Radius.Card,
                         color = if (isSelected) Charcoal else CardWhite,
                         contentColor = if (isSelected) CardWhite else Charcoal,
                         border = if (isSelected) null else BorderStroke(1.dp, Hairline),
@@ -175,7 +198,10 @@ fun ChatsScreen(
                         ChatItem(
                             chat = chat,
                             isReviewed = isReviewed,
-                            onClick = { onChatClick(chat) },
+                            onClick = {
+                                chatViewModel.markConversationAsRead(chat.id)
+                                onChatClick(chat)
+                            },
                             onReviewClick = { onReviewClick(chat) }
                         )
                         HorizontalDivider(color = Hairline, modifier = Modifier.padding(horizontal = 16.dp))
@@ -184,6 +210,7 @@ fun ChatsScreen(
             }
         }
     }
+}
 }
 
 @Composable
@@ -196,7 +223,7 @@ private fun ChatItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .bounceClick(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -209,7 +236,8 @@ private fun ChatItem(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(CircleShape)
-                    .background(HoneyTint),
+                    .background(HoneyTint)
+                    .border(BorderStroke(1.5.dp, AvatarOutline), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -261,6 +289,7 @@ private fun ChatItem(
             Text(
                 text = "Re: ${chat.lastMessage}",
                 fontSize = 12.sp,
+                fontWeight = if (chat.unreadCount > 0) FontWeight.Bold else FontWeight.Normal,
                 color = Charcoal,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -269,13 +298,32 @@ private fun ChatItem(
 
         Spacer(Modifier.width(8.dp))
 
-        // Timestamp & Action Button
+        // Timestamp, Unread Badge (both Seeker & Provider) & Action Button
         Column(horizontalAlignment = Alignment.End) {
-            Text(
-                text = chat.timestamp,
-                fontSize = 11.sp,
-                color = MutedText
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = chat.timestamp,
+                    fontSize = 11.sp,
+                    color = MutedText
+                )
+                if (chat.unreadCount > 0) {
+                    Spacer(Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(18.dp)
+                            .clip(CircleShape)
+                            .background(Honey),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = chat.unreadCount.toString(),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Charcoal
+                        )
+                    }
+                }
+            }
 
             if (!chat.isProvider) {
                 Spacer(Modifier.height(6.dp))
@@ -283,13 +331,13 @@ private fun ChatItem(
                 if (isReviewed) {
                     Surface(
                         color = CreamTint,
-                        shape = RoundedCornerShape(8.dp),
+                        shape = Radius.Tag,
                         border = BorderStroke(1.dp, Hairline)
                     ) {
                         Text(
                             text = "REVIEWED ✓",
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                            fontSize = 9.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = MutedText
                         )
@@ -298,29 +346,12 @@ private fun ChatItem(
                     Button(
                         onClick = onReviewClick,
                         colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                        modifier = Modifier.height(24.dp)
+                        shape = Radius.Tag,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
+                        modifier = Modifier.heightIn(min = 44.dp)
                     ) {
-                        Text("REVIEW", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = CardWhite)
+                        Text("REVIEW", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = CardWhite)
                     }
-                }
-            } else if (chat.unreadCount > 0) {
-                Spacer(Modifier.height(4.dp))
-
-                Box(
-                    modifier = Modifier
-                        .size(18.dp)
-                        .clip(CircleShape)
-                        .background(Honey),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = chat.unreadCount.toString(),
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Charcoal
-                    )
                 }
             }
         }

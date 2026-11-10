@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.example.campushive.screen
 
 import android.widget.Toast
@@ -6,16 +8,16 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import com.example.campushive.ui.theme.bounceClick
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.*
@@ -38,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campushive.R
+import com.example.campushive.components.CampusLocationIndicator
 import com.example.campushive.ui.theme.*
 import com.example.campushive.viewmodel.AuthUiState
 import com.example.campushive.viewmodel.AuthViewModel
@@ -128,7 +131,7 @@ fun SignUpScreen(
                 .navigationBarsPadding()
                 .imePadding()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 20.dp),
+                .padding(horizontal = Spacing.gutter, vertical = Spacing.lg),
             horizontalAlignment = Alignment.Start
         ) {
         Spacer(Modifier.weight(1f))
@@ -143,43 +146,21 @@ fun SignUpScreen(
                 painter = painterResource(id = R.drawable.app_logo),
                 contentDescription = "CampusHive Logo",
                 modifier = Modifier
-                    .size(54.dp)
-                    .clip(RoundedCornerShape(14.dp)),
+                    .size(64.dp)
+                    .clip(Radius.Inner),
                 contentScale = ContentScale.Fit
             )
 
-            // Location Tag: HELP University Subang 2
-            Surface(
-                color = CardWhite,
-                shape = RoundedCornerShape(20.dp),
-                border = BorderStroke(1.dp, Hairline)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.LocationOn,
-                        contentDescription = null,
-                        tint = Charcoal,
-                        modifier = Modifier.size(13.dp)
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = "HELP University Subang 2",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Charcoal
-                    )
-                }
-            }
+            // Location Indicator: HELP University Subang 2 Campus
+            CampusLocationIndicator(campusName = "HELP Subang 2 Campus")
         }
 
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(20.dp))
 
+        // Small Brand Header
         Text(
             text = "JOIN CAMPUS HIVE",
-            fontSize = 11.sp,
+            fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             color = MutedText,
             letterSpacing = 0.8.sp
@@ -187,21 +168,23 @@ fun SignUpScreen(
 
         Spacer(Modifier.height(6.dp))
 
+        Spacer(Modifier.height(10.dp))
+
         Text(
             text = "Create your\nstudent account",
-            fontSize = 28.sp,
+            fontSize = 34.sp,
             fontWeight = FontWeight.Bold,
             color = Charcoal,
-            lineHeight = 34.sp
+            lineHeight = 38.sp
         )
 
         Spacer(Modifier.height(8.dp))
 
         Text(
             text = "Get verified with your email (@helplive.edu.my or @gmail.com) to list services or hire peers.",
-            fontSize = 13.sp,
+            fontSize = 14.sp,
             color = MutedText,
-            lineHeight = 18.sp
+            lineHeight = 20.sp
         )
 
         Spacer(Modifier.height(24.dp))
@@ -209,25 +192,25 @@ fun SignUpScreen(
         // FULL NAME Card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
+            shape = Radius.Card,
             colors = CardDefaults.cardColors(containerColor = CardWhite),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
-            Column(Modifier.padding(16.dp)) {
-                Text("FULL NAME", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MutedText, letterSpacing = 0.8.sp)
+            Column(Modifier.padding(18.dp)) {
+                Text("FULL NAME", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MutedText, letterSpacing = 0.8.sp)
                 Spacer(Modifier.height(6.dp))
                 Box(modifier = Modifier.fillMaxWidth()) {
                     if (fullName.isEmpty()) {
                         Text(
                             text = "Ahmad Ali",
-                            fontSize = 15.sp,
+                            fontSize = 16.sp,
                             color = MutedText.copy(alpha = 0.5f)
                         )
                     }
                     BasicTextField(
                         value = fullName,
                         onValueChange = { fullName = it },
-                        textStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Charcoal),
+                        textStyle = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Charcoal),
                         cursorBrush = SolidColor(Honey),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
@@ -236,30 +219,30 @@ fun SignUpScreen(
             }
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(14.dp))
 
         // EMAIL Card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
+            shape = Radius.Card,
             colors = CardDefaults.cardColors(containerColor = CardWhite),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
-            Column(Modifier.padding(16.dp)) {
-                Text("EMAIL", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MutedText, letterSpacing = 0.8.sp)
+            Column(Modifier.padding(18.dp)) {
+                Text("EMAIL", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MutedText, letterSpacing = 0.8.sp)
                 Spacer(Modifier.height(6.dp))
                 Box(modifier = Modifier.fillMaxWidth()) {
                     if (email.isEmpty()) {
                         Text(
                             text = "@helplive.edu.my or @gmail.com",
-                            fontSize = 15.sp,
+                            fontSize = 16.sp,
                             color = MutedText.copy(alpha = 0.5f)
                         )
                     }
                     BasicTextField(
                         value = email,
                         onValueChange = { email = it },
-                        textStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Charcoal),
+                        textStyle = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Charcoal),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                         cursorBrush = SolidColor(Honey),
                         singleLine = true,
@@ -269,17 +252,17 @@ fun SignUpScreen(
             }
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(14.dp))
 
         // PASSWORD Card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
+            shape = Radius.Card,
             colors = CardDefaults.cardColors(containerColor = CardWhite),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
-            Column(Modifier.padding(16.dp)) {
-                Text("PASSWORD", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MutedText, letterSpacing = 0.8.sp)
+            Column(Modifier.padding(18.dp)) {
+                Text("PASSWORD", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MutedText, letterSpacing = 0.8.sp)
                 Spacer(Modifier.height(6.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -289,14 +272,14 @@ fun SignUpScreen(
                         if (password.isEmpty()) {
                             Text(
                                 text = "Min. 8 chars (upper, lower & special)",
-                                fontSize = 15.sp,
+                                fontSize = 16.sp,
                                 color = MutedText.copy(alpha = 0.5f)
                             )
                         }
                         BasicTextField(
                             value = password,
                             onValueChange = { password = it },
-                            textStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Charcoal),
+                            textStyle = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Charcoal),
                             visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                             cursorBrush = SolidColor(Honey),
@@ -320,17 +303,17 @@ fun SignUpScreen(
             }
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(14.dp))
 
         // CONFIRM PASSWORD Card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
+            shape = Radius.Card,
             colors = CardDefaults.cardColors(containerColor = CardWhite),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
-            Column(Modifier.padding(16.dp)) {
-                Text("CONFIRM PASSWORD", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MutedText, letterSpacing = 0.8.sp)
+            Column(Modifier.padding(18.dp)) {
+                Text("CONFIRM PASSWORD", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MutedText, letterSpacing = 0.8.sp)
                 Spacer(Modifier.height(6.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -340,14 +323,14 @@ fun SignUpScreen(
                         if (confirmPassword.isEmpty()) {
                             Text(
                                 text = "Re-enter your password",
-                                fontSize = 15.sp,
+                                fontSize = 16.sp,
                                 color = MutedText.copy(alpha = 0.5f)
                             )
                         }
                         BasicTextField(
                             value = confirmPassword,
                             onValueChange = { confirmPassword = it },
-                            textStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Charcoal),
+                            textStyle = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Charcoal),
                             visualTransformation = if (isConfirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                             cursorBrush = SolidColor(Honey),
@@ -381,16 +364,16 @@ fun SignUpScreen(
                 }
             },
             enabled = !isLoading,
-            shape = RoundedCornerShape(50),
+            shape = Radius.Pill,
             colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(54.dp)
+                .height(56.dp)
                 .bounceClick(scaleDown = 0.96f)
         ) {
             if (isLoading) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(22.dp),
                     color = CardWhite,
                     strokeWidth = 2.dp
                 )
@@ -398,7 +381,7 @@ fun SignUpScreen(
                 Text(
                     text = "Create account",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
+                    fontSize = 17.sp,
                     color = CardWhite
                 )
                 Spacer(Modifier.width(8.dp))
@@ -423,7 +406,7 @@ fun SignUpScreen(
                 .fillMaxWidth()
                 .height(54.dp)
                 .bounceClick(scaleDown = 0.96f),
-            shape = RoundedCornerShape(50),
+            shape = Radius.Pill,
             border = BorderStroke(1.dp, Hairline),
             colors = ButtonDefaults.outlinedButtonColors(containerColor = CardWhite, contentColor = Charcoal)
         ) {
@@ -450,7 +433,7 @@ fun SignUpScreen(
                 color = Charcoal,
                 fontWeight = FontWeight.Bold,
                 fontSize = 13.sp,
-                modifier = Modifier.clickable { onNavigateToLogin() }
+                modifier = Modifier.bounceClick { onNavigateToLogin() }
             )
         }
 

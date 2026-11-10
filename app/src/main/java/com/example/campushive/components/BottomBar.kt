@@ -76,11 +76,11 @@ fun BottomBar(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 26.dp)
     ) {
         // Floating Pill Base Surface
         Surface(
-            shape = RoundedCornerShape(50),
+            shape = Radius.Pill,
             color = CardWhite,
             border = BorderStroke(1.dp, Hairline),
             shadowElevation = 14.dp,
@@ -136,7 +136,7 @@ private fun TabItem(
 ) {
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(24.dp))
+            .clip(Radius.Card)
             .background(if (selected) HoneyTint else CardWhite)
             .bounceClick(scaleDown = 0.94f, onClick = onClick)
             .padding(vertical = 6.dp),
@@ -157,7 +157,7 @@ private fun TabItem(
                         .size(10.dp)
                         .offset(x = 4.dp, y = (-3).dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFD32F2F))
+                        .background(DangerFgStrong)
                 )
             }
         }

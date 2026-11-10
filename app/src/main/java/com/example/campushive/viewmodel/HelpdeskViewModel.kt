@@ -6,6 +6,7 @@ import com.example.campushive.data.FirestoreRepository
 import com.example.campushive.model.HelpReport
 import com.example.campushive.model.ReportStatus
 import com.example.campushive.model.ReportType
+import com.example.campushive.model.UserProfile
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,6 +34,7 @@ class HelpdeskViewModel(
     val isModeratorMode: StateFlow<Boolean> = _isModeratorMode.asStateFlow()
 
     private val localOptimisticReports = mutableListOf<HelpReport>()
+    private var cachedUserProfile: UserProfile? = null
 
     init {
         loadUserReports()
@@ -43,19 +45,27 @@ class HelpdeskViewModel(
     // 2. MODERATOR PRIVILEGE VERIFICATION & ACCESS CONTROL
     // ==========================================================================
 
-    private fun checkDefaultModeratorAccess(): Boolean {
-        val email = Firebase.auth.currentUser?.email
+    fun isModeratorUser(email: String?, userProfile: UserProfile? = null): Boolean {
+        val targetProfile = userProfile ?: cachedUserProfile
+        if (targetProfile?.isModerator == true) return true
         return isModeratorEmail(email)
     }
 
+    fun checkDefaultModeratorAccess(userProfile: UserProfile? = null): Boolean {
+        if (userProfile != null) cachedUserProfile = userProfile
+        val email = Firebase.auth.currentUser?.email
+        return isModeratorUser(email, userProfile ?: cachedUserProfile)
+    }
+
     /**
-     * Verifies current user's email against the moderator whitelist
+     * Verifies current user's email or Firestore profile for dynamic moderator access
      */
-    fun refreshModeratorAccess() {
-        val hasAccess = checkDefaultModeratorAccess()
+    fun refreshModeratorAccess(userProfile: UserProfile? = null) {
+        if (userProfile != null) cachedUserProfile = userProfile
+        val hasAccess = checkDefaultModeratorAccess(userProfile)
         _isModeratorMode.value = hasAccess
         if (hasAccess) {
-            loadAllReports()
+            loadAllReports(userProfile)
         } else {
             _allReports.value = emptyList()
         }
@@ -64,8 +74,9 @@ class HelpdeskViewModel(
     /**
      * Toggles moderator mode view state for authorized platform moderators
      */
-    fun toggleModeratorMode() {
-        if (!checkDefaultModeratorAccess()) {
+    fun toggleModeratorMode(userProfile: UserProfile? = null) {
+        if (userProfile != null) cachedUserProfile = userProfile
+        if (!checkDefaultModeratorAccess(userProfile)) {
             _isModeratorMode.value = false
             _allReports.value = emptyList()
             return
@@ -73,7 +84,7 @@ class HelpdeskViewModel(
         val newMode = !_isModeratorMode.value
         _isModeratorMode.value = newMode
         if (newMode) {
-            loadAllReports()
+            loadAllReports(userProfile)
         }
     }
 
@@ -107,8 +118,9 @@ class HelpdeskViewModel(
     /**
      * Connects real-time Firestore stream of ALL campus reports for Platform Moderators
      */
-    fun loadAllReports() {
-        if (!checkDefaultModeratorAccess()) {
+    fun loadAllReports(userProfile: UserProfile? = null) {
+        if (userProfile != null) cachedUserProfile = userProfile
+        if (!checkDefaultModeratorAccess(userProfile ?: cachedUserProfile)) {
             _allReports.value = emptyList()
             return
         }
@@ -215,6 +227,7 @@ class HelpdeskViewModel(
         reportId: String,
         newStatus: ReportStatus,
         moderatorNote: String,
+        targetId: String = "",
         onResult: (Boolean) -> Unit = {}
     ) {
         val currentUser = Firebase.auth.currentUser
@@ -237,6 +250,11 @@ class HelpdeskViewModel(
                 moderatorNote = cleanNote,
                 resolvedBy = moderatorName
             )
+            if (cleanNote.contains("paused", ignoreCase = true) || cleanNote.contains("pause", ignoreCase = true)) {
+                if (targetId.isNotBlank()) {
+                    repository.updateListingStatus(targetId, "INACTIVE")
+                }
+            }
             onResult(success)
         }
     }
@@ -270,7 +288,6 @@ class HelpdeskViewModel(
     companion object {
         private val MODERATOR_EMAILS = setOf(
             "yonggk07@gmail.com",
-            "b2500904@helplive.edu.my",
             "b2501286@helplive.edu.my"
         )
 

@@ -3,7 +3,7 @@ package com.example.campushive.components
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import com.example.campushive.ui.theme.bounceClick
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -64,7 +64,7 @@ fun EditListingDialog(
                 .wrapContentHeight()
                 .navigationBarsPadding()
                 .imePadding(),
-            shape = RoundedCornerShape(24.dp),
+            shape = Radius.Card,
             color = Cream
         ) {
             Column(
@@ -105,7 +105,7 @@ fun EditListingDialog(
                 // TITLE Input
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = Radius.Inner,
                     colors = CardDefaults.cardColors(containerColor = CardWhite)
                 ) {
                     Column(Modifier.padding(14.dp)) {
@@ -128,10 +128,10 @@ fun EditListingDialog(
                         items(availableCategories) { cat ->
                             val isSelected = selectedCategory.equals(cat, ignoreCase = true)
                             Surface(
-                                shape = RoundedCornerShape(16.dp),
+                                shape = Radius.Inner,
                                 color = if (isSelected) Charcoal else CardWhite,
                                 border = if (isSelected) null else BorderStroke(1.dp, Hairline),
-                                modifier = Modifier.clickable { selectedCategory = cat }
+                                modifier = Modifier.bounceClick { selectedCategory = cat }
                             ) {
                                 Text(
                                     text = cat,
@@ -148,7 +148,7 @@ fun EditListingDialog(
                 // PRICE & PRICING TYPE
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = Radius.Inner,
                     colors = CardDefaults.cardColors(containerColor = CardWhite)
                 ) {
                     Column(Modifier.padding(14.dp)) {
@@ -172,15 +172,15 @@ fun EditListingDialog(
                                 )
                             }
 
-                            Surface(shape = RoundedCornerShape(16.dp), color = CreamTint) {
+                            Surface(shape = Radius.Inner, color = CreamTint) {
                                 Row(modifier = Modifier.padding(2.dp)) {
                                     PricingType.entries.forEach { pType ->
                                         val isSelected = selectedPricingType == pType
                                         Box(
                                             modifier = Modifier
-                                                .clip(RoundedCornerShape(12.dp))
+                                                .clip(Radius.Tile)
                                                 .background(if (isSelected) Charcoal else Color.Transparent)
-                                                .clickable { selectedPricingType = pType }
+                                                .bounceClick { selectedPricingType = pType }
                                                 .padding(horizontal = 10.dp, vertical = 6.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
@@ -201,7 +201,7 @@ fun EditListingDialog(
                 // CAMPUS LOCATION
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = Radius.Inner,
                     colors = CardDefaults.cardColors(containerColor = CardWhite)
                 ) {
                     Column(Modifier.padding(14.dp)) {
@@ -220,7 +220,7 @@ fun EditListingDialog(
                 // DESCRIPTION
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = Radius.Inner,
                     colors = CardDefaults.cardColors(containerColor = CardWhite)
                 ) {
                     Column(Modifier.padding(14.dp)) {
@@ -241,7 +241,7 @@ fun EditListingDialog(
                 // STATUS TOGGLE
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = Radius.Inner,
                     colors = CardDefaults.cardColors(containerColor = CardWhite)
                 ) {
                     Row(
@@ -258,7 +258,7 @@ fun EditListingDialog(
                                 text = if (status == "ACTIVE") "Active (Visible to students)" else "Inactive (Hidden)",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (status == "ACTIVE") VerifiedGreen else Color(0xFFE65100)
+                                color = if (status == "ACTIVE") VerifiedGreen else DangerFg
                             )
                         }
 
@@ -286,9 +286,9 @@ fun EditListingDialog(
                     // Delete Button
                     OutlinedButton(
                         onClick = { showDeleteConfirm = true },
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFD32F2F)),
-                        border = BorderStroke(1.dp, Color(0xFFEF9A9A)),
-                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = DangerFgStrong),
+                        border = BorderStroke(1.dp, DangerBorderSoft),
+                        shape = Radius.Inner,
                         modifier = Modifier.weight(0.4f)
                     ) {
                         Icon(
@@ -331,7 +331,7 @@ fun EditListingDialog(
                             Toast.makeText(context, "Listing updated successfully!", Toast.LENGTH_SHORT).show()
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
-                        shape = RoundedCornerShape(14.dp),
+                        shape = Radius.Inner,
                         modifier = Modifier.weight(0.6f)
                     ) {
                         Text("Save Changes", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = CardWhite)
@@ -354,7 +354,7 @@ fun EditListingDialog(
                         Toast.makeText(context, "Listing deleted", Toast.LENGTH_SHORT).show()
                     }
                 ) {
-                    Text("Delete", color = Color(0xFFD32F2F), fontWeight = FontWeight.Bold)
+                    Text("Delete", color = DangerFgStrong, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -363,7 +363,7 @@ fun EditListingDialog(
                 }
             },
             containerColor = CardWhite,
-            shape = RoundedCornerShape(20.dp)
+            shape = Radius.Card
         )
     }
 }

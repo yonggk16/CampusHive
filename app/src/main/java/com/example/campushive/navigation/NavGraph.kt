@@ -13,7 +13,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
@@ -23,6 +27,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.campushive.components.BottomBar
+import com.example.campushive.components.ChatNotificationHelper
 import com.example.campushive.screen.*
 import com.example.campushive.viewmodel.ChatViewModel
 import com.example.campushive.viewmodel.HelpdeskViewModel
@@ -49,6 +54,7 @@ sealed class Screen(val route: String, val title: String) {
 // ==============================================================================
 @Composable
 fun CampusHiveApp() {
+    val context = LocalContext.current
     val navController = rememberNavController()
     val listingViewModel: ListingViewModel = viewModel()
     val reviewViewModel: ReviewViewModel = viewModel()
@@ -56,6 +62,16 @@ fun CampusHiveApp() {
     val chatViewModel: ChatViewModel = viewModel()
     val auth = Firebase.auth
     val currentUser = auth.currentUser
+
+    // Trigger Android system heads-up notification whenever a new incoming chat message arrives
+    val incomingNotification by chatViewModel.incomingNotificationEvent.collectAsState()
+    LaunchedEffect(incomingNotification) {
+        val conv = incomingNotification
+        if (conv != null) {
+            ChatNotificationHelper.showChatNotification(context, conv)
+            chatViewModel.consumeNotificationEvent()
+        }
+    }
 
     // Start destination is Home if user is signed in, else Login
     val startDestination = if (currentUser != null) Screen.Home.route else Screen.Login.route
@@ -172,7 +188,10 @@ fun CampusHiveApp() {
                         navController.navigate(Screen.Create.route)
                     },
                     onOpenChat = { chatId, studentName, serviceTitle ->
-                        navController.navigate("chat_detail/$chatId/$studentName/$serviceTitle")
+                        val encodedChatId = Uri.encode(chatId)
+                        val encodedName = Uri.encode(studentName.ifBlank { "Student" })
+                        val encodedTitle = Uri.encode(serviceTitle.ifBlank { "Campus Service" })
+                        navController.navigate("chat_detail/$encodedChatId/$encodedName/$encodedTitle")
                     }
                 )
             }
@@ -209,7 +228,10 @@ fun CampusHiveApp() {
                     chatViewModel = chatViewModel,
                     reviewViewModel = reviewViewModel,
                     onChatClick = { chat ->
-                        navController.navigate("chat_detail/${chat.id}/${chat.studentName}/${chat.serviceTitle}") {
+                        val encodedChatId = Uri.encode(chat.id)
+                        val encodedName = Uri.encode(chat.studentName.ifBlank { "Student" })
+                        val encodedTitle = Uri.encode(chat.serviceTitle.ifBlank { "Campus Service" })
+                        navController.navigate("chat_detail/$encodedChatId/$encodedName/$encodedTitle") {
                             launchSingleTop = true
                         }
                     },
@@ -217,7 +239,10 @@ fun CampusHiveApp() {
                         val extractedListingId = chat.listingId.ifBlank {
                             ChatViewModel.extractListingIdFromChatId(chat.id)
                         }
-                        navController.navigate("post_review/${chat.studentName}/${chat.serviceTitle}?listingId=$extractedListingId")
+                        val encodedName = Uri.encode(chat.studentName.ifBlank { "Student Provider" })
+                        val encodedTitle = Uri.encode(chat.serviceTitle.ifBlank { "Campus Service" })
+                        val encodedListingId = Uri.encode(extractedListingId)
+                        navController.navigate("post_review/$encodedName/$encodedTitle?listingId=$encodedListingId")
                     }
                 )
             }
@@ -261,14 +286,15 @@ fun CampusHiveApp() {
                             }
                         }
                     },
-                    onChatClick = { providerName, serviceTitle ->
+                    onChatClick = { providerUid, providerName, serviceTitle ->
                         val activeUser = Firebase.auth.currentUser
                         val activeUid = activeUser?.uid.orEmpty()
                         val activeUserName = activeUser?.displayName?.trim()?.takeIf { it.isNotBlank() }
                             ?: activeUser?.email?.substringBefore("@")?.trim()
                             ?: ""
                         val targetListing = listingViewModel.listings.value.find { it.id == listingId }
-                        val isOwnListing = (activeUid.isNotBlank() && targetListing?.providerUID?.isNotBlank() == true && activeUid == targetListing.providerUID) ||
+                        val realProviderUid = providerUid.ifBlank { targetListing?.providerUid.orEmpty() }
+                        val isOwnListing = (activeUid.isNotBlank() && realProviderUid.isNotBlank() && activeUid == realProviderUid) ||
                             (activeUserName.isNotBlank() && providerName.isNotBlank() && activeUserName.equals(providerName, ignoreCase = true))
 
                         if (isOwnListing) {
@@ -281,11 +307,14 @@ fun CampusHiveApp() {
                             chatViewModel.startConversation(
                                 conversationId = uniqueChatId,
                                 listingId = listingId,
-                                providerUID = targetListing?.providerUID.orEmpty(),
+                                providerUid = realProviderUid,
                                 providerName = providerName,
                                 serviceTitle = serviceTitle
                             )
-                            navController.navigate("chat_detail/$uniqueChatId/$providerName/$serviceTitle") {
+                            val encodedChatId = Uri.encode(uniqueChatId)
+                            val encodedProviderName = Uri.encode(providerName.ifBlank { "Provider" })
+                            val encodedServiceTitle = Uri.encode(serviceTitle.ifBlank { "Campus Service" })
+                            navController.navigate("chat_detail/$encodedChatId/$encodedProviderName/$encodedServiceTitle") {
                                 launchSingleTop = true
                             }
                         }
@@ -317,9 +346,9 @@ fun CampusHiveApp() {
 
             // Chat Detail Destination
             composable("chat_detail/{chatId}/{studentName}/{serviceTitle}") { backStackEntry ->
-                val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
-                val studentName = backStackEntry.arguments?.getString("studentName") ?: "Student"
-                val serviceTitle = backStackEntry.arguments?.getString("serviceTitle") ?: "Campus Service"
+                val chatId = Uri.decode(backStackEntry.arguments?.getString("chatId") ?: "")
+                val studentName = Uri.decode(backStackEntry.arguments?.getString("studentName") ?: "Student")
+                val serviceTitle = Uri.decode(backStackEntry.arguments?.getString("serviceTitle") ?: "Campus Service")
 
                 ChatDetailScreen(
                     chatId = chatId,
@@ -356,9 +385,9 @@ fun CampusHiveApp() {
                     }
                 )
             ) { backStackEntry ->
-                val providerName = backStackEntry.arguments?.getString("providerName") ?: "Student Provider"
-                val serviceTitle = backStackEntry.arguments?.getString("serviceTitle") ?: "Campus Service"
-                val listingId = backStackEntry.arguments?.getString("listingId") ?: ""
+                val providerName = Uri.decode(backStackEntry.arguments?.getString("providerName") ?: "Student Provider")
+                val serviceTitle = Uri.decode(backStackEntry.arguments?.getString("serviceTitle") ?: "Campus Service")
+                val listingId = Uri.decode(backStackEntry.arguments?.getString("listingId") ?: "")
 
                 PostReviewScreen(
                     listingId = listingId,

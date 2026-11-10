@@ -47,6 +47,7 @@ import com.example.campushive.components.ServiceCategoryIconBox
 import com.example.campushive.model.Listing
 import com.example.campushive.ui.theme.*
 import com.example.campushive.viewmodel.ListingViewModel
+import kotlin.time.Duration.Companion.milliseconds
 
 private val priceFilters = listOf("All Prices", "Under RM20", "RM20 - RM50", "RM50+")
 private val categoryFilters = ListingViewModel.CATEGORY_FILTERS
@@ -117,7 +118,7 @@ fun SearchScreen(
                 searchFocusRequester.requestFocus()
                 keyboardController?.show()
             }
-            delay(60)
+            delay(60.milliseconds)
             runCatching {
                 searchFocusRequester.requestFocus()
                 keyboardController?.show()
@@ -165,7 +166,7 @@ fun SearchScreen(
             isRefreshing = true
             scope.launch {
                 listingViewModel.refreshUserListings()
-                delay(800)
+                delay(800.milliseconds)
                 isRefreshing = false
                 Toast.makeText(context, "Search results updated", Toast.LENGTH_SHORT).show()
             }
@@ -179,7 +180,7 @@ fun SearchScreen(
                 .statusBarsPadding()
         ) {
         LazyColumn(
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 90.dp),
+            contentPadding = PaddingValues(start = Spacing.gutter, end = Spacing.gutter, top = Spacing.topInset, bottom = Spacing.bottomBarClearance),
             verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxSize()
         ) {
@@ -188,7 +189,7 @@ fun SearchScreen(
                 Column {
                     Text(
                         text = "Explore Services",
-                        fontSize = 28.sp,
+                        fontSize = 34.sp,
                         fontWeight = FontWeight.Bold,
                         color = Charcoal
                     )
@@ -201,6 +202,7 @@ fun SearchScreen(
                         onValueChange = { searchQuery = it },
                         modifier = Modifier
                             .fillMaxWidth()
+                            .height(52.dp)
                             .graphicsLayer {
                                 scaleX = searchScale
                                 scaleY = searchScale
@@ -215,7 +217,15 @@ fun SearchScreen(
                             .onFocusChanged { focusState ->
                                 isSearchFocused = focusState.isFocused
                             },
-                        placeholder = { Text("Search services, skills, or courses...", fontSize = 14.sp, color = MutedText) },
+                        placeholder = {
+                            Text(
+                                text = "Search services, skills, or courses...",
+                                fontSize = 13.sp,
+                                color = MutedText,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Outlined.Search,
@@ -279,7 +289,7 @@ fun SearchScreen(
                                     containerColor = CardWhite,
                                     labelColor = MutedText
                                 ),
-                                shape = RoundedCornerShape(20.dp),
+                                shape = Radius.Card,
                                 modifier = Modifier.bounceClick(scaleDown = 0.92f)
                             )
                         }
@@ -300,7 +310,7 @@ fun SearchScreen(
                                     containerColor = CardWhite,
                                     labelColor = MutedText
                                 ),
-                                shape = RoundedCornerShape(20.dp),
+                                shape = Radius.Card,
                                 modifier = Modifier.bounceClick(scaleDown = 0.92f)
                             )
                         }
@@ -372,9 +382,9 @@ private fun SearchHorizontalListingBar(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
+            .clip(Radius.Card)
             .bounceClick(scaleDown = 0.97f) { onClick() },
-        shape = RoundedCornerShape(22.dp),
+        shape = Radius.Card,
         colors = CardDefaults.cardColors(containerColor = CardWhite),
         border = BorderStroke(1.dp, Hairline),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -389,7 +399,7 @@ private fun SearchHorizontalListingBar(
             ServiceCategoryIconBox(
                 category = listing.category,
                 size = 52.dp,
-                shape = RoundedCornerShape(16.dp),
+                shape = Radius.Inner,
                 symbolFontSize = 20.sp,
                 iconSize = 24.dp
             )
@@ -404,12 +414,12 @@ private fun SearchHorizontalListingBar(
                 ) {
                     Surface(
                         color = HoneyTint,
-                        shape = RoundedCornerShape(6.dp)
+                        shape = Radius.Tag
                     ) {
                         Text(
                             text = listing.category.uppercase(),
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            fontSize = 9.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = Charcoal
                         )
@@ -491,7 +501,7 @@ private fun SearchHorizontalListingBar(
                         Icon(
                             imageVector = Icons.Filled.Star,
                             contentDescription = null,
-                            tint = Color(0xFFFFB800),
+                            tint = StarGold,
                             modifier = Modifier.size(13.dp)
                         )
                         Spacer(Modifier.width(2.dp))
@@ -510,12 +520,12 @@ private fun SearchHorizontalListingBar(
                 } else {
                     Surface(
                         color = HoneyTint,
-                        shape = RoundedCornerShape(6.dp)
+                        shape = Radius.Tag
                     ) {
                         Text(
                             text = "NEW",
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            fontSize = 9.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = Charcoal
                         )

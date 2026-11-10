@@ -1,8 +1,9 @@
 package com.example.campushive.screen
 
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import com.example.campushive.ui.theme.bounceClick
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,11 +13,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -26,36 +29,49 @@ import com.example.campushive.model.HelpReport
 import com.example.campushive.model.ReportStatus
 import com.example.campushive.model.ReportType
 import com.example.campushive.ui.theme.*
+import com.example.campushive.viewmodel.AuthViewModel
 import com.example.campushive.viewmodel.HelpdeskViewModel
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyReportsScreen(
     helpdeskViewModel: HelpdeskViewModel = viewModel(),
+    authViewModel: AuthViewModel = viewModel(),
     initialModeratorTab: Boolean = false,
     onBackClick: () -> Unit,
     onReportClick: (String) -> Unit,
 ) {
+    val context = LocalContext.current
     val userReports by helpdeskViewModel.userReports.collectAsState()
     val allReports by helpdeskViewModel.allReports.collectAsState()
     val isModeratorMode by helpdeskViewModel.isModeratorMode.collectAsState()
+    val userProfile by authViewModel.userProfile.collectAsState()
+    var isRefreshing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) {
-        helpdeskViewModel.refreshModeratorAccess()
-        helpdeskViewModel.loadAllReports()
+    val isDynamicModerator = userProfile?.isModerator == true || HelpdeskViewModel.isModeratorEmail(Firebase.auth.currentUser?.email)
+
+    LaunchedEffect(userProfile) {
+        helpdeskViewModel.refreshModeratorAccess(userProfile)
+        helpdeskViewModel.loadAllReports(userProfile)
         helpdeskViewModel.loadUserReports()
     }
 
-    var showAllCampusQueue by remember(initialModeratorTab) {
-        mutableStateOf(initialModeratorTab)
+    var showAllCampusQueue by remember(initialModeratorTab, isDynamicModerator) {
+        mutableStateOf(initialModeratorTab && isDynamicModerator)
     }
     var selectedFilter by remember { mutableStateOf("All") }
 
-    val baseReports = if (showAllCampusQueue && isModeratorMode) allReports else userReports
+    val baseReports = if (showAllCampusQueue && isDynamicModerator && isModeratorMode) allReports else userReports
 
-    val filteredReports = remember(baseReports, selectedFilter, showAllCampusQueue, isModeratorMode) {
-        if (!showAllCampusQueue || !isModeratorMode) {
+    val filteredReports = remember(baseReports, selectedFilter, showAllCampusQueue, isModeratorMode, isDynamicModerator) {
+        if (!showAllCampusQueue || !isModeratorMode || !isDynamicModerator) {
             baseReports
         } else {
             when (selectedFilter) {
@@ -70,17 +86,33 @@ fun MyReportsScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(HoneyBottomGradient)
-            .statusBarsPadding()
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = {
+            isRefreshing = true
+            scope.launch {
+                authViewModel.fetchUserProfile()
+                helpdeskViewModel.refreshModeratorAccess(userProfile)
+                helpdeskViewModel.loadAllReports(userProfile)
+                helpdeskViewModel.loadUserReports()
+                delay(800)
+                isRefreshing = false
+                Toast.makeText(context, "Tickets refreshed", Toast.LENGTH_SHORT).show()
+            }
+        },
+        modifier = Modifier.fillMaxSize()
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(HoneyBottomGradient)
+                .statusBarsPadding()
+        ) {
         // Top Header
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 8.dp, end = 8.dp, top = 26.dp, bottom = 8.dp),
+                .padding(start = Spacing.gutter, end = Spacing.gutter, top = Spacing.topInset, bottom = Spacing.sm),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBackClick) {
@@ -96,8 +128,8 @@ fun MyReportsScreen(
 
         HorizontalDivider(color = Hairline)
 
-        // Moderator Segmented Switcher ("My Tickets" vs "All Campus Queue")
-        if (isModeratorMode) {
+        // Moderator Segmented Switcher ("My Tickets" vs "All Campus Queue") - ONLY visible for Platform Moderators
+        if (isDynamicModerator && isModeratorMode) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -105,7 +137,7 @@ fun MyReportsScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = Radius.Inner,
                     color = CardWhite,
                     border = BorderStroke(1.dp, Hairline),
                     modifier = Modifier.fillMaxWidth()
@@ -119,9 +151,9 @@ fun MyReportsScreen(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .clip(RoundedCornerShape(12.dp))
+                                    .clip(Radius.Tile)
                                     .background(if (isSelected) Charcoal else Color.Transparent)
-                                    .clickable { showAllCampusQueue = isQueueTab }
+                                    .bounceClick { showAllCampusQueue = isQueueTab }
                                     .padding(vertical = 8.dp),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -148,10 +180,10 @@ fun MyReportsScreen(
                         filters.forEach { filter ->
                             val selected = selectedFilter == filter
                             Surface(
-                                shape = RoundedCornerShape(20.dp),
+                                shape = Radius.Card,
                                 color = if (selected) Charcoal else CardWhite,
                                 border = BorderStroke(1.dp, if (selected) Charcoal else Hairline),
-                                modifier = Modifier.clickable { selectedFilter = filter }
+                                modifier = Modifier.bounceClick { selectedFilter = filter }
                             ) {
                                 Text(
                                     text = filter,
@@ -211,13 +243,14 @@ fun MyReportsScreen(
                 items(filteredReports) { report ->
                     ReportTicketItem(
                         report = report,
-                        showReporterInfo = showAllCampusQueue && isModeratorMode,
+                        showReporterInfo = showAllCampusQueue && isModeratorMode && isDynamicModerator,
                         onReportClick = onReportClick
                     )
                 }
             }
         }
     }
+}
 }
 
 @Composable
@@ -232,16 +265,16 @@ private fun ReportTicketItem(
     }
 
     val (typeLabel, typeBg, typeColor) = when (report.type) {
-        ReportType.LISTING_FLAG -> Triple("LISTING FLAG", Color(0xFFFFEBEE), Color(0xFFC62828))
-        ReportType.USER_SAFETY -> Triple("USER SAFETY", Color(0xFFFFF3E0), Color(0xFFE65100))
-        ReportType.PROBLEM -> Triple("HELPDESK", Color(0xFFE8EAF6), Color(0xFF283593))
+        ReportType.LISTING_FLAG -> Triple("LISTING FLAG", DangerBg, DangerFg)
+        ReportType.USER_SAFETY -> Triple("USER SAFETY", WarningBgSoft, DangerFg)
+        ReportType.PROBLEM -> Triple("HELPDESK", NeutralBg, Charcoal)
     }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onReportClick(report.reportId) },
-        shape = RoundedCornerShape(16.dp),
+            .bounceClick { onReportClick(report.reportId) },
+        shape = Radius.Inner,
         colors = CardDefaults.cardColors(containerColor = CardWhite),
         border = BorderStroke(1.dp, Hairline)
     ) {
@@ -259,11 +292,11 @@ private fun ReportTicketItem(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Surface(color = typeBg, shape = RoundedCornerShape(6.dp)) {
+                    Surface(color = typeBg, shape = Radius.Tag) {
                         Text(
                             text = typeLabel,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            fontSize = 9.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = typeColor
                         )
@@ -278,16 +311,16 @@ private fun ReportTicketItem(
 
                 val (statusText, bgColor, textColor) = when (report.status) {
                     ReportStatus.OPEN -> Triple("OPEN", HoneyTint, Charcoal)
-                    ReportStatus.UNDER_REVIEW -> Triple("UNDER REVIEW", Color(0xFFFFF3C4), Color(0xFF7A5800))
-                    ReportStatus.RESOLVED -> Triple("RESOLVED", Color(0xFFE3FCEF), Color(0xFF006644))
-                    ReportStatus.CLOSED -> Triple("CLOSED", Color(0xFFF1F2F4), MutedText)
+                    ReportStatus.UNDER_REVIEW -> Triple("UNDER REVIEW", WarningBg, WarningFg)
+                    ReportStatus.RESOLVED -> Triple("RESOLVED", SuccessBgSoft, SuccessFg)
+                    ReportStatus.CLOSED -> Triple("CLOSED", NeutralBg, MutedText)
                 }
 
-                Surface(color = bgColor, shape = RoundedCornerShape(8.dp)) {
+                Surface(color = bgColor, shape = Radius.Tag) {
                     Text(
                         text = statusText,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                        fontSize = 9.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = textColor
                     )
@@ -308,7 +341,7 @@ private fun ReportTicketItem(
                     text = "Target: ${report.targetName}",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF6C5CE7)
+                    color = Charcoal
                 )
             }
 
@@ -325,15 +358,15 @@ private fun ReportTicketItem(
             if (report.moderatorNote.isNotBlank()) {
                 Spacer(Modifier.height(8.dp))
                 Surface(
-                    color = Color(0xFFEBFBF3),
-                    shape = RoundedCornerShape(10.dp),
+                    color = SuccessBg,
+                    shape = Radius.Tile,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
                         text = "Moderator Note: ${report.moderatorNote}",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF006644),
+                        color = SuccessFg,
                         maxLines = 1,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                     )

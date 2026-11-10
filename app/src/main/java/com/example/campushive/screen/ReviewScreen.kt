@@ -3,7 +3,7 @@ package com.example.campushive.screen
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import com.example.campushive.ui.theme.bounceClick
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -52,8 +52,10 @@ fun PostReviewScreen(
             .fillMaxSize()
             .background(HoneyBottomGradient)
             .statusBarsPadding()
+            .navigationBarsPadding()
+            .imePadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 20.dp),
+            .padding(horizontal = Spacing.gutter, vertical = Spacing.lg),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(Modifier.height(30.dp))
@@ -63,13 +65,13 @@ fun PostReviewScreen(
             modifier = Modifier
                 .size(72.dp)
                 .clip(CircleShape)
-                .background(Color(0xFFFFF7DB)),
+                .background(WarningBgSoft),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Filled.Check,
                 contentDescription = null,
-                tint = Color(0xFFD4A017),
+                tint = StarGoldDeep,
                 modifier = Modifier.size(32.dp)
             )
         }
@@ -81,7 +83,7 @@ fun PostReviewScreen(
             text = "SESSION COMPLETE",
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFFD4A017),
+            color = StarGoldDeep,
             letterSpacing = 0.8.sp
         )
 
@@ -115,10 +117,10 @@ fun PostReviewScreen(
                 Icon(
                     imageVector = Icons.Filled.Star,
                     contentDescription = "Star $star",
-                    tint = if (star <= rating) Color(0xFFFFB800) else Hairline,
+                    tint = if (star <= rating) StarGold else Hairline,
                     modifier = Modifier
                         .size(36.dp)
-                        .clickable { rating = star }
+                        .bounceClick { rating = star }
                 )
             }
         }
@@ -134,10 +136,10 @@ fun PostReviewScreen(
             tagOptions.forEach { tag ->
                 val isSelected = selectedTags.contains(tag)
                 Surface(
-                    shape = RoundedCornerShape(20.dp),
+                    shape = Radius.Card,
                     color = if (isSelected) Charcoal else CardWhite,
                     border = if (isSelected) null else BorderStroke(1.dp, Hairline),
-                    modifier = Modifier.clickable {
+                    modifier = Modifier.bounceClick {
                         if (isSelected) selectedTags.remove(tag) else selectedTags.add(tag)
                     }
                 ) {
@@ -157,7 +159,7 @@ fun PostReviewScreen(
         // YOUR REVIEW Card Box
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
+            shape = Radius.Card,
             colors = CardDefaults.cardColors(containerColor = CardWhite),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
@@ -223,7 +225,7 @@ fun PostReviewScreen(
                 }
             },
             enabled = !isSubmitting,
-            shape = RoundedCornerShape(50),
+            shape = Radius.Pill,
             colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
             contentPadding = PaddingValues(horizontal = 32.dp, vertical = 14.dp),
             modifier = Modifier.fillMaxWidth()
@@ -251,7 +253,7 @@ fun PostReviewScreen(
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
             color = Charcoal,
-            modifier = Modifier.clickable { onBackClick() }
+            modifier = Modifier.bounceClick { onBackClick() }
         )
 
         Spacer(Modifier.height(40.dp))

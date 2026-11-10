@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Status-bar notification icon.
+
+  Must be a solid white silhouette on transparent: Android masks it and tints it
+  itself. Using the full-colour app logo (or android.R.drawable.*) here is what
+  makes heads-up notifications render as a grey blob instead of CampusHive branding.
+
+  Shape: a rounded speech bubble (the "hive" chat), matching the chat affordance
+  used throughout the app. Kept to simple geometry so it stays legible at 24dp.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#FFFFFF">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,3C7.03,3 3,6.36 3,10.5c0,2.38 1.36,4.5 3.48,5.87L6,20.5l4.1,-2.19c0.62,0.12 1.26,0.19 1.9,0.19 4.97,0 9,-3.36 9,-7.5S16.97,3 12,3z" />
+    <path
+        android:fillColor="#000000"
+        android:pathData="M7.75,10.5m-1.25,0a1.25,1.25 0,1 1,2.5 0a1.25,1.25 0,1 1,-2.5 0" />
+    <path
+        android:fillColor="#000000"
+        android:pathData="M12,10.5m-1.25,0a1.25,1.25 0,1 1,2.5 0a1.25,1.25 0,1 1,-2.5 0" />
+    <path
+        android:fillColor="#000000"
+        android:pathData="M16.25,10.5m-1.25,0a1.25,1.25 0,1 1,2.5 0a1.25,1.25 0,1 1,-2.5 0" />
+</vector>

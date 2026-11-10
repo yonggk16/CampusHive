@@ -2,7 +2,7 @@ package com.example.campushive.components
 
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
+import com.example.campushive.ui.theme.bounceClick
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -47,7 +47,7 @@ fun ReviewDialog(
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .imePadding(),
-            shape = RoundedCornerShape(24.dp),
+            shape = Radius.Card,
             colors = CardDefaults.cardColors(containerColor = CardWhite)
         ) {
             Column(
@@ -86,10 +86,10 @@ fun ReviewDialog(
                         Icon(
                             imageVector = Icons.Filled.Star,
                             contentDescription = "Star $star",
-                            tint = if (star <= rating) Color(0xFFFFB800) else Hairline,
+                            tint = if (star <= rating) StarGold else Hairline,
                             modifier = Modifier
                                 .size(32.dp)
-                                .clickable { rating = star }
+                                .bounceClick { rating = star }
                         )
                     }
                 }
@@ -104,11 +104,11 @@ fun ReviewDialog(
                     tagOptions.forEach { tag ->
                         val isSelected = selectedTags.contains(tag)
                         Surface(
-                            shape = RoundedCornerShape(20.dp),
+                            shape = Radius.Card,
                             color = if (isSelected) Charcoal else CardWhite,
                             contentColor = if (isSelected) CardWhite else Charcoal,
                             border = if (isSelected) null else BorderStroke(1.dp, Hairline),
-                            modifier = Modifier.clickable {
+                            modifier = Modifier.bounceClick {
                                 if (isSelected) selectedTags.remove(tag) else selectedTags.add(tag)
                             }
                         ) {
@@ -128,7 +128,7 @@ fun ReviewDialog(
                 // Review Comment Box
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = Radius.Inner,
                     colors = CardDefaults.cardColors(containerColor = Cream),
                     border = BorderStroke(1.dp, Hairline)
                 ) {
@@ -189,7 +189,7 @@ fun ReviewDialog(
                     enabled = !isSubmitting,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = Radius.Tile
                 ) {
                     if (isSubmitting) {
                         CircularProgressIndicator(

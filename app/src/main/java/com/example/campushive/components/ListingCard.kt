@@ -1,7 +1,7 @@
 package com.example.campushive.components
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
+import com.example.campushive.ui.theme.bounceClick
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -30,9 +30,9 @@ fun ListingCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
+            .clip(Radius.Inner)
+            .bounceClick(onClick = onClick),
+        shape = Radius.Inner,
         colors = CardDefaults.cardColors(containerColor = CardWhite),
         border = BorderStroke(1.dp, Hairline),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -45,7 +45,7 @@ fun ListingCard(
                 ServiceCategoryIconBox(
                     category = listing.category,
                     size = 46.dp,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = Radius.Inner,
                     symbolFontSize = 18.sp,
                     iconSize = 22.dp
                 )
@@ -60,12 +60,12 @@ fun ListingCard(
                     ) {
                         Surface(
                             color = HoneyTint,
-                            shape = RoundedCornerShape(6.dp)
+                            shape = Radius.Tag
                         ) {
                             Text(
                                 text = listing.category.uppercase(),
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                fontSize = 9.sp,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Charcoal
                             )
@@ -75,7 +75,7 @@ fun ListingCard(
                             Icon(
                                 imageVector = Icons.Filled.Star,
                                 contentDescription = "Rating",
-                                tint = if (listing.reviewCount > 0) Color(0xFFFFB800) else MutedText,
+                                tint = if (listing.reviewCount > 0) StarGold else MutedText,
                                 modifier = Modifier.size(13.dp)
                             )
                             Spacer(Modifier.width(2.dp))

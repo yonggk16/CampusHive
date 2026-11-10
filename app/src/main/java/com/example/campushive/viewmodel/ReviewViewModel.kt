@@ -51,8 +51,8 @@ class ReviewViewModel(
     /**
      * Connects real-time Firestore stream of reviews for a specific provider
      */
-    fun loadReviewsForProvider(providerUID: String = "") {
-        val currentUid = providerUID.ifBlank { Firebase.auth.currentUser?.uid.orEmpty() }
+    fun loadReviewsForProvider(providerUid: String = "") {
+        val currentUid = providerUid.ifBlank { Firebase.auth.currentUser?.uid.orEmpty() }
         if (currentUid.isBlank()) {
             _providerReviews.value = emptyList()
             return
@@ -74,7 +74,7 @@ class ReviewViewModel(
      */
     fun submitReview(
         listingId: String = "",
-        providerUID: String = "",
+        providerUid: String = "",
         providerName: String = "Student Provider",
         serviceTitle: String = "Campus Service",
         rating: Int = 5,
@@ -86,14 +86,14 @@ class ReviewViewModel(
         _isSubmitting.value = true
 
         val currentUser = Firebase.auth.currentUser
-        val reviewerUID = currentUser?.uid ?: "usr_reviewer"
+        val reviewerUid = currentUser?.uid ?: "usr_reviewer"
         val reviewerName = currentUser?.displayName.orEmpty().ifBlank { "Student Reviewer" }
 
         val newReview = Review(
             listingId = listingId,
-            providerUID = providerUID,
+            providerUid = providerUid,
             providerName = providerName,
-            reviewerUID = reviewerUID,
+            reviewerUid = reviewerUid,
             reviewerName = reviewerName,
             serviceTitle = serviceTitle,
             rating = rating.toDouble(),
