@@ -42,6 +42,12 @@
   * **Cloud Firestore** (Real-time NoSQL document & subcollection synchronization)
 
 ---
+---
+## USER FLOW
+
+<img width="548" height="541" alt="image" src="https://github.com/user-attachments/assets/ffacc178-bad1-451e-bb3d-e01f28be09b2" />
+
+---
 
 ## Project Structure
 
@@ -101,138 +107,8 @@ com.example.campushive/
 
 CampusHive uses 5 top-level collections (`users`, `listings`, `conversations`, `reviews`, `reports`) and 1 nested subcollection (`conversations/{conversationId}/messages`).
 
-```mermaid
-%%{init: {
-  'theme': 'base',
-  'er': {
-    'layoutDirection': 'LR',
-    'entityPadding': 16,
-    'stroke': '#315A7D',
-    'fill': '#EAF2F8',
-    'fontSize': 13
-  },
-  'themeVariables': {
-    'background': '#FFFFFF',
-    'primaryColor': '#EAF2F8',
-    'primaryTextColor': '#172B4D',
-    'primaryBorderColor': '#315A7D',
-    'lineColor': '#FFFFFF',
-    'secondaryColor': '#F1F5F9',
-    'tertiaryColor': '#FFFFFF',
-    'mainBkg': '#FFFFFF',
-    'textColor': '#172B4D',
-    'entityBkg': '#EAF2F8',
-    'entityBorder': '#315A7D',
-    'attributeBackgroundColorOdd': '#FFFFFF',
-    'attributeBackgroundColorEven': '#F1F5F9',
-    'fontFamily': 'Helvetica, Arial, sans-serif',
-    'fontSize': '13px'
-  }
-}}%%
-erDiagram
-    USER {
-        string uid PK "Firebase Auth UID"
-        string displayName
-        string email
-        string bio
-        string campusLocation
-        string facultyOrMajor
-        string phoneNumber
-        boolean isVerifiedStudent
-        boolean isModerator
-        timestamp createdAt
-        boolean isOnline
-        timestamp lastSeen
-    }
+<img width="790" height="547" alt="image" src="https://github.com/user-attachments/assets/05bd8e91-7e0a-4b75-98c4-3b8737696d86" />
 
-    LISTING {
-        string listingId PK
-        string providerUID FK
-        string providerName
-        string title
-        string category
-        number price
-        string pricingType "PER_HOUR or FIXED"
-        number rating
-        integer reviewCount
-        string campusLocation
-        string description
-        string coverImageUrl
-        string status "ACTIVE, INACTIVE, DELETED"
-        boolean isVerifiedStudent
-        timestamp createdAt
-    }
-
-    REVIEW {
-        string reviewId PK
-        string listingId FK
-        string providerUID FK
-        string providerName
-        string reviewerUID FK
-        string reviewerName
-        string serviceTitle
-        number rating
-        string comment
-        array tags
-        timestamp createdAt
-    }
-
-    REPORT {
-        string reportId PK
-        string reporterUid FK
-        string reporterName
-        string type "PROBLEM, USER_SAFETY, LISTING_FLAG"
-        string category
-        string targetId "Polymorphic target; not an enforced FK"
-        string targetName
-        string description
-        string status "OPEN, UNDER_REVIEW, RESOLVED, CLOSED"
-        string moderatorNote
-        string resolvedBy
-        timestamp createdAt
-    }
-
-    CONVERSATION {
-        string conversationId PK
-        string listingId FK
-        string seekerUid FK
-        string seekerName
-        string providerUID FK
-        string providerName
-        string serviceTitle
-        string lastMessage
-        timestamp lasttimestamp
-        integer unreadCount
-        boolean isVerifiedStudent
-    }
-
-    MESSAGE {
-        string messageId PK
-        string conversationId FK
-        string senderUid FK
-        string senderName
-        string senderRole "SEEKER or PROVIDER"
-        string text
-        string attachmentType
-        string attachmentName
-        string attachmentSize
-        string attachmentBase64
-        boolean isEdited
-        boolean isDeleted
-        timestamp timestamp
-    }
-
-    USER ||--o{ LISTING : provides
-    USER ||--o{ REVIEW : writes
-    USER ||--o{ REVIEW : receives
-    LISTING ||--o{ REVIEW : receives
-    USER ||--o{ REPORT : submits
-    USER ||--o{ CONVERSATION : seeks
-    USER ||--o{ CONVERSATION : provides
-    LISTING ||--o{ CONVERSATION : is_about
-    CONVERSATION ||--o{ MESSAGE : contains
-    USER ||--o{ MESSAGE : sends
-```
 
 ---
 
