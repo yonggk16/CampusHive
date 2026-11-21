@@ -12,8 +12,8 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
 
 /**
- * Apple Design Principle: Instant physical response on pointer-down.
- * Provides a fluid spring scale-down effect when an interactive element is pressed.
+ * Snappy, lightweight press-scale modifier.
+ * Uses a high-stiffness, low-overshoot spring so taps feel immediate without lingering tail frames.
  */
 fun Modifier.bounceClick(
     scaleDown: Float = 0.96f,
@@ -25,16 +25,18 @@ fun Modifier.bounceClick(
     val scale by animateFloatAsState(
         targetValue = if (isPressed) scaleDown else 1f,
         animationSpec = spring(
-            dampingRatio = 0.75f, // Apple momentum damping
-            stiffness = 450f     // Quick response
+            dampingRatio = 0.85f,
+            stiffness = 750f
         ),
         label = "bounceScale"
     )
 
     this
         .graphicsLayer {
-            scaleX = scale
-            scaleY = scale
+            if (scale != 1f) {
+                scaleX = scale
+                scaleY = scale
+            }
         }
         .then(
             if (onClick != null) {

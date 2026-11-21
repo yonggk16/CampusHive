@@ -17,7 +17,11 @@ import androidx.compose.material.icons.automirrored.outlined.ExitToApp
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Favorite
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.MarkEmailUnread
 import androidx.compose.material.icons.outlined.PauseCircle
@@ -47,6 +51,7 @@ import com.example.campushive.components.EditProfileDialog
 import com.example.campushive.components.ServiceCategoryIconBox
 import com.example.campushive.model.Listing
 import com.example.campushive.ui.theme.*
+import com.example.campushive.util.FavoritesStore
 import com.example.campushive.viewmodel.AuthUiState
 import com.example.campushive.viewmodel.AuthViewModel
 import com.example.campushive.viewmodel.ListingViewModel
@@ -62,6 +67,7 @@ fun ProfileScreen(
     reviewViewModel: ReviewViewModel = viewModel(),
     onHelpdeskClick: () -> Unit = {},
     onCreateServiceClick: () -> Unit = {},
+    onListingClick: (Listing) -> Unit = {},
     onSignOutClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -72,7 +78,6 @@ fun ProfileScreen(
 
     val displayName = userProfile?.displayName?.ifBlank { currentUser?.displayName ?: "ken" } ?: "ken"
     val email = userProfile?.email?.ifBlank { currentUser?.email ?: "yonggk07@gmail.com" } ?: "yonggk07@gmail.com"
-    val bio = userProfile?.bio ?: "CampusHive Member"
     val campus = userProfile?.campusLocation ?: "HELP University S2"
     val major = userProfile?.facultyOrMajor ?: "General Student"
     val phone = userProfile?.phoneNumber ?: ""
@@ -82,9 +87,19 @@ fun ProfileScreen(
 
     val providerReviews by reviewViewModel.providerReviews.collectAsState()
     val myListings by listingViewModel.myListings.collectAsState()
+    val allLiveListings by listingViewModel.listings.collectAsState()
+    val savedIds by FavoritesStore.savedIds.collectAsState()
 
     var selectedReviewType by remember { mutableStateOf("Received") }
     val currentUid = currentUser?.uid ?: ""
+
+    LaunchedEffect(currentUid) {
+        FavoritesStore.load(context, currentUid)
+    }
+
+    val savedListings = remember(allLiveListings, savedIds) {
+        allLiveListings.filter { savedIds.contains(it.id) }
+    }
 
     val reviewsReceived = remember(providerReviews, currentUid, displayName) {
         providerReviews.filter {
@@ -104,12 +119,19 @@ fun ProfileScreen(
     var editingListing by remember { mutableStateOf<Listing?>(null) }
     var showEditProfileDialog by remember { mutableStateOf(false) }
     var showSignOutConfirmDialog by remember { mutableStateOf(false) }
+    var showAppearanceDialog by remember { mutableStateOf(false) }
 
-    // Fetch latest user profile, user's own listings, and user's own reviews on load/login
+    // Fetch user profile, listings, and reviews only if not yet populated (pull-to-refresh forces reload)
     LaunchedEffect(currentUser?.uid) {
-        authViewModel.fetchUserProfile()
-        listingViewModel.refreshUserListings()
-        reviewViewModel.loadReviewsForProvider(currentUser?.uid.orEmpty())
+        if (userProfile == null) {
+            authViewModel.fetchUserProfile()
+        }
+        if (myListings.isEmpty()) {
+            listingViewModel.refreshUserListings()
+        }
+        if (providerReviews.isEmpty()) {
+            reviewViewModel.loadReviewsForProvider(currentUser?.uid.orEmpty())
+        }
     }
 
     // Toast listener for AuthUiState
@@ -239,6 +261,71 @@ fun ProfileScreen(
         )
     }
 
+    if (showAppearanceDialog) {
+        AlertDialog(
+            onDismissRequest = { showAppearanceDialog = false },
+            title = {
+                Text(
+                    text = "Appearance",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = Charcoal
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Choose how CampusHive looks on your device.",
+                        fontSize = 12.sp,
+                        color = MutedText
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    ThemePreference.entries.forEach { option ->
+                        val selected = CampusThemeState.preference == option
+                        Surface(
+                            shape = Radius.Inner,
+                            color = if (selected) HoneyTint else CreamTint,
+                            border = BorderStroke(1.dp, if (selected) Charcoal else Hairline),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .bounceClick {
+                                    CampusThemeState.setPreference(context, option)
+                                    showAppearanceDialog = false
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = option.label,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                    fontSize = 14.sp,
+                                    color = Charcoal
+                                )
+                                RadioButton(
+                                    selected = selected,
+                                    onClick = null,
+                                    colors = RadioButtonDefaults.colors(selectedColor = Charcoal, unselectedColor = MutedText)
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAppearanceDialog = false }) {
+                    Text("Close", fontWeight = FontWeight.Bold, color = Charcoal)
+                }
+            },
+            containerColor = CardWhite,
+            shape = Radius.Card
+        )
+    }
+
     var isRefreshing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
@@ -262,316 +349,334 @@ fun ProfileScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(HoneyBottomGradient)
-                .statusBarsPadding()
-                .verticalScroll(rememberScrollState())
-                .padding(start = Spacing.gutter, end = Spacing.gutter, top = Spacing.topInset, bottom = Spacing.bottomBarClearance)
         ) {
-        // Top Header (Title + Settings Icon)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Profile",
-                fontSize = 34.sp,
-                fontWeight = FontWeight.Bold,
-                color = Charcoal
-            )
-
-            IconButton(
-                onClick = {
-                    Toast.makeText(context, "Settings feature coming in future update!", Toast.LENGTH_SHORT).show()
-                },
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(CardWhite)
-                    .border(BorderStroke(1.dp, Hairline), CircleShape)
-                    .bounceClick(scaleDown = 0.90f)
+            // Unified Curved White Top Header (26.sp Title + Settings)
+            Surface(
+                color = CardWhite,
+                border = BorderStroke(1.dp, Hairline),
+                shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.Settings,
-                    contentDescription = "Settings",
-                    tint = Charcoal,
-                    modifier = Modifier.size(20.dp)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = Spacing.gutter, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Profile",
+                        fontSize = 31.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Charcoal,
+                        letterSpacing = (-0.5).sp
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(CreamTint)
+                            .bounceClick(scaleDown = 0.90f) { showAppearanceDialog = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Settings,
+                            contentDescription = "Settings",
+                            tint = Charcoal,
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
+                }
             }
-        }
 
-        Spacer(Modifier.height(16.dp))
-
-        // Profile Header Card (Matching New Image Layout)
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = Radius.Card,
-            colors = CardDefaults.cardColors(containerColor = CardWhite),
-            border = BorderStroke(1.dp, Hairline)
-        ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp)
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(
+                        start = Spacing.gutter,
+                        end = Spacing.gutter,
+                        top = 16.dp
+                    )
             ) {
-                // Left Avatar + Right Student Info Stack
-                Row(
+                // Polished Profile Identity Card
+                Card(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(containerColor = CardWhite),
+                    border = BorderStroke(1.dp, Hairline),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
-                    // Avatar Circle
-                    Box(
+                    Column(
                         modifier = Modifier
-                            .size(72.dp)
-                            .clip(CircleShape)
-                            .background(HoneyTint)
-                            .border(BorderStroke(1.5.dp, AvatarOutline), CircleShape),
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth()
+                            .padding(18.dp)
                     ) {
-                        Text(
-                            text = initials,
-                            fontSize = 26.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Charcoal
-                        )
-                    }
-
-                    Spacer(Modifier.width(16.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = displayName,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Charcoal
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            if (isVerified) {
-                                Icon(
-                                    imageVector = Icons.Filled.CheckCircle,
-                                    contentDescription = "Campus Verified",
-                                    tint = Charcoal,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-
-                        Text(
-                            text = email,
-                            fontSize = 12.sp,
-                            color = MutedText,
-                            modifier = Modifier.padding(top = 2.dp)
-                        )
-
-                        if (bio.isNotBlank()) {
-                            Spacer(Modifier.height(6.dp))
-                            Surface(
-                                color = HoneyTint,
-                                shape = Radius.Tile
+                        // Avatar + Name / Verified / Email
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .clip(CircleShape)
+                                    .background(HoneyTint)
+                                    .border(BorderStroke(1.5.dp, AvatarOutline), CircleShape),
+                                contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = bio,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                    fontSize = 11.sp,
+                                    text = initials,
+                                    fontSize = 24.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Charcoal
                                 )
                             }
+
+                            Spacer(Modifier.width(14.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = displayName,
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Charcoal
+                                    )
+                                    if (isVerified) {
+                                        Spacer(Modifier.width(6.dp))
+                                        Icon(
+                                            imageVector = Icons.Filled.CheckCircle,
+                                            contentDescription = "Campus Verified",
+                                            tint = Charcoal,
+                                            modifier = Modifier.size(17.dp)
+                                        )
+                                    }
+                                }
+
+                                Text(
+                                    text = email,
+                                    fontSize = 12.sp,
+                                    color = MutedText,
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+                            }
                         }
-                    }
-                }
 
-                Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(14.dp))
 
-                // Location & Major Info Pills (Stacked Vertically)
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Surface(
-                        shape = Radius.Card,
-                        color = CardWhite,
-                        border = BorderStroke(1.dp, Hairline)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        // Location, Major & Phone Pills (wrapped cleanly side-by-side)
+                        @OptIn(ExperimentalLayoutApi::class)
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(
-                                Icons.Outlined.LocationOn,
-                                contentDescription = null,
-                                tint = Charcoal,
-                                modifier = Modifier.size(15.dp)
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                campus,
-                                fontSize = 12.sp,
-                                color = Charcoal,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = Cream,
+                                border = BorderStroke(1.dp, Hairline)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Outlined.LocationOn,
+                                        contentDescription = null,
+                                        tint = MutedText,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(Modifier.width(5.dp))
+                                    Text(
+                                        campus,
+                                        fontSize = 12.sp,
+                                        color = Charcoal,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
 
-                    Surface(
-                        shape = Radius.Card,
-                        color = CardWhite,
-                        border = BorderStroke(1.dp, Hairline)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Outlined.School,
-                                contentDescription = null,
-                                tint = Charcoal,
-                                modifier = Modifier.size(15.dp)
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                major,
-                                fontSize = 12.sp,
-                                color = Charcoal,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = Cream,
+                                border = BorderStroke(1.dp, Hairline)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Outlined.School,
+                                        contentDescription = null,
+                                        tint = MutedText,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(Modifier.width(5.dp))
+                                    Text(
+                                        major,
+                                        fontSize = 12.sp,
+                                        color = Charcoal,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
 
-                    if (phone.isNotBlank()) {
+                            if (phone.isNotBlank()) {
+                                Surface(
+                                    shape = RoundedCornerShape(50),
+                                    color = HoneyTint,
+                                    border = BorderStroke(1.dp, Hairline)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            Icons.Outlined.Phone,
+                                            contentDescription = null,
+                                            tint = Charcoal,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                        Spacer(Modifier.width(5.dp))
+                                        Text(
+                                            phone,
+                                            fontSize = 12.sp,
+                                            color = Charcoal,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(Modifier.height(14.dp))
+
+                        // Cream-tinted Inner Stats Bar
                         Surface(
-                            shape = Radius.Card,
-                            color = HoneyTint,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            color = Cream,
                             border = BorderStroke(1.dp, Hairline)
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 12.dp),
+                                horizontalArrangement = Arrangement.SpaceEvenly,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            Icons.Filled.Star,
+                                            contentDescription = null,
+                                            tint = if (reviewsReceived.isNotEmpty()) StarGold else MutedText,
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                        Spacer(Modifier.width(3.dp))
+                                        Text(
+                                            text = if (reviewsReceived.isNotEmpty()) "%.1f".format(averageRating) else "0.0",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 17.sp,
+                                            color = Charcoal
+                                        )
+                                    }
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        "RATING",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MutedText,
+                                        letterSpacing = 0.5.sp
+                                    )
+                                }
+
+                                VerticalDivider(
+                                    modifier = Modifier.height(28.dp),
+                                    thickness = 1.dp,
+                                    color = Hairline
+                                )
+
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        jobsDoneCount.toString(),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 17.sp,
+                                        color = Charcoal
+                                    )
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        "JOBS LISTED",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MutedText,
+                                        letterSpacing = 0.5.sp
+                                    )
+                                }
+
+                                VerticalDivider(
+                                    modifier = Modifier.height(28.dp),
+                                    thickness = 1.dp,
+                                    color = Hairline
+                                )
+
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        totalReviewCount.toString(),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 17.sp,
+                                        color = Charcoal
+                                    )
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        "REVIEWS",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MutedText,
+                                        letterSpacing = 0.5.sp
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(Modifier.height(14.dp))
+
+                        // Edit Profile Button
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = CreamTint,
+                            border = BorderStroke(1.dp, Hairline),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp)
+                                .bounceClick(scaleDown = 0.97f) { showEditProfileDialog = true }
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxSize(),
+                                horizontalArrangement = Arrangement.Center,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
-                                    Icons.Outlined.Phone,
+                                    Icons.Outlined.Edit,
                                     contentDescription = null,
                                     tint = Charcoal,
                                     modifier = Modifier.size(15.dp)
                                 )
                                 Spacer(Modifier.width(6.dp))
                                 Text(
-                                    phone,
-                                    fontSize = 12.sp,
-                                    color = Charcoal,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(Modifier.height(16.dp))
-
-                // Stats Row Card Box
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = Radius.Inner,
-                    color = CardWhite,
-                    border = BorderStroke(1.dp, Hairline)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 14.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    Icons.Filled.Star,
-                                    contentDescription = null,
-                                    tint = Charcoal,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(Modifier.width(2.dp))
-                                Text(
-                                    text = if (reviewsReceived.isNotEmpty()) "%.1f".format(averageRating) else "0.0",
+                                    "Edit profile",
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 18.sp,
                                     color = Charcoal
                                 )
                             }
-                            Text(
-                                "RATING",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Charcoal
-                            )
-                        }
-
-                        VerticalDivider(
-                            modifier = Modifier.height(32.dp),
-                            thickness = 2.dp,
-                            color = Hairline
-                        )
-
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                jobsDoneCount.toString(),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp,
-                                color = Charcoal
-                            )
-                            Text(
-                                "JOBS LISTED",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Charcoal
-                            )
-                        }
-
-                        VerticalDivider(
-                            modifier = Modifier.height(32.dp),
-                            thickness = 2.dp,
-                            color = Hairline
-                        )
-
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                totalReviewCount.toString(),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp,
-                                color = Charcoal
-                            )
-                            Text(
-                                "REVIEWS",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Charcoal
-                            )
                         }
                     }
                 }
-
-                Spacer(Modifier.height(16.dp))
-
-                // Edit Profile Details Button
-                OutlinedButton(
-                    onClick = { showEditProfileDialog = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = Radius.Tile,
-                    border = BorderStroke(1.dp, Hairline)
-                ) {
-                    Icon(
-                        Icons.Outlined.Edit,
-                        contentDescription = null,
-                        tint = Charcoal,
-                        modifier = Modifier.size(15.dp)
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        "Edit profile",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Charcoal
-                    )
-                }
-            }
-        }
 
         // Email Verification Alert Banner (shown when email is unverified)
         if (!isVerified) {
@@ -657,7 +762,7 @@ fun ProfileScreen(
 
         Spacer(Modifier.height(20.dp))
 
-        // Segmented Tabs: My listings | Reviews
+        // Segmented Tabs: My listings | Saved | Reviews
         Surface(
             shape = Radius.Card,
             color = CardWhite,
@@ -665,22 +770,23 @@ fun ProfileScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(modifier = Modifier.padding(4.dp)) {
-                listOf("My listings", "Reviews").forEach { tab ->
+                listOf("My listings", "Saved", "Reviews").forEach { tab ->
                     val isSelected = selectedTab == tab
+                    val tabLabel = if (tab == "Saved" && savedListings.isNotEmpty()) "Saved (${savedListings.size})" else tab
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .clip(Radius.Inner)
-                            .background(if (isSelected) Charcoal else Color.Transparent)
+                            .background(if (isSelected) Honey else Color.Transparent)
                             .bounceClick { selectedTab = tab }
                             .padding(vertical = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = tab,
-                            fontSize = 13.sp,
+                            text = tabLabel,
+                            fontSize = 12.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) CardWhite else Charcoal
+                            color = if (isSelected) OnHoneyAccent else Charcoal
                         )
                     }
                 }
@@ -792,9 +898,10 @@ fun ProfileScreen(
                         val isActive = listing.status == "ACTIVE"
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = Radius.Inner,
+                            shape = RoundedCornerShape(18.dp),
                             colors = CardDefaults.cardColors(containerColor = CardWhite),
-                            border = BorderStroke(1.dp, Hairline)
+                            border = BorderStroke(1.dp, Hairline),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                         ) {
                             Column(modifier = Modifier.padding(14.dp)) {
                                 Row(
@@ -803,8 +910,8 @@ fun ProfileScreen(
                                 ) {
                                     ServiceCategoryIconBox(
                                         category = listing.category,
-                                        size = 42.dp,
-                                        shape = Radius.Tile,
+                                        size = 44.dp,
+                                        shape = RoundedCornerShape(12.dp),
                                         symbolFontSize = 16.sp,
                                         iconSize = 20.dp
                                     )
@@ -824,34 +931,64 @@ fun ProfileScreen(
                                                 Text(
                                                     text = listing.category.uppercase(),
                                                     modifier = Modifier.padding(
-                                                        horizontal = 6.dp,
+                                                        horizontal = 7.dp,
                                                         vertical = 2.dp
                                                     ),
-                                                    fontSize = 11.sp,
+                                                    fontSize = 10.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = Charcoal
+                                                    color = Charcoal,
+                                                    letterSpacing = 0.4.sp
                                                 )
                                             }
 
-                                            Text(
-                                                text = if (isActive) "• Active" else "• Paused",
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = if (isActive) VerifiedGreen else DangerFg
-                                            )
+                                            // Semantic Status Pill (Active / Paused)
+                                            Surface(
+                                                color = if (isActive) SuccessBg else NeutralBg,
+                                                shape = RoundedCornerShape(50),
+                                                border = BorderStroke(
+                                                    1.dp,
+                                                    if (isActive) SuccessBorder else Hairline
+                                                )
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.padding(
+                                                        horizontal = 8.dp,
+                                                        vertical = 3.dp
+                                                    ),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                                ) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(6.dp)
+                                                            .clip(CircleShape)
+                                                            .background(
+                                                                if (isActive) OnlineGreen else MutedText
+                                                            )
+                                                    )
+                                                    Text(
+                                                        text = if (isActive) "Active" else "Paused",
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = if (isActive) SuccessFg else MutedText
+                                                    )
+                                                }
+                                            }
                                         }
 
-                                        Spacer(Modifier.height(4.dp))
+                                        Spacer(Modifier.height(5.dp))
 
                                         Text(
                                             text = listing.title,
                                             fontWeight = FontWeight.Bold,
-                                            fontSize = 14.sp,
-                                            color = Charcoal
+                                            fontSize = 15.sp,
+                                            color = if (isActive) Charcoal else MutedText
                                         )
                                     }
                                 }
 
+                                Spacer(Modifier.height(12.dp))
+                                HorizontalDivider(thickness = 0.8.dp, color = Hairline)
                                 Spacer(Modifier.height(10.dp))
 
                                 Row(
@@ -862,57 +999,204 @@ fun ProfileScreen(
                                     Text(
                                         text = "RM ${"%.0f".format(listing.price)} ${listing.pricingType.shortLabel}",
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 13.sp,
-                                        color = Charcoal
+                                        fontSize = 14.sp,
+                                        color = if (isActive) Charcoal else MutedText
                                     )
 
-                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        // Pause / Resume Toggle
-                                        IconButton(
-                                            onClick = {
-                                                listingViewModel.toggleListingStatus(listing.id)
-                                            },
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        // Clean Pause / Resume Action Button
+                                        Surface(
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = if (isActive) Cream else SuccessBg,
+                                            border = BorderStroke(
+                                                1.dp,
+                                                if (isActive) Hairline else SuccessBorder
+                                            ),
                                             modifier = Modifier
-                                                .size(32.dp)
-                                                .clip(CircleShape)
-                                                .background(Cream)
+                                                .height(34.dp)
+                                                .bounceClick(scaleDown = 0.94f) {
+                                                    listingViewModel.toggleListingStatus(listing.id)
+                                                }
                                         ) {
-                                            Icon(
-                                                imageVector = if (isActive) Icons.Outlined.PauseCircle else Icons.Outlined.PlayCircle,
-                                                contentDescription = if (isActive) "Pause" else "Activate",
-                                                tint = Charcoal,
-                                                modifier = Modifier.size(18.dp)
-                                            )
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 11.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (isActive) Icons.Outlined.PauseCircle else Icons.Outlined.PlayCircle,
+                                                    contentDescription = if (isActive) "Pause listing" else "Resume listing",
+                                                    tint = if (isActive) Charcoal else SuccessFg,
+                                                    modifier = Modifier.size(15.dp)
+                                                )
+                                                Text(
+                                                    text = if (isActive) "Pause" else "Resume",
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    fontSize = 12.sp,
+                                                    color = if (isActive) Charcoal else SuccessFg
+                                                )
+                                            }
                                         }
 
-                                        // Edit Button
-                                        Button(
-                                            onClick = { editingListing = listing },
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = Charcoal,
-                                                contentColor = CardWhite
-                                            ),
-                                            shape = Radius.Tile,
-                                            contentPadding = PaddingValues(
-                                                horizontal = 12.dp,
-                                                vertical = 4.dp
-                                            )
+                                        // Matching Primary Edit Action Button
+                                        Surface(
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = Honey,
+                                            modifier = Modifier
+                                                .height(34.dp)
+                                                .bounceClick(scaleDown = 0.94f) {
+                                                    editingListing = listing
+                                                }
                                         ) {
-                                            Icon(
-                                                Icons.Outlined.Edit,
-                                                contentDescription = "Edit",
-                                                tint = CardWhite,
-                                                modifier = Modifier.size(13.dp)
-                                            )
-                                            Spacer(Modifier.width(4.dp))
-                                            Text(
-                                                "EDIT",
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 11.sp,
-                                                color = CardWhite
-                                            )
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 12.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Outlined.Edit,
+                                                    contentDescription = "Edit listing",
+                                                    tint = OnHoneyAccent,
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                                Text(
+                                                    text = "Edit",
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    fontSize = 12.sp,
+                                                    color = OnHoneyAccent
+                                                )
+                                            }
                                         }
                                     }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } else if (selectedTab == "Saved") {
+            if (savedListings.isEmpty()) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = Radius.Card,
+                    color = CardWhite,
+                    border = BorderStroke(1.dp, Hairline)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(HoneyTint)
+                                .border(BorderStroke(1.5.dp, AvatarOutline), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.FavoriteBorder,
+                                contentDescription = null,
+                                tint = if (CampusThemeState.isDark) Honey else Charcoal,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            text = "No saved services yet",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = Charcoal
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "Tap the heart icon on any service listing to bookmark it for later.",
+                            fontSize = 12.sp,
+                            color = MutedText,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 17.sp
+                        )
+                    }
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    savedListings.forEach { listing ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(Radius.Inner)
+                                .bounceClick(scaleDown = 0.97f) { onListingClick(listing) },
+                            shape = Radius.Inner,
+                            colors = CardDefaults.cardColors(containerColor = CardWhite),
+                            border = BorderStroke(1.dp, Hairline)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                ServiceCategoryIconBox(
+                                    category = listing.category,
+                                    size = 44.dp,
+                                    shape = Radius.Tile,
+                                    symbolFontSize = 16.sp,
+                                    iconSize = 20.dp
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = listing.title,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        color = Charcoal,
+                                        maxLines = 1
+                                    )
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        text = "${listing.providerName} • RM ${"%.0f".format(listing.price)} ${listing.pricingType.shortLabel}",
+                                        fontSize = 12.sp,
+                                        color = MutedText,
+                                        maxLines = 1
+                                    )
+                                    Spacer(Modifier.height(4.dp))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Star,
+                                            contentDescription = null,
+                                            tint = if (listing.reviewCount > 0) StarGold else MutedText,
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                        Spacer(Modifier.width(3.dp))
+                                        Text(
+                                            text = if (listing.reviewCount > 0) "%.1f (${listing.reviewCount})".format(listing.rating) else "New",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Charcoal
+                                        )
+                                    }
+                                }
+                                IconButton(
+                                    onClick = {
+                                        FavoritesStore.toggle(context, currentUid, listing.id)
+                                        Toast.makeText(context, "Removed from favorites", Toast.LENGTH_SHORT).show()
+                                    },
+                                    modifier = Modifier
+                                        .size(34.dp)
+                                        .clip(CircleShape)
+                                        .background(DangerBg)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Favorite,
+                                        contentDescription = "Remove from saved",
+                                        tint = DangerFgStrong,
+                                        modifier = Modifier.size(18.dp)
+                                    )
                                 }
                             }
                         }
@@ -1078,7 +1362,7 @@ fun ProfileScreen(
 
         Spacer(Modifier.height(20.dp))
 
-        // Unified Bottom Menu Card (Helpdesk & FAQ + Log out)
+        // Unified Bottom Menu Card (Dark Mode + Helpdesk & FAQ + Log out)
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = Radius.Inner,
@@ -1086,6 +1370,57 @@ fun ProfileScreen(
             border = BorderStroke(1.dp, Hairline)
         ) {
             Column {
+                // Dark Mode Toggle Row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .bounceClick { showAppearanceDialog = true }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = if (CampusThemeState.isDark) Icons.Outlined.DarkMode else Icons.Outlined.LightMode,
+                            contentDescription = null,
+                            tint = Charcoal,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                "Dark Mode",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = Charcoal
+                            )
+                            Text(
+                                "Mode: ${CampusThemeState.preference.label} • Tap for options",
+                                fontSize = 11.sp,
+                                color = MutedText
+                            )
+                        }
+                    }
+                    Switch(
+                        checked = CampusThemeState.isDark,
+                        onCheckedChange = { enabled ->
+                            CampusThemeState.setPreference(
+                                context,
+                                if (enabled) ThemePreference.DARK else ThemePreference.LIGHT
+                            )
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = CardWhite,
+                            checkedTrackColor = Charcoal,
+                            uncheckedThumbColor = CardWhite,
+                            uncheckedTrackColor = Hairline,
+                            uncheckedBorderColor = MutedText
+                        )
+                    )
+                }
+
+                HorizontalDivider(color = Hairline)
+
                 // Helpdesk Row
                 Row(
                     modifier = Modifier
@@ -1151,7 +1486,8 @@ fun ProfileScreen(
             }
         }
 
-        Spacer(Modifier.height(80.dp))
+        Spacer(Modifier.height(rememberBottomBarClearance()))
+            }
+        }
     }
-}
 }

@@ -1,52 +1,54 @@
 package com.example.campushive.components
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Notifications
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.example.campushive.model.ChatConversation
 import com.example.campushive.ui.theme.*
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /**
  * In-app notification centre, shown from the Home bell.
  *
- * Redesigned for density. The previous version stacked three loose text rows per
- * item inside a 520dp dialog, which pushed the card to near full-screen and read
- * as a wall of text. Changes here:
- *
- * - **Capped at 400dp.** A notification peek should not take over the screen; the
- *   list scrolls inside instead of the dialog growing.
- * - **Tighter row rhythm** (10dp padding, 36dp avatar, 2dp gaps) so roughly one
- *   more item is visible in the same space.
- * - **No black border on unread rows.** Unread is now signalled by a tinted
- *   surface plus a slim left accent bar — the old 1dp Charcoal border around the
- *   whole card was the heaviest thing on screen.
- * - **Compact header.** Title + unread subtitle on one block, actions right
- *   aligned, so the header costs ~48dp instead of ~70dp.
- * - **Slim empty state** instead of a 36dp-padded centred block.
+ * Drops down smoothly from the top edge of the screen with swipe-up-to-dismiss,
+ * keeping CampusHive's unified form-sheet styling: 28dp rounded bottom corners,
+ * 42dp HoneyTint bell icon header, Cream-toned cards, anchored action bar, and
+ * a bottom drag handle.
  */
 @Composable
 fun NotificationCenterDialog(
@@ -56,40 +58,192 @@ fun NotificationCenterDialog(
     onOpenChat: (ChatConversation) -> Unit,
 ) {
     val unreadTotal = remember(conversations) { conversations.sumOf { it.unreadCount } }
+    val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
 
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = Radius.Card,
-            color = CardWhite,
-            border = BorderStroke(1.dp, Hairline),
-            shadowElevation = 18.dp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 400.dp)
-        ) {
-            Column {
-                DialogHeader(
-                    unreadTotal = unreadTotal,
-                    showMarkAllRead = unreadTotal > 0,
-                    onMarkAllRead = onMarkAllRead,
-                    onDismiss = onDismiss
-                )
+    // 0f = hidden above top edge, 1f = fully dropped down
+    val revealProgress = remember { Animatable(0f) }
+    var dragOffsetPx by remember { mutableFloatStateOf(0f) }
+    var sheetHeightPx by remember { mutableIntStateOf(0) }
+    var isDismissing by remember { mutableStateOf(false) }
 
-                HorizontalDivider(color = Hairline, thickness = 0.5.dp)
+    val dismissThresholdPx = with(density) { 72.dp.toPx() }
 
-                if (conversations.isEmpty()) {
-                    EmptyNotifications()
-                } else {
-                    LazyColumn(
-                        contentPadding = PaddingValues(
-                            start = Spacing.md, end = Spacing.md,
-                            top = Spacing.sm, bottom = Spacing.md
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+    LaunchedEffect(Unit) {
+        revealProgress.animateTo(
+            targetValue = 1f,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessMediumLow
+            )
+        )
+    }
+
+    fun dismissAnimated() {
+        if (isDismissing) return
+        isDismissing = true
+        scope.launch {
+            revealProgress.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(durationMillis = 200)
+            )
+            onDismiss()
+        }
+    }
+
+    Dialog(
+        onDismissRequest = { dismissAnimated() },
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Dimmed scrim behind the top sheet
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.42f * revealProgress.value.coerceIn(0f, 1f)))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { dismissAnimated() }
+                    )
+            )
+
+            // Top drop-down sheet
+            Surface(
+                shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp),
+                color = CardWhite,
+                contentColor = Charcoal,
+                border = BorderStroke(1.dp, Hairline),
+                shadowElevation = 18.dp,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .onSizeChanged { sheetHeightPx = it.height }
+                    .graphicsLayer {
+                        val height = if (sheetHeightPx > 0) sheetHeightPx.toFloat() else 1200f
+                        translationY = -height * (1f - revealProgress.value)
+                    }
+                    .offset { IntOffset(0, dragOffsetPx.roundToInt()) }
+                    .pointerInput(Unit) {
+                        detectVerticalDragGestures(
+                            onDragEnd = {
+                                if (dragOffsetPx < -dismissThresholdPx) {
+                                    dismissAnimated()
+                                } else {
+                                    dragOffsetPx = 0f
+                                }
+                            },
+                            onDragCancel = { dragOffsetPx = 0f },
+                            onVerticalDrag = { _, dragAmount ->
+                                // Allow dragging upward to dismiss (resist downward pull)
+                                dragOffsetPx = (dragOffsetPx + dragAmount).coerceAtMost(0f)
+                            }
+                        )
+                    }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(top = 14.dp)
+                ) {
+                    // Header — matches form sheet header
+                    NotificationSheetHeader(
+                        unreadTotal = unreadTotal,
+                        onDismiss = { dismissAnimated() }
+                    )
+
+                    Spacer(Modifier.height(16.dp))
+
+                    // Body — scrollable list or Cream-toned empty card
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
                     ) {
-                        items(conversations, key = { it.id }) { chat ->
-                            NotificationRow(chat) { onOpenChat(chat) }
+                        if (conversations.isEmpty()) {
+                            EmptyNotifications()
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 380.dp),
+                                contentPadding = PaddingValues(bottom = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                items(conversations, key = { it.id }) { chat ->
+                                    NotificationRow(chat) {
+                                        onOpenChat(chat)
+                                    }
+                                }
+                            }
                         }
+                    }
+
+                    // Anchored action bar
+                    HorizontalDivider(thickness = 0.8.dp, color = Hairline)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 24.dp, end = 24.dp, top = 14.dp, bottom = 10.dp)
+                    ) {
+                        if (unreadTotal > 0) {
+                            Button(
+                                onClick = onMarkAllRead,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(50.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Honey,
+                                    contentColor = OnHoneyAccent
+                                ),
+                                shape = RoundedCornerShape(16.dp)
+                            ) {
+                                Text(
+                                    text = "Mark all as read",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp
+                                )
+                            }
+                        } else {
+                            Button(
+                                onClick = { dismissAnimated() },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(50.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = CreamTint,
+                                    contentColor = Charcoal
+                                ),
+                                shape = RoundedCornerShape(16.dp),
+                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+                            ) {
+                                Text(
+                                    text = "Done",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp
+                                )
+                            }
+                        }
+                    }
+
+                    // Bottom swipe-up handle pill
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 2.dp, bottom = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(40.dp)
+                                .height(4.dp)
+                                .clip(CircleShape)
+                                .background(Hairline)
+                        )
                     }
                 }
             }
@@ -98,69 +252,70 @@ fun NotificationCenterDialog(
 }
 
 @Composable
-private fun DialogHeader(
+private fun NotificationSheetHeader(
     unreadTotal: Int,
-    showMarkAllRead: Boolean,
-    onMarkAllRead: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 18.dp, end = 10.dp, top = 14.dp, bottom = 11.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 24.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Top
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = "Notifications",
-                fontSize = 19.sp,
-                fontWeight = FontWeight.Bold,
-                color = Charcoal,
-                letterSpacing = (-0.3).sp
-            )
-            Spacer(Modifier.height(1.dp))
-            Text(
-                text = if (unreadTotal > 0) {
-                    "$unreadTotal unread"
-                } else {
-                    "You're all caught up"
-                },
-                fontSize = 12.sp,
-                color = MutedText
-            )
-        }
-
-        if (showMarkAllRead) {
-            Surface(
-                shape = Radius.Pill,
-                color = HoneyTint,
-                modifier = Modifier.bounceClick(scaleDown = 0.94f, onClick = onMarkAllRead)
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(HoneyTint),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "Mark read",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Charcoal,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                Icon(
+                    imageVector = Icons.Outlined.Notifications,
+                    contentDescription = null,
+                    tint = if (CampusThemeState.isDark) BrandHoney else Charcoal,
+                    modifier = Modifier.size(22.dp)
                 )
             }
-            Spacer(Modifier.width(8.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = "Notifications",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 19.sp,
+                    color = Charcoal
+                )
+                Text(
+                    text = if (unreadTotal > 0) {
+                        "$unreadTotal unread ${if (unreadTotal == 1) "message" else "messages"}"
+                    } else {
+                        "You're all caught up"
+                    },
+                    fontSize = 13.sp,
+                    color = MutedText
+                )
+            }
         }
+
+        Spacer(Modifier.width(8.dp))
 
         Box(
             modifier = Modifier
-                .size(30.dp)
+                .size(34.dp)
                 .clip(CircleShape)
-                .background(CardWhite)
-                .border(1.dp, Hairline, CircleShape)
-                .bounceClick(scaleDown = 0.92f, onClick = onDismiss),
+                .background(CreamTint)
+                .clickable(onClick = onDismiss),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Filled.Close,
                 contentDescription = "Close notifications",
                 tint = Charcoal,
-                modifier = Modifier.size(15.dp)
+                modifier = Modifier.size(18.dp)
             )
         }
     }
@@ -169,44 +324,52 @@ private fun DialogHeader(
 @Composable
 private fun NotificationRow(chat: ChatConversation, onClick: () -> Unit) {
     val isUnread = chat.unreadCount > 0
+    val previewText = remember(chat.lastMessage) {
+        val raw = chat.lastMessage.trim()
+        when {
+            raw.isEmpty() -> "Sent you a message"
+            raw.equals("[Photo]", ignoreCase = true) -> "Photo attachment"
+            else -> raw
+        }
+    }
 
     Surface(
-        shape = Radius.Inner,
-        color = if (isUnread) HoneyTint.copy(alpha = 0.5f) else CardWhite,
-        border = if (isUnread) null else BorderStroke(1.dp, Hairline),
+        shape = RoundedCornerShape(16.dp),
+        color = if (isUnread) HoneyTint.copy(alpha = 0.55f) else Cream,
+        border = BorderStroke(1.dp, if (isUnread) WarningBorderSoft else Hairline),
         modifier = Modifier
             .fillMaxWidth()
             .bounceClick(scaleDown = 0.98f, onClick = onClick)
     ) {
         Row(
-            modifier = Modifier.padding(start = 10.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Slim unread accent — replaces the old full black border.
-            Box(
-                modifier = Modifier
-                    .width(3.dp)
-                    .height(26.dp)
-                    .clip(Radius.Pill)
-                    .background(if (isUnread) Charcoal else Color.Transparent)
-            )
-
-            Spacer(Modifier.width(9.dp))
+            if (isUnread) {
+                Box(
+                    modifier = Modifier
+                        .width(3.dp)
+                        .height(30.dp)
+                        .clip(CircleShape)
+                        .background(Charcoal)
+                )
+                Spacer(Modifier.width(10.dp))
+            }
 
             AvatarTile(
                 name = chat.studentName,
-                size = 36.dp,
-                fontSize = 12.sp
+                size = 40.dp,
+                fontSize = 13.sp
             )
 
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = chat.studentName.ifBlank { "Campus Student" },
                         fontWeight = if (isUnread) FontWeight.Bold else FontWeight.SemiBold,
-                        fontSize = 13.sp,
+                        fontSize = 14.sp,
                         color = Charcoal,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -218,46 +381,46 @@ private fun NotificationRow(chat: ChatConversation, onClick: () -> Unit) {
                             imageVector = Icons.Filled.CheckCircle,
                             contentDescription = "Verified student",
                             tint = Charcoal,
-                            modifier = Modifier.size(12.dp)
+                            modifier = Modifier.size(13.dp)
                         )
                     }
                     Spacer(Modifier.weight(1f))
                     Text(
                         text = chat.timestamp,
-                        fontSize = 10.sp,
+                        fontSize = 11.sp,
                         color = MutedText,
                         maxLines = 1
                     )
                 }
 
-                Spacer(Modifier.height(1.dp))
+                Spacer(Modifier.height(2.dp))
 
                 Text(
                     text = chat.serviceTitle.ifBlank { "Campus Service" },
-                    fontSize = 10.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                     color = MutedText,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
 
-                Spacer(Modifier.height(2.dp))
+                Spacer(Modifier.height(3.dp))
 
                 Text(
-                    text = chat.lastMessage.ifBlank { "Sent you a message" },
-                    fontSize = 12.sp,
+                    text = previewText,
+                    fontSize = 13.sp,
                     fontWeight = if (isUnread) FontWeight.SemiBold else FontWeight.Normal,
-                    color = if (isUnread) Charcoal else Charcoal.copy(alpha = 0.72f),
+                    color = if (isUnread) Charcoal else Charcoal.copy(alpha = 0.78f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
 
             if (isUnread) {
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(10.dp))
                 Box(
                     modifier = Modifier
-                        .size(18.dp)
+                        .size(20.dp)
                         .clip(CircleShape)
                         .background(DangerFgStrong),
                     contentAlignment = Alignment.Center
@@ -279,12 +442,16 @@ private fun EmptyNotifications() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 34.dp),
+            .padding(bottom = 16.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Cream)
+            .border(1.dp, Hairline, RoundedCornerShape(16.dp))
+            .padding(horizontal = 24.dp, vertical = 28.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
             modifier = Modifier
-                .size(44.dp)
+                .size(46.dp)
                 .clip(CircleShape)
                 .background(HoneyTint)
                 .border(1.5.dp, AvatarOutline, CircleShape),
@@ -293,24 +460,24 @@ private fun EmptyNotifications() {
             Icon(
                 imageVector = Icons.Outlined.Notifications,
                 contentDescription = null,
-                tint = Charcoal,
-                modifier = Modifier.size(20.dp)
+                tint = if (CampusThemeState.isDark) BrandHoney else Charcoal,
+                modifier = Modifier.size(22.dp)
             )
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(12.dp))
         Text(
             text = "Nothing new yet",
-            fontSize = 14.sp,
+            fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
             color = Charcoal
         )
-        Spacer(Modifier.height(3.dp))
+        Spacer(Modifier.height(4.dp))
         Text(
-            text = "Message replies from seekers and providers land here.",
-            fontSize = 12.sp,
+            text = "Message replies from seekers and providers will appear here.",
+            fontSize = 13.sp,
             color = MutedText,
             textAlign = TextAlign.Center,
-            lineHeight = 16.sp
+            lineHeight = 18.sp
         )
     }
 }

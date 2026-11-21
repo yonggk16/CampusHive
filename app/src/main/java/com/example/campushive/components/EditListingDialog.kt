@@ -3,40 +3,39 @@ package com.example.campushive.components
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import com.example.campushive.ui.theme.bounceClick
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
+import com.example.campushive.model.LISTING_TIME_SLOTS
+import com.example.campushive.model.LISTING_WEEK_DAYS
 import com.example.campushive.model.Listing
 import com.example.campushive.model.PricingType
 import com.example.campushive.ui.theme.*
 
 private val availableCategories = listOf("Tutoring", "Design", "Tech Help", "Writing", "Errands")
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditListingDialog(
     listing: Listing,
@@ -45,6 +44,7 @@ fun EditListingDialog(
     onDelete: (String) -> Unit,
 ) {
     val context = LocalContext.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var title by remember { mutableStateOf(listing.title) }
     var selectedCategory by remember { mutableStateOf(listing.category) }
     var priceText by remember { mutableStateOf("%.0f".format(listing.price)) }
@@ -52,49 +52,102 @@ fun EditListingDialog(
     var campusLocation by remember { mutableStateOf(listing.campusLocation) }
     var description by remember { mutableStateOf(listing.description) }
     var status by remember { mutableStateOf(listing.status) }
+    var selectedDays by remember { mutableStateOf(listing.availableDays.toSet()) }
+    var selectedTimeSlots by remember { mutableStateOf(listing.availableTimeSlots.toSet()) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
-    Dialog(
+    val fieldColors = OutlinedTextFieldDefaults.colors(
+        focusedContainerColor = Cream,
+        unfocusedContainerColor = Cream,
+        focusedBorderColor = Charcoal,
+        unfocusedBorderColor = Hairline,
+        focusedTextColor = Charcoal,
+        unfocusedTextColor = Charcoal,
+        focusedLabelColor = Charcoal,
+        unfocusedLabelColor = MutedText,
+        cursorColor = Charcoal
+    )
+
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        sheetState = sheetState,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        containerColor = CardWhite,
+        contentColor = Charcoal,
+        dragHandle = {
+            BottomSheetDefaults.DragHandle(
+                width = 40.dp,
+                height = 4.dp,
+                color = Hairline
+            )
+        }
     ) {
-        Surface(
+        Column(
             modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .wrapContentHeight()
+                .fillMaxWidth()
                 .navigationBarsPadding()
-                .imePadding(),
-            shape = Radius.Card,
-            color = Cream
+                .imePadding()
         ) {
             Column(
                 modifier = Modifier
-                    .padding(20.dp)
-                    .verticalScroll(rememberScrollState()),
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Dialog Header
+                // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.Top
                 ) {
-                    Text(
-                        text = "Edit Service Listing",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Charcoal
-                    )
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(HoneyTint),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Edit,
+                                contentDescription = null,
+                                tint = if (CampusThemeState.isDark) BrandHoney else Charcoal,
+                                modifier = Modifier.size(21.dp)
+                            )
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                text = "Edit Listing",
+                                fontSize = 19.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Charcoal
+                            )
+                            Text(
+                                text = "Update pricing, schedule, or visibility.",
+                                fontSize = 13.sp,
+                                color = MutedText
+                            )
+                        }
+                    }
 
-                    IconButton(
-                        onClick = onDismiss,
+                    Spacer(Modifier.width(8.dp))
+
+                    Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(34.dp)
                             .clip(CircleShape)
-                            .background(CardWhite)
+                            .background(CreamTint)
+                            .clickable(onClick = onDismiss),
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.Close,
+                            imageVector = Icons.Filled.Close,
                             contentDescription = "Close",
                             tint = Charcoal,
                             modifier = Modifier.size(18.dp)
@@ -102,95 +155,99 @@ fun EditListingDialog(
                     }
                 }
 
-                // TITLE Input
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = Radius.Inner,
-                    colors = CardDefaults.cardColors(containerColor = CardWhite)
-                ) {
-                    Column(Modifier.padding(14.dp)) {
-                        Text("SERVICE TITLE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MutedText)
-                        Spacer(Modifier.height(4.dp))
-                        BasicTextField(
-                            value = title,
-                            onValueChange = { title = it },
-                            textStyle = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Charcoal),
-                            cursorBrush = SolidColor(Honey),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
+                // Service Title
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("Service title", fontSize = 13.sp) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = fieldColors,
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-                // CATEGORY Selection
-                Column {
-                    Text("CATEGORY", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MutedText, modifier = Modifier.padding(bottom = 6.dp))
+                // Category Selection
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Category",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Charcoal
+                    )
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(availableCategories) { cat ->
                             val isSelected = selectedCategory.equals(cat, ignoreCase = true)
                             Surface(
-                                shape = Radius.Inner,
-                                color = if (isSelected) Charcoal else CardWhite,
-                                border = if (isSelected) null else BorderStroke(1.dp, Hairline),
+                                shape = RoundedCornerShape(50),
+                                color = if (isSelected) Honey else CardWhite,
+                                border = BorderStroke(1.dp, if (isSelected) Honey else Hairline),
                                 modifier = Modifier.bounceClick { selectedCategory = cat }
                             ) {
                                 Text(
                                     text = cat,
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = if (isSelected) CardWhite else Charcoal
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+                                    fontSize = 13.sp,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                                    color = if (isSelected) OnHoneyAccent else Charcoal
                                 )
                             }
                         }
                     }
                 }
 
-                // PRICE & PRICING TYPE
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = Radius.Inner,
-                    colors = CardDefaults.cardColors(containerColor = CardWhite)
-                ) {
-                    Column(Modifier.padding(14.dp)) {
-                        Text("PRICE & TYPE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MutedText)
-                        Spacer(Modifier.height(8.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("RM ", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Charcoal)
-                                BasicTextField(
-                                    value = priceText,
-                                    onValueChange = { priceText = it },
-                                    textStyle = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Charcoal),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    cursorBrush = SolidColor(Honey),
-                                    singleLine = true,
-                                    modifier = Modifier.width(60.dp)
+                // Price & Billing Type
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Price & billing",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Charcoal
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = priceText,
+                            onValueChange = { input ->
+                                if (input.all { it.isDigit() || it == '.' }) priceText = input
+                            },
+                            prefix = {
+                                Text(
+                                    text = "RM ",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Charcoal
                                 )
-                            }
+                            },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = fieldColors,
+                            modifier = Modifier.weight(1f)
+                        )
 
-                            Surface(shape = Radius.Inner, color = CreamTint) {
-                                Row(modifier = Modifier.padding(2.dp)) {
-                                    PricingType.entries.forEach { pType ->
-                                        val isSelected = selectedPricingType == pType
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(Radius.Tile)
-                                                .background(if (isSelected) Charcoal else Color.Transparent)
-                                                .bounceClick { selectedPricingType = pType }
-                                                .padding(horizontal = 10.dp, vertical = 6.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                text = pType.label,
-                                                fontSize = 11.sp,
-                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                color = if (isSelected) CardWhite else Charcoal
-                                            )
-                                        }
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = CreamTint
+                        ) {
+                            Row(modifier = Modifier.padding(3.dp)) {
+                                PricingType.entries.forEach { pType ->
+                                    val isSelected = selectedPricingType == pType
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(11.dp))
+                                            .background(if (isSelected) Honey else Color.Transparent)
+                                            .bounceClick { selectedPricingType = pType }
+                                            .padding(horizontal = 12.dp, vertical = 11.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = pType.label,
+                                            fontSize = 12.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) OnHoneyAccent else Charcoal
+                                        )
                                     }
                                 }
                             }
@@ -198,144 +255,196 @@ fun EditListingDialog(
                     }
                 }
 
-                // CAMPUS LOCATION
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = Radius.Inner,
-                    colors = CardDefaults.cardColors(containerColor = CardWhite)
-                ) {
-                    Column(Modifier.padding(14.dp)) {
-                        Text("CAMPUS LOCATION", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MutedText)
-                        Spacer(Modifier.height(4.dp))
-                        BasicTextField(
-                            value = campusLocation,
-                            onValueChange = { campusLocation = it },
-                            textStyle = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Charcoal),
-                            cursorBrush = SolidColor(Honey),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
+                // Campus Location
+                OutlinedTextField(
+                    value = campusLocation,
+                    onValueChange = { campusLocation = it },
+                    label = { Text("Campus location", fontSize = 13.sp) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = fieldColors,
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-                // DESCRIPTION
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = Radius.Inner,
-                    colors = CardDefaults.cardColors(containerColor = CardWhite)
-                ) {
-                    Column(Modifier.padding(14.dp)) {
-                        Text("DESCRIPTION", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MutedText)
-                        Spacer(Modifier.height(4.dp))
-                        Box(modifier = Modifier.height(70.dp)) {
-                            BasicTextField(
-                                value = description,
-                                onValueChange = { description = it },
-                                textStyle = TextStyle(fontSize = 13.sp, color = Charcoal, lineHeight = 18.sp),
-                                cursorBrush = SolidColor(Honey),
-                                modifier = Modifier.fillMaxSize()
-                            )
+                // Description
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Description", fontSize = 13.sp) },
+                    minLines = 3,
+                    maxLines = 5,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = fieldColors,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Availability & Timing
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Availability & timing",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Charcoal
+                    )
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(LISTING_WEEK_DAYS) { day ->
+                            val isSelected = selectedDays.contains(day)
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = if (isSelected) Honey else CardWhite,
+                                border = BorderStroke(1.dp, if (isSelected) Honey else Hairline),
+                                modifier = Modifier.bounceClick {
+                                    selectedDays = if (isSelected) selectedDays - day else selectedDays + day
+                                }
+                            ) {
+                                Text(
+                                    text = day,
+                                    modifier = Modifier.padding(horizontal = 13.dp, vertical = 7.dp),
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                                    color = if (isSelected) OnHoneyAccent else Charcoal
+                                )
+                            }
+                        }
+                    }
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(LISTING_TIME_SLOTS) { slot ->
+                            val isSelected = selectedTimeSlots.contains(slot)
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = if (isSelected) HoneyTint else CardWhite,
+                                border = BorderStroke(1.dp, if (isSelected) Charcoal else Hairline),
+                                modifier = Modifier.bounceClick {
+                                    selectedTimeSlots = if (isSelected) selectedTimeSlots - slot else selectedTimeSlots + slot
+                                }
+                            ) {
+                                Text(
+                                    text = slot,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                                    color = Charcoal
+                                )
+                            }
                         }
                     }
                 }
 
-                // STATUS TOGGLE
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = Radius.Inner,
-                    colors = CardDefaults.cardColors(containerColor = CardWhite)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text("LISTING STATUS", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MutedText)
-                            Spacer(Modifier.height(2.dp))
-                            Text(
-                                text = if (status == "ACTIVE") "Active (Visible to students)" else "Inactive (Hidden)",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (status == "ACTIVE") VerifiedGreen else DangerFg
-                            )
-                        }
-
-                        Switch(
-                            checked = status == "ACTIVE",
-                            onCheckedChange = { isChecked ->
-                                status = if (isChecked) "ACTIVE" else "INACTIVE"
-                            },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = CardWhite,
-                                checkedTrackColor = VerifiedGreen,
-                                uncheckedThumbColor = CardWhite,
-                                uncheckedTrackColor = MutedText
-                            )
-                        )
-                    }
-                }
-
-                // ACTION BUTTONS (Save & Delete)
+                // Listing Visibility Toggle
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Cream)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Delete Button
-                    OutlinedButton(
-                        onClick = { showDeleteConfirm = true },
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = DangerFgStrong),
-                        border = BorderStroke(1.dp, DangerBorderSoft),
-                        shape = Radius.Inner,
-                        modifier = Modifier.weight(0.4f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Delete,
-                            contentDescription = "Delete",
-                            modifier = Modifier.size(16.dp)
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = "Listing visibility",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Charcoal
                         )
-                        Spacer(Modifier.width(4.dp))
-                        Text("Delete", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = if (status == "ACTIVE") "Active · visible to students" else "Inactive · hidden from search",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = if (status == "ACTIVE") MutedText else DangerFg
+                        )
                     }
 
-                    // Save Button
-                    Button(
-                        onClick = {
-                            if (title.isBlank() || priceText.isBlank()) {
-                                Toast.makeText(context, "Title and Price cannot be empty", Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
-                            val rawPrice = priceText.toDoubleOrNull() ?: listing.price
-                            val maxAllowedPrice = if (selectedPricingType == PricingType.PER_HOUR) 50.0 else 1000.0
-                            if (rawPrice > maxAllowedPrice) {
-                                val limitMsg = if (selectedPricingType == PricingType.PER_HOUR)
-                                    "Maximum rate for hourly services is RM 50 / hr"
-                                else
-                                    "Maximum price for fixed gig services is RM 1,000"
-                                Toast.makeText(context, limitMsg, Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
-                            val parsedPrice = rawPrice.coerceIn(0.0, maxAllowedPrice)
-                            val updatedListing = listing.copy(
-                                title = title.trim(),
-                                category = selectedCategory,
-                                price = parsedPrice,
-                                pricingType = selectedPricingType,
-                                campusLocation = campusLocation.trim(),
-                                description = description.trim(),
-                                status = status
-                            )
-                            onSave(updatedListing)
-                            Toast.makeText(context, "Listing updated successfully!", Toast.LENGTH_SHORT).show()
+                    Switch(
+                        checked = status == "ACTIVE",
+                        onCheckedChange = { isChecked ->
+                            status = if (isChecked) "ACTIVE" else "INACTIVE"
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
-                        shape = Radius.Inner,
-                        modifier = Modifier.weight(0.6f)
-                    ) {
-                        Text("Save Changes", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = CardWhite)
-                    }
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = OnHoneyAccent,
+                            checkedTrackColor = Honey,
+                            uncheckedThumbColor = CardWhite,
+                            uncheckedTrackColor = Hairline,
+                            uncheckedBorderColor = Color.Transparent
+                        )
+                    )
+                }
+
+                Spacer(Modifier.height(4.dp))
+            }
+
+            // Anchored bottom action bar (Delete + Save)
+            HorizontalDivider(thickness = 0.8.dp, color = Hairline)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedButton(
+                    onClick = { showDeleteConfirm = true },
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = DangerFgStrong),
+                    border = BorderStroke(1.dp, DangerBorderSoft),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .weight(0.38f)
+                        .height(52.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Delete,
+                        contentDescription = "Delete",
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text("Delete", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                }
+
+                Button(
+                    onClick = {
+                        if (title.isBlank() || priceText.isBlank()) {
+                            Toast.makeText(context, "Title and Price cannot be empty", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        val rawPrice = priceText.toDoubleOrNull() ?: listing.price
+                        val maxAllowedPrice = if (selectedPricingType == PricingType.PER_HOUR) 50.0 else 1000.0
+                        if (rawPrice > maxAllowedPrice) {
+                            val limitMsg = if (selectedPricingType == PricingType.PER_HOUR)
+                                "Maximum rate for hourly services is RM 50 / hr"
+                            else
+                                "Maximum price for fixed gig services is RM 1,000"
+                            Toast.makeText(context, limitMsg, Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        val parsedPrice = rawPrice.coerceIn(0.0, maxAllowedPrice)
+                        val updatedListing = listing.copy(
+                            title = title.trim(),
+                            category = selectedCategory,
+                            price = parsedPrice,
+                            pricingType = selectedPricingType,
+                            campusLocation = campusLocation.trim(),
+                            description = description.trim(),
+                            status = status,
+                            availableDays = LISTING_WEEK_DAYS.filter { selectedDays.contains(it) },
+                            availableTimeSlots = LISTING_TIME_SLOTS.filter { selectedTimeSlots.contains(it) }
+                        )
+                        onSave(updatedListing)
+                        Toast.makeText(context, "Listing updated successfully!", Toast.LENGTH_SHORT).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Honey,
+                        contentColor = OnHoneyAccent
+                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .weight(0.62f)
+                        .height(52.dp)
+                ) {
+                    Text(
+                        text = "Save Changes",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
@@ -344,8 +453,19 @@ fun EditListingDialog(
     if (showDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Delete Listing?", fontWeight = FontWeight.Bold) },
-            text = { Text("Are you sure you want to delete '${listing.title}'? This action cannot be undone.") },
+            title = {
+                Text(
+                    text = "Delete Listing?",
+                    fontWeight = FontWeight.Bold,
+                    color = Charcoal
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to delete '${listing.title}'? This action cannot be undone.",
+                    color = MutedText
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -359,7 +479,7 @@ fun EditListingDialog(
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text("Cancel", color = Charcoal)
+                    Text("Cancel", color = Charcoal, fontWeight = FontWeight.Medium)
                 }
             },
             containerColor = CardWhite,

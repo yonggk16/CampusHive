@@ -1,6 +1,11 @@
 package com.example.campushive.ui.theme
 
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
@@ -51,6 +56,16 @@ object Spacing {
     /** 28dp — top of a screen below the status bar. */
     val topInset = 28.dp
 
-    /** 96dp — bottom scroll padding so content clears the floating bottom bar. */
-    val bottomBarClearance = 96.dp
+    /** 104dp — 62dp docked bar + 20dp protruding center "+" button + 22dp breathing room. */
+    val bottomBarClearance = 104.dp
+}
+
+/**
+ * Dynamic bottom scroll clearance that adapts across screen aspect ratios,
+ * gesture bars, and 3-button Android navigation bars.
+ */
+@Composable
+fun rememberBottomBarClearance(): Dp {
+    val navBarInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    return Spacing.bottomBarClearance + navBarInset
 }

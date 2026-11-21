@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -18,6 +17,8 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.campushive.model.getCategoryVisual
+import com.example.campushive.ui.theme.BrandHoney
+import com.example.campushive.ui.theme.CampusThemeState
 import com.example.campushive.ui.theme.Charcoal
 import com.example.campushive.ui.theme.Radius
 import com.example.campushive.ui.theme.TileOutline
@@ -34,6 +35,7 @@ fun ServiceCategoryIconBox(
     outlineWidth: Dp = 1.5.dp,
 ) {
     val visual = getCategoryVisual(category)
+    val glyphColor = if (CampusThemeState.isDark) BrandHoney else Charcoal
     Box(
         modifier = modifier
             .size(size)
@@ -49,13 +51,13 @@ fun ServiceCategoryIconBox(
                 text = visual.symbol,
                 fontSize = symbolFontSize,
                 fontWeight = FontWeight.ExtraBold,
-                color = Charcoal
+                color = glyphColor
             )
         } else {
             Icon(
                 imageVector = visual.icon,
                 contentDescription = category,
-                tint = Charcoal,
+                tint = glyphColor,
                 modifier = Modifier.size(iconSize)
             )
         }

@@ -6,7 +6,7 @@ data class UserProfile(
     val uid: String = "",
     val displayName: String = "Student User",
     val email: String = "",
-    val bio: String = "CampusHive Member",
+    val bio: String = "",
     val campusLocation: String = "HELP University S2",
     val facultyOrMajor: String = "General Student",
     val phoneNumber: String = "",

@@ -120,7 +120,7 @@ fun MyReportsScreen(
             }
             Text(
                 text = if (showAllCampusQueue && isModeratorMode) "Moderator Incident Queue" else "My Reports & Tickets",
-                style = MaterialTheme.typography.titleMedium,
+                fontSize = 23.sp,
                 fontWeight = FontWeight.Bold,
                 color = Charcoal
             )

@@ -11,7 +11,6 @@ data class ChatMessage(
     val attachmentSize: String = "",
     val attachmentBase64: String = "",
     val isEdited: Boolean = false,
-    val isDeleted: Boolean = false
+    val isDeleted: Boolean = false,
+    val timestampMillis: Long = 0L
 )
-
-

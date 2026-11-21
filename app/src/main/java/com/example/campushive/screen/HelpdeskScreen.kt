@@ -146,7 +146,7 @@ fun HelpdeskScreen(
                 }
                 Text(
                     text = "Help & Support",
-                    style = MaterialTheme.typography.titleMedium,
+                    fontSize = 23.sp,
                     fontWeight = FontWeight.Bold,
                     color = Charcoal
                 )

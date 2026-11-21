@@ -14,8 +14,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.LocationOn
@@ -36,24 +40,32 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campushive.components.ReportDialog
 import com.example.campushive.components.ReviewDialog
 import com.example.campushive.components.ServiceCategoryIconBox
+import com.example.campushive.model.LISTING_TIME_SLOTS
 import com.example.campushive.model.Listing
 import com.example.campushive.model.PricingType
 import com.example.campushive.components.ProviderProfileSheet
 import com.example.campushive.model.ReportStatus
 import com.example.campushive.model.ReportType
 import com.example.campushive.ui.theme.*
+import com.example.campushive.util.FavoritesStore
+import com.example.campushive.viewmodel.ChatViewModel
 import com.example.campushive.viewmodel.HelpdeskViewModel
 import com.example.campushive.viewmodel.ListingViewModel
 import com.example.campushive.viewmodel.ReviewViewModel
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ServiceDetailScreen(
     listingId: String,
     listingViewModel: ListingViewModel = viewModel(),
     reviewViewModel: ReviewViewModel = viewModel(),
     helpdeskViewModel: HelpdeskViewModel = viewModel(),
+    chatViewModel: ChatViewModel = viewModel(),
     onBackClick: () -> Unit,
     onChatClick: (providerUid: String, providerName: String, serviceTitle: String) -> Unit
 ) {
@@ -64,6 +76,9 @@ fun ServiceDetailScreen(
     var showProviderProfile by remember { mutableStateOf(false) }
     var showReportDialog by remember { mutableStateOf(false) }
     var reportSubmittedLocally by remember { mutableStateOf(false) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var selectedBookingDateMillis by remember { mutableStateOf<Long?>(null) }
+    var selectedBookingSlot by remember { mutableStateOf("") }
 
     LaunchedEffect(listingId) {
         reviewViewModel.loadReviewsForListing(listingId)
@@ -83,10 +98,13 @@ fun ServiceDetailScreen(
             isVerifiedStudent = true,
             description = "Campus service listing details."
         )
-    var isFavorite by remember { mutableStateOf(false) }
-
     val currentUser = Firebase.auth.currentUser
     val currentUid = currentUser?.uid ?: ""
+    val savedIds by FavoritesStore.savedIds.collectAsState()
+    LaunchedEffect(currentUid) {
+        FavoritesStore.load(context, currentUid)
+    }
+    val isFavorite = savedIds.contains(listing.id)
     val currentUserName = currentUser?.displayName?.trim()?.takeIf { it.isNotBlank() }
         ?: currentUser?.email?.substringBefore("@")?.trim()
         ?: ""
@@ -94,7 +112,7 @@ fun ServiceDetailScreen(
     val isOwnListing = (currentUid.isNotBlank() && listing.providerUid.isNotBlank() && currentUid == listing.providerUid) ||
         (currentUserName.isNotBlank() && listing.providerName.isNotBlank() && currentUserName.equals(listing.providerName, ignoreCase = true))
 
-    val initials = listing.providerName.split(" ").mapNotNull { it.firstOrNull()?.toString() }.joinToString("")
+    val initials = listing.providerName.split(" ").mapNotNull { it.firstOrNull()?.uppercaseChar() }.take(2).joinToString("").ifBlank { "ST" }
 
     if (showReviewDialog && !isOwnListing) {
         ReviewDialog(
@@ -201,276 +219,287 @@ fun ServiceDetailScreen(
         )
     }
 
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = selectedBookingDateMillis ?: System.currentTimeMillis()
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        selectedBookingDateMillis = datePickerState.selectedDateMillis
+                        showDatePicker = false
+                    }
+                ) {
+                    Text("Confirm", fontWeight = FontWeight.Bold, color = Charcoal)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancel", color = MutedText)
+                }
+            },
+            colors = DatePickerDefaults.colors(containerColor = CardWhite)
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(HoneyBottomGradient)
     ) {
+        // Sticky Top Hero Banner (Back, Category Icon Showcase, Favorite)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(HoneyTint, Cream)
+                    )
+                )
+                .statusBarsPadding()
+                .padding(top = 10.dp, bottom = 14.dp)
+        ) {
+            // Center Category Vector Icon Showcase matching Home Page Style
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                ServiceCategoryIconBox(
+                    category = listing.category,
+                    size = 64.dp,
+                    shape = Radius.Card,
+                    symbolFontSize = 26.sp,
+                    iconSize = 30.dp
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                Surface(
+                    color = CardWhite,
+                    shape = Radius.Card,
+                    border = BorderStroke(1.dp, Hairline)
+                ) {
+                    Text(
+                        text = listing.category.uppercase(),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 5.dp),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Charcoal
+                    )
+                }
+            }
+
+            // Floating Top Navigation Row (Back & Heart Buttons)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = Spacing.gutter, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = onBackClick,
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(CardWhite)
+                        .bounceClick(scaleDown = 0.90f)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Charcoal,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                IconButton(
+                    onClick = {
+                        val nowSaved = FavoritesStore.toggle(context, currentUid, listing.id)
+                        Toast.makeText(context, if (nowSaved) "Saved to favorites!" else "Removed from favorites", Toast.LENGTH_SHORT).show()
+                    },
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(CardWhite)
+                        .bounceClick(scaleDown = 0.88f)
+                ) {
+                    Icon(
+                        imageVector = if (isFavorite) Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,
+                        contentDescription = "Favorite",
+                        tint = if (isFavorite) DangerFgStrong else Charcoal,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+
         Column(
             modifier = Modifier
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Hero Image/Banner Box (Top Category Icon Showcase)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(HoneyTint, Cream)
-                        )
-                    )
-            ) {
-                // Floating Top Navigation Row (Back & Heart Buttons)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(start = Spacing.gutter, end = Spacing.gutter, top = Spacing.topInset, bottom = Spacing.md),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = onBackClick,
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(CircleShape)
-                            .background(CardWhite)
-                            .bounceClick(scaleDown = 0.90f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Charcoal,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    IconButton(
-                        onClick = {
-                            isFavorite = !isFavorite
-                            Toast.makeText(context, if (isFavorite) "Saved to favorites!" else "Removed from favorites", Toast.LENGTH_SHORT).show()
-                        },
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(CircleShape)
-                            .background(CardWhite)
-                            .bounceClick(scaleDown = 0.88f)
-                    ) {
-                        Icon(
-                            imageVector = if (isFavorite) Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,
-                            contentDescription = "Favorite",
-                            tint = if (isFavorite) Color.Red else Charcoal,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-
-                // Center Category Vector Icon Showcase matching Home Page Style
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    ServiceCategoryIconBox(
-                        category = listing.category,
-                        size = 72.dp,
-                        shape = Radius.Card,
-                        symbolFontSize = 28.sp,
-                        iconSize = 34.dp
-                    )
-
-                    Spacer(Modifier.height(10.dp))
-
-                    Surface(
-                        color = CardWhite,
-                        shape = Radius.Card,
-                        border = BorderStroke(1.dp, Hairline)
-                    ) {
-                        Text(
-                            text = listing.category.uppercase(),
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Charcoal
-                        )
-                    }
-                }
-            }
-
-            // Detail Body Content
+            // Detail Body Content (Clean Editorial Layout)
             Column(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                // Category, Location & Report Pending Badges
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (listingReport != null || reportSubmittedLocally) {
-                        Surface(
-                            color = WarningBg,
-                            shape = Radius.Card,
-                            border = BorderStroke(1.dp, WarningBorder),
-                            modifier = Modifier.bounceClick { showReportNoticeDialog = true }
+                // Report Pending Banner (only if flagged)
+                if (listingReport != null || reportSubmittedLocally) {
+                    Surface(
+                        color = WarningBg,
+                        shape = Radius.Inner,
+                        border = BorderStroke(1.dp, WarningBorder),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .bounceClick { showReportNoticeDialog = true }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.WarningAmber,
-                                    contentDescription = null,
-                                    tint = WarningFg,
-                                    modifier = Modifier.size(13.dp)
-                                )
-                                Text(
-                                    text = "Report Pending (${listingReport?.status?.name ?: "OPEN"})",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = WarningFg
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Filled.WarningAmber,
+                                contentDescription = null,
+                                tint = WarningFg,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "Report pending (${listingReport?.status?.name ?: "OPEN"})",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = WarningFg
+                            )
                         }
                     }
+                }
+
+                // 1. Title + Unified Metadata Line (no duplicate category pill)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = listing.title,
+                        fontSize = 23.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Charcoal,
+                        lineHeight = 29.sp
+                    )
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Surface(
-                            color = HoneyTint,
-                            shape = Radius.Card
-                        ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Filled.Star,
+                                contentDescription = "Rating",
+                                tint = StarGold,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(Modifier.width(3.dp))
                             Text(
-                                text = listing.category.uppercase(),
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                fontSize = 10.sp,
+                                text = if (listing.reviewCount > 0) "%.1f".format(listing.rating) else "New",
                                 fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
                                 color = Charcoal
+                            )
+                            if (listing.reviewCount > 0) {
+                                Text(
+                                    text = " (${listing.reviewCount})",
+                                    fontSize = 12.sp,
+                                    color = MutedText
+                                )
+                            }
+                        }
+
+                        Text("·", color = MutedText, fontSize = 13.sp)
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f, fill = false)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.LocationOn,
+                                contentDescription = null,
+                                tint = MutedText,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(Modifier.width(2.dp))
+                            Text(
+                                text = listing.campusLocation,
+                                fontSize = 12.sp,
+                                color = MutedText,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
 
-                        Surface(
-                            color = CardWhite,
-                            border = BorderStroke(1.dp, Hairline),
-                            shape = Radius.Card
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                        if (listing.isVerifiedStudent) {
+                            Surface(
+                                color = SuccessBg,
+                                shape = Radius.Pill
                             ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.LocationOn,
-                                    contentDescription = null,
-                                    tint = MutedText,
-                                    modifier = Modifier.size(13.dp)
-                                )
-                                Spacer(Modifier.width(4.dp))
-                                Text(
-                                    text = listing.campusLocation,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Charcoal,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Security,
+                                        contentDescription = null,
+                                        tint = SuccessFg,
+                                        modifier = Modifier.size(11.dp)
+                                    )
+                                    Spacer(Modifier.width(3.dp))
+                                    Text(
+                                        text = "Verified",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = SuccessFg
+                                    )
+                                }
                             }
                         }
                     }
                 }
 
-                // Title
-                Text(
-                    text = listing.title,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Charcoal,
-                    lineHeight = 28.sp
-                )
-
-                // Rating & Campus Verified Badge Row
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Filled.Star,
-                            contentDescription = "Rating",
-                            tint = StarGold,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            text = "%.1f".format(listing.rating),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
-                            color = Charcoal
-                        )
-                        Text(
-                            text = " (${listing.reviewCount} reviews)",
-                            fontSize = 12.sp,
-                            color = MutedText
-                        )
-                    }
-
-                    Surface(
-                        color = SuccessBg,
-                        shape = Radius.Tile
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Security,
-                                contentDescription = null,
-                                tint = VerifiedGreen,
-                                modifier = Modifier.size(12.dp)
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = "Campus Verified",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = VerifiedGreen
-                            )
-                        }
-                    }
-                }
-
-                // Dynamic Provider Info Card — tap to preview the provider
-                Card(
+                // 2. Clean Provider Row (soft avatar, minimal border)
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .bounceClick(scaleDown = 0.98f) {
                             if (!isOwnListing) showProviderProfile = true
                         },
-                    shape = Radius.Card,
-                    colors = CardDefaults.cardColors(containerColor = CardWhite),
+                    shape = RoundedCornerShape(16.dp),
+                    color = CardWhite,
                     border = BorderStroke(1.dp, Hairline)
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(14.dp),
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
-                                    .size(44.dp)
+                                    .size(40.dp)
                                     .clip(CircleShape)
                                     .background(HoneyTint)
-                                    .border(BorderStroke(1.5.dp, AvatarOutline), CircleShape),
+                                    .border(BorderStroke(1.dp, Hairline), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = initials,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp,
+                                    fontSize = 14.sp,
                                     color = Charcoal
                                 )
                             }
@@ -480,125 +509,111 @@ fun ServiceDetailScreen(
                             Column {
                                 Text(
                                     text = listing.providerName,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp,
                                     color = Charcoal
                                 )
-                                Spacer(Modifier.height(2.dp))
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .clip(CircleShape)
-                                            .background(VerifiedGreen)
-                                    )
-                                    Spacer(Modifier.width(4.dp))
-                                    Text(
-                                        text = "Usually responds in ~10 min",
-                                        fontSize = 11.sp,
-                                        color = MutedText
-                                    )
-                                }
+                                Text(
+                                    text = "Usually responds in ~10 min",
+                                    fontSize = 12.sp,
+                                    color = MutedText
+                                )
                             }
                         }
 
-                        Icon(
-                            imageVector = Icons.Outlined.ChevronRight,
-                            contentDescription = null,
-                            tint = MutedText
-                        )
+                        if (!isOwnListing) {
+                            Icon(
+                                imageVector = Icons.Outlined.ChevronRight,
+                                contentDescription = "View provider profile",
+                                tint = MutedText,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        } else {
+                            Surface(
+                                color = CreamTint,
+                                shape = Radius.Pill
+                            ) {
+                                Text(
+                                    text = "You",
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MutedText
+                                )
+                            }
+                        }
                     }
                 }
 
-                // ABOUT THIS SERVICE Section
-                Column {
+                // 3. About This Service
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
-                        text = "ABOUT THIS SERVICE",
-                        fontSize = 11.sp,
+                        text = "About this service",
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MutedText,
-                        letterSpacing = 0.8.sp
+                        color = Charcoal
                     )
-                    Spacer(Modifier.height(8.dp))
                     Text(
                         text = listing.description.ifBlank {
                             "1-on-1 tutoring and student service. High quality assistance and past year study notes included."
                         },
-                        fontSize = 13.sp,
-                        color = Charcoal,
-                        lineHeight = 20.sp
+                        fontSize = 14.sp,
+                        color = Charcoal.copy(alpha = 0.88f),
+                        lineHeight = 21.sp
                     )
                 }
 
-                // Specs Chips Row
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Surface(
-                        shape = Radius.Card,
-                        color = CardWhite,
-                        border = BorderStroke(1.dp, Hairline)
-                    ) {
-                        Text(
-                            text = "Weekdays & Weekends",
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Charcoal
-                        )
-                    }
+                HorizontalDivider(color = Hairline, thickness = 0.8.dp)
 
-                    Surface(
-                        shape = Radius.Card,
-                        color = CardWhite,
-                        border = BorderStroke(1.dp, Hairline)
-                    ) {
-                        Text(
-                            text = "On-campus or online",
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Charcoal
-                        )
+                // 4. Clean Availability & Timing Section (no nested heavy box)
+                val slotOptions = listing.availableTimeSlots.ifEmpty { LISTING_TIME_SLOTS }
+                val formattedSelectedDate = remember(selectedBookingDateMillis) {
+                    selectedBookingDateMillis?.let {
+                        SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault()).format(Date(it))
                     }
                 }
-
-                // REVIEWS & FEEDBACK Section Header with Write Review Button (Seekers only)
-                Column {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "REVIEWS & FEEDBACK",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MutedText,
-                            letterSpacing = 0.8.sp
-                        )
+                        Column {
+                            Text(
+                                text = "Availability",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Charcoal
+                            )
+                            Text(
+                                text = listing.availabilitySummary(),
+                                fontSize = 12.sp,
+                                color = MutedText
+                            )
+                        }
 
                         if (!isOwnListing) {
                             Surface(
-                                color = HoneyTint,
-                                shape = Radius.Inner,
-                                modifier = Modifier
-                                    .bounceClick { showReviewDialog = true }
-                                    .bounceClick(scaleDown = 0.95f)
+                                color = CardWhite,
+                                shape = Radius.Pill,
+                                border = BorderStroke(1.dp, Hairline),
+                                modifier = Modifier.bounceClick(scaleDown = 0.94f) { showDatePicker = true }
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Filled.Star,
-                                        contentDescription = "Leave Review",
+                                        imageVector = Icons.Outlined.CalendarMonth,
+                                        contentDescription = null,
                                         tint = Charcoal,
-                                        modifier = Modifier.size(12.dp)
+                                        modifier = Modifier.size(14.dp)
                                     )
-                                    Spacer(Modifier.width(4.dp))
+                                    Spacer(Modifier.width(5.dp))
                                     Text(
-                                        text = "+ Write Review",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
+                                        text = if (formattedSelectedDate != null) "Change date" else "Pick date",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
                                         color = Charcoal
                                     )
                                 }
@@ -606,54 +621,143 @@ fun ServiceDetailScreen(
                         }
                     }
 
-                    Spacer(Modifier.height(10.dp))
-
-                    if (listingReviews.isEmpty()) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = Radius.Inner,
-                            colors = CardDefaults.cardColors(containerColor = CardWhite),
-                            border = BorderStroke(1.dp, Hairline)
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(
-                                    text = "No reviews written yet.",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Charcoal
-                                )
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    text = if (isOwnListing) "Reviews from students who book your service will appear here."
-                                    else "Be the first student to leave a review after your session!",
-                                    fontSize = 12.sp,
-                                    color = MutedText
-                                )
-                                if (!isOwnListing) {
-                                    Spacer(Modifier.height(10.dp))
-                                    Button(
-                                        onClick = { showReviewDialog = true },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
-                                        shape = Radius.Tile,
-                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
+                    if (!isOwnListing) {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(slotOptions) { slot ->
+                                val isSelected = selectedBookingSlot == slot
+                                Surface(
+                                    shape = Radius.Pill,
+                                    color = if (isSelected) Honey else CardWhite,
+                                    border = BorderStroke(1.dp, if (isSelected) Honey else Hairline),
+                                    modifier = Modifier.bounceClick(scaleDown = 0.94f) {
+                                        selectedBookingSlot = if (isSelected) "" else slot
+                                    }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text("Write a Review", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = CardWhite)
+                                        Icon(
+                                            imageVector = Icons.Outlined.Schedule,
+                                            contentDescription = null,
+                                            tint = if (isSelected) OnHoneyAccent else MutedText,
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                        Spacer(Modifier.width(5.dp))
+                                        Text(
+                                            text = slot,
+                                            fontSize = 12.sp,
+                                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                                            color = if (isSelected) OnHoneyAccent else Charcoal
+                                        )
                                     }
                                 }
                             }
                         }
+
+                        if (formattedSelectedDate != null || selectedBookingSlot.isNotBlank()) {
+                            val summaryTiming = listOfNotNull(
+                                formattedSelectedDate,
+                                selectedBookingSlot.takeIf { it.isNotBlank() }
+                            ).joinToString(" · ")
+                            Button(
+                                onClick = {
+                                    val uniqueChatId = ChatViewModel.buildConversationId(listing.id, currentUid)
+                                    chatViewModel.sendMessage(
+                                        conversationId = uniqueChatId,
+                                        text = "Hi ${listing.providerName}, I'd like to request a session for \"${listing.title}\" on $summaryTiming. Does this timing work for you?",
+                                        studentName = listing.providerName,
+                                        serviceTitle = listing.title,
+                                        listingIdHint = listing.id,
+                                        providerUidHint = listing.providerUid
+                                    )
+                                    onChatClick(listing.providerUid, listing.providerName, listing.title)
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = OnHoneyAccent),
+                                shape = Radius.Pill,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = "Request $summaryTiming",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider(color = Hairline, thickness = 0.8.dp)
+
+                // 5. Unified Reviews Section (grouped card + calm neutral tags)
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (listingReviews.isNotEmpty()) "Reviews (${listingReviews.size})" else "Reviews",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Charcoal
+                        )
+
+                        if (!isOwnListing) {
+                            Surface(
+                                color = CardWhite,
+                                shape = Radius.Pill,
+                                border = BorderStroke(1.dp, Hairline),
+                                modifier = Modifier.bounceClick(scaleDown = 0.95f) { showReviewDialog = true }
+                            ) {
+                                Text(
+                                    text = "Write review",
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Charcoal
+                                )
+                            }
+                        }
+                    }
+
+                    if (listingReviews.isEmpty()) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            color = CardWhite,
+                            border = BorderStroke(1.dp, Hairline)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(18.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "No reviews yet",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Charcoal
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = if (isOwnListing) "Reviews from students will appear here."
+                                    else "Be the first student to share feedback after your session.",
+                                    fontSize = 12.sp,
+                                    color = MutedText
+                                )
+                            }
+                        }
                     } else {
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            listingReviews.forEach { review ->
-                                Card(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = Radius.Inner,
-                                    colors = CardDefaults.cardColors(containerColor = CardWhite),
-                                    border = BorderStroke(1.dp, Hairline)
-                                ) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            color = CardWhite,
+                            border = BorderStroke(1.dp, Hairline)
+                        ) {
+                            Column {
+                                listingReviews.forEachIndexed { index, review ->
                                     Column(Modifier.padding(14.dp)) {
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
@@ -663,23 +767,22 @@ fun ServiceDetailScreen(
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 Box(
                                                     modifier = Modifier
-                                                        .size(28.dp)
+                                                        .size(30.dp)
                                                         .clip(CircleShape)
-                                                        .background(HoneyTint)
-                                                        .border(BorderStroke(1.5.dp, AvatarOutline), CircleShape),
+                                                        .background(CreamTint),
                                                     contentAlignment = Alignment.Center
                                                 ) {
                                                     Text(
                                                         text = review.reviewerName.take(2).uppercase(),
-                                                        fontWeight = FontWeight.Bold,
+                                                        fontWeight = FontWeight.SemiBold,
                                                         fontSize = 11.sp,
                                                         color = Charcoal
                                                     )
                                                 }
-                                                Spacer(Modifier.width(8.dp))
+                                                Spacer(Modifier.width(10.dp))
                                                 Text(
                                                     text = review.reviewerName,
-                                                    fontWeight = FontWeight.Bold,
+                                                    fontWeight = FontWeight.SemiBold,
                                                     fontSize = 13.sp,
                                                     color = Charcoal
                                                 )
@@ -692,45 +795,53 @@ fun ServiceDetailScreen(
                                                     tint = StarGold,
                                                     modifier = Modifier.size(13.dp)
                                                 )
-                                                Spacer(Modifier.width(2.dp))
+                                                Spacer(Modifier.width(3.dp))
                                                 Text(
                                                     text = "%.1f".format(review.rating),
-                                                    fontWeight = FontWeight.Bold,
+                                                    fontWeight = FontWeight.SemiBold,
                                                     fontSize = 12.sp,
                                                     color = Charcoal
                                                 )
                                             }
                                         }
 
+                                        if (review.comment.isNotBlank()) {
+                                            Spacer(Modifier.height(8.dp))
+                                            Text(
+                                                text = review.comment,
+                                                fontSize = 13.sp,
+                                                color = Charcoal.copy(alpha = 0.88f),
+                                                lineHeight = 19.sp
+                                            )
+                                        }
+
                                         if (review.tags.isNotEmpty()) {
-                                            Spacer(Modifier.height(6.dp))
-                                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                                review.tags.forEach { tag ->
+                                            Spacer(Modifier.height(8.dp))
+                                            LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                items(review.tags) { tag ->
                                                     Surface(
-                                                        color = HoneyTint,
-                                                        shape = Radius.Tile
+                                                        color = CreamTint,
+                                                        shape = Radius.Pill
                                                     ) {
                                                         Text(
                                                             text = tag,
-                                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                                            fontSize = 10.sp,
-                                                            fontWeight = FontWeight.SemiBold,
-                                                            color = Charcoal
+                                                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp),
+                                                            fontSize = 11.sp,
+                                                            fontWeight = FontWeight.Medium,
+                                                            color = MutedText
                                                         )
                                                     }
                                                 }
                                             }
                                         }
+                                    }
 
-                                        if (review.comment.isNotBlank()) {
-                                            Spacer(Modifier.height(8.dp))
-                                            Text(
-                                                text = "\"${review.comment}\"",
-                                                fontSize = 12.sp,
-                                                color = Charcoal,
-                                                lineHeight = 17.sp
-                                            )
-                                        }
+                                    if (index < listingReviews.lastIndex) {
+                                        HorizontalDivider(
+                                            modifier = Modifier.padding(horizontal = 14.dp),
+                                            color = Hairline,
+                                            thickness = 0.8.dp
+                                        )
                                     }
                                 }
                             }
@@ -738,28 +849,33 @@ fun ServiceDetailScreen(
                     }
                 }
 
-                Spacer(Modifier.height(16.dp))
-
-                // Flag / Report Listing Button (Only visible to Service Seekers, hidden from the Provider)
+                // Subtle Report Action (Seekers only)
                 if (!isOwnListing) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .bounceClick { showReportDialog = true }
-                            .padding(vertical = 8.dp),
+                            .padding(vertical = 4.dp),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        Icon(
+                            imageVector = Icons.Filled.WarningAmber,
+                            contentDescription = null,
+                            tint = MutedText,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
                         Text(
-                            text = "Flag or report this listing",
+                            text = "Report this listing",
                             fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.Medium,
                             color = MutedText
                         )
                     }
                 }
 
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(8.dp))
             }
         }
 
@@ -792,25 +908,39 @@ fun ServiceDetailScreen(
                     )
                 }
 
-                Button(
-                    onClick = { onChatClick(listing.providerUid, listing.providerName, listing.title) },
-                    shape = Radius.Pill,
-                    colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
-                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
-                    modifier = Modifier.bounceClick(scaleDown = 0.95f)
-                ) {
-                    Text(
-                        text = if (isOwnListing) "Manage Listing" else "Chat Provider",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Icon(
-                        imageVector = Icons.Outlined.ChatBubbleOutline,
-                        contentDescription = null,
-                        tint = HoneyTint,
-                        modifier = Modifier.size(16.dp)
-                    )
+                if (isOwnListing) {
+                    Button(
+                        onClick = onBackClick,
+                        shape = Radius.Pill,
+                        colors = ButtonDefaults.buttonColors(containerColor = Honey, contentColor = OnHoneyAccent),
+                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
+                        modifier = Modifier.bounceClick(scaleDown = 0.95f)
+                    ) {
+                        Text(
+                            text = "Back to Listings",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
+                    }
+                } else {
+                    Surface(
+                        shape = CircleShape,
+                        color = Honey,
+                        modifier = Modifier
+                            .size(50.dp)
+                            .bounceClick(scaleDown = 0.92f) {
+                                onChatClick(listing.providerUid, listing.providerName, listing.title)
+                            }
+                    ) {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                            Icon(
+                                imageVector = Icons.Outlined.ChatBubbleOutline,
+                                contentDescription = "Chat Provider",
+                                tint = OnHoneyAccent,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
                 }
             }
         }

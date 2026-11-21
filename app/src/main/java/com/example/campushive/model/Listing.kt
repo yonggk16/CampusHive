@@ -62,6 +62,14 @@ fun getCategoryVisual(category: String): CategoryVisual {
     }
 }
 
+val LISTING_WEEK_DAYS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+val LISTING_TIME_SLOTS = listOf(
+    "Morning (9am–12pm)",
+    "Afternoon (12pm–5pm)",
+    "Evening (5pm–9pm)",
+    "Flexible"
+)
+
 data class Listing(
     val id: String,
     val providerUid: String = "",
@@ -76,5 +84,19 @@ data class Listing(
     val isVerifiedStudent: Boolean = true,
     val description: String = "",
     val status: String = "ACTIVE", // ACTIVE, INACTIVE, DELETED
-    val createdAt: Long = System.currentTimeMillis()
-)
+    val createdAt: Long = System.currentTimeMillis(),
+    val availableDays: List<String> = emptyList(),
+    val availableTimeSlots: List<String> = emptyList()
+) {
+    fun availabilitySummary(): String {
+        val daysText = when {
+            availableDays.isEmpty() -> "Weekdays & Weekends"
+            availableDays.size == 7 -> "Every day"
+            availableDays.containsAll(listOf("Mon", "Tue", "Wed", "Thu", "Fri")) && availableDays.size == 5 -> "Weekdays"
+            availableDays.containsAll(listOf("Sat", "Sun")) && availableDays.size == 2 -> "Weekends"
+            else -> availableDays.joinToString(", ")
+        }
+        val slotsText = availableTimeSlots.takeIf { it.isNotEmpty() }?.joinToString(" · ")
+        return if (slotsText != null) "$daysText • $slotsText" else daysText
+    }
+}

@@ -20,10 +20,13 @@ import com.example.campushive.ui.theme.bounceClick
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -69,6 +72,7 @@ import com.google.firebase.auth.auth
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import androidx.core.graphics.scale
@@ -217,8 +221,8 @@ fun ChatDetailScreen(
         if (isPartnerOnline) {
             "Online now"
         } else if (partnerLastSeenMillis > 0L) {
-            val formattedTime = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(partnerLastSeenMillis))
-            "Offline • Last seen $formattedTime"
+            val formatted = formatLastSeenTimestamp(partnerLastSeenMillis)
+            "Offline • Last seen $formatted"
         } else {
             "Offline"
         }
@@ -332,29 +336,46 @@ fun ChatDetailScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(HoneyBottomGradient)
-            .statusBarsPadding()
             .navigationBarsPadding()
             .imePadding()
     ) {
-        // Top Header Bar
+        // Unified Curved White Top Header (matches Home, Search, Chats & Profile silhouette)
         Surface(
             color = CardWhite,
-            shadowElevation = 1.dp
+            border = BorderStroke(1.dp, Hairline),
+            shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Column {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = Spacing.gutter, vertical = 12.dp)
+            ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 8.dp, end = 8.dp, top = 24.dp, bottom = 8.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Charcoal)
+                    // Circular CreamTint Back Button
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(CreamTint)
+                            .bounceClick(scaleDown = 0.90f, onClick = onBackClick),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Charcoal,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
 
-                    // Avatar + name = one tap target that opens the profile preview.
-                    // Keep this a SINGLE clickable region: nesting a bouncing child
-                    // inside a bouncing parent makes the header squirm on tap.
+                    Spacer(Modifier.width(10.dp))
+
+                    // Avatar + Name tap target (opens profile preview)
                     Row(
                         modifier = Modifier
                             .weight(1f)
@@ -365,62 +386,75 @@ fun ChatDetailScreen(
                             .padding(end = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                    // Avatar with properly positioned, unclipped presence badge dot
-                    Box(
-                        modifier = Modifier.size(42.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
                         Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(CircleShape)
-                                .background(HoneyTint)
-                                .border(BorderStroke(1.5.dp, AvatarOutline), CircleShape),
+                            modifier = Modifier.size(40.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = partnerName.take(1).uppercase(),
-                                fontWeight = FontWeight.Bold,
-                                color = Charcoal,
-                                fontSize = 15.sp
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(CircleShape)
+                                    .background(HoneyTint)
+                                    .border(BorderStroke(1.5.dp, AvatarOutline), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = partnerName.take(1).uppercase(),
+                                    fontWeight = FontWeight.Bold,
+                                    color = Charcoal,
+                                    fontSize = 15.sp
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .size(11.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isPartnerOnline) OnlineGreen else OfflineGrey)
+                                    .border(2.dp, CardWhite, CircleShape)
                             )
                         }
+
+                        Spacer(Modifier.width(10.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = partnerName,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                color = Charcoal,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = statusLabel,
+                                fontSize = 11.sp,
+                                color = if (isPartnerOnline) OnlineGreen else MutedText,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.width(8.dp))
+
+                    // Circular CreamTint Overflow Menu Button
+                    Box {
                         Box(
                             modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .size(12.dp)
+                                .size(36.dp)
                                 .clip(CircleShape)
-                                .background(if (isPartnerOnline) OnlineGreen else OfflineGrey)
-                                .border(2.dp, CardWhite, CircleShape)
-                        )
-                    }
-
-                    Spacer(Modifier.width(10.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = partnerName,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp,
-                            color = Charcoal,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = statusLabel,
-                            fontSize = 11.sp,
-                            color = if (isPartnerOnline) OnlineGreen else MutedText,
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                    } // end avatar+name tap target
-
-                    // 3 vertical dots menu for reporting
-                    Box {
-                        IconButton(onClick = { showMoreMenu = true }) {
-                            Icon(Icons.Filled.MoreVert, contentDescription = "Report options", tint = Charcoal)
+                                .background(CreamTint)
+                                .bounceClick(scaleDown = 0.90f) { showMoreMenu = true },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.MoreVert,
+                                contentDescription = "Report options",
+                                tint = Charcoal,
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
 
                         DropdownMenu(
@@ -483,7 +517,7 @@ fun ChatDetailScreen(
                                     Icon(
                                         imageVector = Icons.Outlined.Flag,
                                         contentDescription = null,
-                                        tint = HoneyTint,
+                                        tint = BrandHoney,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 },
@@ -532,54 +566,75 @@ fun ChatDetailScreen(
                     }
                 }
 
-                // Service Context Banner
+                Spacer(Modifier.height(10.dp))
+
+                // Compact Cream Service Context Pill inside the Curved Header
                 Surface(
-                    color = CardWhite,
+                    color = Cream,
                     border = BorderStroke(1.dp, Hairline),
-                    shape = Radius.Inner,
+                    shape = RoundedCornerShape(14.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 6.dp)
-                        .clickable(enabled = resolvedListingId.isNotBlank()) {
-                            onViewServiceClick(resolvedListingId)
+                        .bounceClick(scaleDown = 0.98f) {
+                            if (resolvedListingId.isNotBlank()) onViewServiceClick(resolvedListingId)
                         }
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             ServiceCategoryIconBox(
                                 category = resolvedCategory,
-                                size = 36.dp,
-                                shape = Radius.Tile,
+                                size = 34.dp,
+                                shape = RoundedCornerShape(10.dp),
                                 symbolFontSize = 14.sp,
-                                iconSize = 18.dp
+                                iconSize = 16.dp
                             )
                             Spacer(Modifier.width(10.dp))
-                            Column {
-                                Text(serviceTitle, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Charcoal)
-                                Text("Active Campus Service", fontSize = 10.sp, color = MutedText)
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = serviceTitle,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 12.sp,
+                                    color = Charcoal,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = "Active Campus Service",
+                                    fontSize = 10.sp,
+                                    color = MutedText
+                                )
                             }
                         }
 
+                        Spacer(Modifier.width(8.dp))
+
                         Surface(
                             color = HoneyTint,
-                            shape = Radius.Tag
+                            shape = RoundedCornerShape(50),
+                            border = BorderStroke(
+                                0.8.dp,
+                                if (CampusThemeState.isDark) Hairline else WarningBorderSoft
+                            )
                         ) {
                             Text(
-                                text = "VIEW",
+                                text = "View",
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
                                 color = Charcoal
                             )
                         }
                     }
                 }
-
-                Spacer(Modifier.height(6.dp))
             }
         }
 
@@ -593,29 +648,6 @@ fun ChatDetailScreen(
             contentPadding = PaddingValues(vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Date Divider "TODAY"
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Surface(
-                        color = CreamTint,
-                        shape = Radius.Tile
-                    ) {
-                        Text(
-                            text = "TODAY",
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MutedText
-                        )
-                    }
-                }
-            }
-
             if (liveMessages.isEmpty()) {
                 item {
                     Box(
@@ -632,7 +664,30 @@ fun ChatDetailScreen(
                     }
                 }
             } else {
-                items(liveMessages) { msg ->
+                itemsIndexed(liveMessages, key = { _, msg -> msg.id }) { index, msg ->
+                    val currentDayKey = messageDayKey(msg.timestampMillis)
+                    val prevDayKey = if (index > 0) messageDayKey(liveMessages[index - 1].timestampMillis) else null
+                    if (index == 0 || currentDayKey != prevDayKey) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Surface(
+                                color = CreamTint,
+                                shape = Radius.Tile
+                            ) {
+                                Text(
+                                    text = formatChatDateHeader(msg.timestampMillis),
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MutedText
+                                )
+                            }
+                        }
+                    }
                     MessageBubble(
                         message = msg,
                         onImageClick = { bitmap -> fullScreenImage = bitmap },
@@ -650,320 +705,331 @@ fun ChatDetailScreen(
             }
         }
 
-        // Bottom Input Area (Inline Editing Bar + Attachment Menu + Staged Attachment Preview + Input Row)
-        Surface(
-            color = CardWhite,
-            shadowElevation = 8.dp
+        // Floating Pill Bottom Composer (matches the floating pill silhouette of BottomBar)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = Spacing.gutter, end = Spacing.gutter, top = 4.dp, bottom = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Column(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                // Inline Editing Message Banner Bar (CampusHive Themed)
-                editingMessage?.let { editing ->
-                    Surface(
-                        color = HoneyTint,
-                        border = BorderStroke(1.dp, WarningBorderSoft),
-                        shape = Radius.Tile,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 6.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(
-                                modifier = Modifier.weight(1f),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = CardWhite,
-                                    modifier = Modifier.size(28.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.Outlined.Edit,
-                                            contentDescription = null,
-                                            tint = Charcoal,
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                    }
-                                }
-                                Spacer(Modifier.width(10.dp))
-                                Column {
-                                    Text(
-                                        text = "Editing Message",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Charcoal
-                                    )
-                                    Text(
-                                        text = editing.text,
-                                        fontSize = 12.sp,
-                                        color = MutedText,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            }
-
-                            IconButton(
-                                onClick = {
-                                    editingMessage = null
-                                    messageText = ""
-                                },
-                                modifier = Modifier.size(28.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Close,
-                                    contentDescription = "Cancel edit",
-                                    tint = Charcoal,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Expandable Upload Picker Menu (Picture vs File)
-                AnimatedVisibility(visible = showAttachMenu) {
+            // Inline Editing Message Banner Bar
+            editingMessage?.let { editing ->
+                Surface(
+                    color = HoneyTint,
+                    border = BorderStroke(1.dp, if (CampusThemeState.isDark) Hairline else WarningBorderSoft),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Surface(
-                            shape = Radius.Card,
-                            color = HoneyTint,
-                            border = BorderStroke(1.dp, Hairline),
-                            modifier = Modifier
-                                .weight(1f)
-                                .bounceClick(scaleDown = 0.94f) { imagePickerLauncher.launch("image/*") }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Image,
-                                    contentDescription = "Upload Picture",
-                                    tint = Charcoal,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    text = "Upload Picture",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Charcoal
-                                )
-                            }
-                        }
-
-                        Surface(
-                            shape = Radius.Card,
-                            color = CardWhite,
-                            border = BorderStroke(1.dp, Hairline),
-                            modifier = Modifier
-                                .weight(1f)
-                                .bounceClick(scaleDown = 0.94f) { filePickerLauncher.launch("*/*") }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Description,
-                                    contentDescription = "Attach File",
-                                    tint = Charcoal,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    text = "Attach File",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Charcoal
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Staged Attachment Preview Bar before sending
-                pendingAttachment?.let { staged ->
-                    Surface(
-                        color = CardWhite,
-                        shape = Radius.Inner,
-                        border = BorderStroke(1.dp, Hairline),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 6.dp)
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(
-                            modifier = Modifier.padding(10.dp),
+                            modifier = Modifier.weight(1f),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            if (staged.type == "IMAGE" && staged.previewBitmap != null) {
-                                Image(
-                                    bitmap = staged.previewBitmap,
-                                    contentDescription = staged.name,
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .clip(Radius.Tile),
-                                    contentScale = ContentScale.Crop
-                                )
-                            } else {
-                                Box(
-                                    modifier = Modifier
-                                        .size(44.dp)
-                                        .clip(Radius.Tile)
-                                        .background(HoneyTint)
-                                        .border(BorderStroke(1.5.dp, AvatarOutline), Radius.Tile),
-                                    contentAlignment = Alignment.Center
-                                ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = CardWhite,
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
                                     Icon(
-                                        imageVector = Icons.Outlined.Description,
+                                        imageVector = Icons.Outlined.Edit,
                                         contentDescription = null,
                                         tint = Charcoal,
-                                        modifier = Modifier.size(22.dp)
+                                        modifier = Modifier.size(14.dp)
                                     )
                                 }
                             }
-
                             Spacer(Modifier.width(10.dp))
-
-                            Column(modifier = Modifier.weight(1f)) {
+                            Column {
                                 Text(
-                                    text = staged.name,
-                                    fontSize = 13.sp,
+                                    text = "Editing Message",
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Charcoal,
+                                    color = Charcoal
+                                )
+                                Text(
+                                    text = editing.text,
+                                    fontSize = 12.sp,
+                                    color = MutedText,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
-                                Text(
-                                    text = "${if (staged.type == "IMAGE") "Picture" else "File"} • ${staged.sizeLabel}",
-                                    fontSize = 11.sp,
-                                    color = MutedText
-                                )
                             }
+                        }
 
-                            IconButton(
-                                onClick = { pendingAttachment = null },
-                                modifier = Modifier.size(28.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Close,
-                                    contentDescription = "Remove attachment",
-                                    tint = MutedText,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
+                        IconButton(
+                            onClick = {
+                                editingMessage = null
+                                messageText = ""
+                            },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = "Cancel edit",
+                                tint = Charcoal,
+                                modifier = Modifier.size(16.dp)
+                            )
                         }
                     }
                 }
+            }
 
+            // Expandable Upload Picker Menu (Picture vs File)
+            AnimatedVisibility(visible = showAttachMenu) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = HoneyTint,
+                        border = BorderStroke(1.dp, Hairline),
+                        modifier = Modifier
+                            .weight(1f)
+                            .bounceClick(scaleDown = 0.94f) { imagePickerLauncher.launch("image/*") }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Image,
+                                contentDescription = "Upload Picture",
+                                tint = Charcoal,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(7.dp))
+                            Text(
+                                text = "Picture",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Charcoal
+                            )
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = CardWhite,
+                        border = BorderStroke(1.dp, Hairline),
+                        modifier = Modifier
+                            .weight(1f)
+                            .bounceClick(scaleDown = 0.94f) { filePickerLauncher.launch("*/*") }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Description,
+                                contentDescription = "Attach File",
+                                tint = Charcoal,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(7.dp))
+                            Text(
+                                text = "File",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Charcoal
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Staged Attachment Preview Bar before sending
+            pendingAttachment?.let { staged ->
+                Surface(
+                    color = CardWhite,
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, Hairline),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (staged.type == "IMAGE" && staged.previewBitmap != null) {
+                            Image(
+                                bitmap = staged.previewBitmap,
+                                contentDescription = staged.name,
+                                modifier = Modifier
+                                    .size(46.dp)
+                                    .clip(Radius.Tile),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(Radius.Tile)
+                                    .background(HoneyTint)
+                                    .border(BorderStroke(1.5.dp, AvatarOutline), Radius.Tile),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Description,
+                                    contentDescription = null,
+                                    tint = Charcoal,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(Modifier.width(10.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = staged.name,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Charcoal,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = "${if (staged.type == "IMAGE") "Picture" else "File"} • ${staged.sizeLabel}",
+                                fontSize = 11.sp,
+                                color = MutedText
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { pendingAttachment = null },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = "Remove attachment",
+                                tint = MutedText,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Floating Pill Composer Bar
+            Surface(
+                shape = Radius.Pill,
+                color = CardWhite,
+                border = BorderStroke(1.dp, Hairline),
+                shadowElevation = 8.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 22.dp),
+                        .padding(horizontal = 8.dp, vertical = 7.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Plus button on left to toggle Picture / File upload options
+                    // Circular CreamTint "+" button
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(40.dp)
                             .clip(CircleShape)
-                            .background(if (showAttachMenu) Honey else CardWhite)
-                            .bounceClick { showAttachMenu = !showAttachMenu },
+                            .background(if (showAttachMenu) Honey else CreamTint)
+                            .bounceClick(scaleDown = 0.90f) { showAttachMenu = !showAttachMenu },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = if (showAttachMenu) Icons.Filled.Close else Icons.Filled.Add,
                             contentDescription = "Attach Picture or File",
-                            tint = Charcoal,
+                            tint = if (showAttachMenu) OnHoneyAccent else Charcoal,
                             modifier = Modifier.size(20.dp)
                         )
                     }
 
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(10.dp))
 
-                    // White pill input box
-                    OutlinedTextField(
-                        value = messageText,
-                        onValueChange = { messageText = it },
-                        placeholder = {
+                    // Sleek borderless input inside the floating pill
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(vertical = 8.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        if (messageText.isEmpty()) {
                             Text(
                                 text = when {
                                     editingMessage != null -> "Edit your message..."
                                     pendingAttachment != null -> "Add a caption (optional)..."
                                     else -> "Message ${partnerName.split(" ").firstOrNull() ?: partnerName}..."
                                 },
-                                fontSize = 13.sp,
-                                color = MutedText
+                                fontSize = 14.sp,
+                                color = MutedText,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
-                        },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                        shape = Radius.Card,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = CardWhite,
-                            unfocusedContainerColor = CardWhite,
-                            focusedBorderColor = Honey,
-                            unfocusedBorderColor = Hairline
+                        }
+                        BasicTextField(
+                            value = messageText,
+                            onValueChange = { messageText = it },
+                            textStyle = TextStyle(
+                                fontSize = 14.sp,
+                                color = Charcoal
+                            ),
+                            cursorBrush = SolidColor(Charcoal),
+                            maxLines = 4,
+                            modifier = Modifier.fillMaxWidth()
                         )
-                    )
+                    }
 
                     Spacer(Modifier.width(8.dp))
 
-                    // Send FAB (sends new text, edits existing text, or sends attachment)
-                    FloatingActionButton(
-                        onClick = {
-                            val currentStaged = pendingAttachment
-                            val currentEditing = editingMessage
-                            if (messageText.isNotBlank() || currentStaged != null) {
-                                val textToSend = messageText.trim()
-                                messageText = ""
-                                pendingAttachment = null
-                                showAttachMenu = false
+                    // Circular Send Button
+                    val canSend = messageText.isNotBlank() || pendingAttachment != null
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(if (canSend) Honey else CreamTint)
+                            .bounceClick(scaleDown = 0.90f) {
+                                val currentStaged = pendingAttachment
+                                val currentEditing = editingMessage
+                                if (messageText.isNotBlank() || currentStaged != null) {
+                                    val textToSend = messageText.trim()
+                                    messageText = ""
+                                    pendingAttachment = null
+                                    showAttachMenu = false
 
-                                if (currentEditing != null) {
-                                    editingMessage = null
-                                    chatViewModel.editMessage(chatId, currentEditing.id, textToSend)
-                                    Toast.makeText(context, "Message edited", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    chatViewModel.sendMessage(
-                                        conversationId = chatId,
-                                        text = textToSend,
-                                        studentName = partnerName,
-                                        serviceTitle = serviceTitle,
-                                        attachmentType = currentStaged?.type ?: "",
-                                        attachmentName = currentStaged?.name ?: "",
-                                        attachmentSize = currentStaged?.sizeLabel ?: "",
-                                        attachmentBase64 = currentStaged?.base64Data ?: "",
-                                        listingIdHint = resolvedListingId,
-                                        providerUidHint = matchedListing?.providerUid.orEmpty()
-                                            .ifBlank { currentConversation?.providerUid.orEmpty() }
-                                    )
+                                    if (currentEditing != null) {
+                                        editingMessage = null
+                                        chatViewModel.editMessage(chatId, currentEditing.id, textToSend)
+                                        Toast.makeText(context, "Message edited", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        chatViewModel.sendMessage(
+                                            conversationId = chatId,
+                                            text = textToSend,
+                                            studentName = partnerName,
+                                            serviceTitle = serviceTitle,
+                                            attachmentType = currentStaged?.type ?: "",
+                                            attachmentName = currentStaged?.name ?: "",
+                                            attachmentSize = currentStaged?.sizeLabel ?: "",
+                                            attachmentBase64 = currentStaged?.base64Data ?: "",
+                                            listingIdHint = resolvedListingId,
+                                            providerUidHint = matchedListing?.providerUid.orEmpty()
+                                                .ifBlank { currentConversation?.providerUid.orEmpty() }
+                                        )
+                                    }
                                 }
-                            }
-                        },
-                        containerColor = Charcoal,
-                        contentColor = CardWhite,
-                        modifier = Modifier.size(42.dp),
-                        shape = CircleShape
+                            },
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Send,
                             contentDescription = "Send",
+                            tint = if (canSend) OnHoneyAccent else MutedText,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -1299,5 +1365,39 @@ private fun saveAndNotifyFile(context: Context, message: ChatMessage) {
         }
     } catch (_: Exception) {
         Toast.makeText(context, "Could not save file: ${message.attachmentName}", Toast.LENGTH_SHORT).show()
+    }
+}
+
+private fun messageDayKey(timestampMillis: Long): String {
+    if (timestampMillis <= 0L) return "EARLIER"
+    val cal = Calendar.getInstance().apply { timeInMillis = timestampMillis }
+    return "${cal.get(Calendar.YEAR)}-${cal.get(Calendar.DAY_OF_YEAR)}"
+}
+
+private fun formatChatDateHeader(timestampMillis: Long): String {
+    if (timestampMillis <= 0L) return "EARLIER"
+    val now = Calendar.getInstance()
+    val target = Calendar.getInstance().apply { timeInMillis = timestampMillis }
+    val sameYear = now.get(Calendar.YEAR) == target.get(Calendar.YEAR)
+    val dayDiff = now.get(Calendar.DAY_OF_YEAR) - target.get(Calendar.DAY_OF_YEAR)
+    return when {
+        sameYear && dayDiff == 0 -> "TODAY"
+        sameYear && dayDiff == 1 -> "YESTERDAY"
+        sameYear -> SimpleDateFormat("EEE, d MMM", Locale.getDefault()).format(Date(timestampMillis)).uppercase()
+        else -> SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(Date(timestampMillis)).uppercase()
+    }
+}
+
+private fun formatLastSeenTimestamp(timestampMillis: Long): String {
+    val now = Calendar.getInstance()
+    val target = Calendar.getInstance().apply { timeInMillis = timestampMillis }
+    val sameYear = now.get(Calendar.YEAR) == target.get(Calendar.YEAR)
+    val dayDiff = now.get(Calendar.DAY_OF_YEAR) - target.get(Calendar.DAY_OF_YEAR)
+    val timeStr = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(timestampMillis))
+    return when {
+        sameYear && dayDiff == 0 -> timeStr
+        sameYear && dayDiff == 1 -> "Yesterday $timeStr"
+        sameYear -> SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()).format(Date(timestampMillis))
+        else -> SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(Date(timestampMillis))
     }
 }

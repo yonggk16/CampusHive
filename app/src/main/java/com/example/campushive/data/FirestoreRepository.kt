@@ -152,6 +152,8 @@ class FirestoreRepository(
                 "coverImageUrl" to "",
                 "status" to listing.status.ifBlank { "ACTIVE" },
                 "isVerifiedStudent" to listing.isVerifiedStudent,
+                "availableDays" to listing.availableDays,
+                "availableTimeSlots" to listing.availableTimeSlots,
                 "createdAt" to Timestamp.now()
             )
 
@@ -177,7 +179,9 @@ class FirestoreRepository(
                 "pricingType" to listing.pricingType.name,
                 "campusLocation" to listing.campusLocation,
                 "description" to listing.description,
-                "status" to listing.status
+                "status" to listing.status,
+                "availableDays" to listing.availableDays,
+                "availableTimeSlots" to listing.availableTimeSlots
             )
             docRef.update(updates).await()
             Log.d("FirestoreRepository", "Successfully updated listing: ${listing.id}")
@@ -608,6 +612,8 @@ private fun DocumentSnapshot.toListingOrNull(): Listing? {
             ?: false
         val description = getString("description") ?: ""
         val createdAt = getTimestamp("createdAt")?.toDate()?.time ?: System.currentTimeMillis()
+        val availableDays = (get("availableDays") as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
+        val availableTimeSlots = (get("availableTimeSlots") as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
 
         Listing(
             id = getString("listingId")?.takeIf { it.isNotBlank() } ?: id,
@@ -623,7 +629,9 @@ private fun DocumentSnapshot.toListingOrNull(): Listing? {
             isVerifiedStudent = isVerified,
             description = description,
             status = status,
-            createdAt = createdAt
+            createdAt = createdAt,
+            availableDays = availableDays,
+            availableTimeSlots = availableTimeSlots
         )
     } catch (e: Exception) {
         Log.e("FirestoreRepository", "Error mapping document $id to Listing", e)
@@ -664,7 +672,7 @@ private fun DocumentSnapshot.toUserProfileOrNull(): UserProfile? {
         val uid = getString("uid") ?: id
         val displayName = getString("displayName") ?: "Student User"
         val email = getString("email") ?: ""
-        val bio = getString("bio") ?: "CampusHive Member"
+        val bio = getString("bio")?.takeUnless { it.equals("CampusHive Member", ignoreCase = true) } ?: ""
         val campusLocation = getString("campusLocation") ?: "HELP University S2"
         val facultyOrMajor = getString("facultyOrMajor") ?: "General Student"
         val phoneNumber = getString("phoneNumber") ?: ""

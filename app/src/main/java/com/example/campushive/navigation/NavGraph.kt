@@ -1,21 +1,20 @@
 package com.example.campushive.navigation
 
 import android.net.Uri
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -29,6 +28,7 @@ import androidx.navigation.navArgument
 import com.example.campushive.components.BottomBar
 import com.example.campushive.components.ChatNotificationHelper
 import com.example.campushive.screen.*
+import com.example.campushive.viewmodel.AuthViewModel
 import com.example.campushive.viewmodel.ChatViewModel
 import com.example.campushive.viewmodel.HelpdeskViewModel
 import com.example.campushive.viewmodel.ListingViewModel
@@ -56,6 +56,7 @@ sealed class Screen(val route: String, val title: String) {
 fun CampusHiveApp() {
     val context = LocalContext.current
     val navController = rememberNavController()
+    val authViewModel: AuthViewModel = viewModel()
     val listingViewModel: ListingViewModel = viewModel()
     val reviewViewModel: ReviewViewModel = viewModel()
     val helpdeskViewModel: HelpdeskViewModel = viewModel()
@@ -86,35 +87,26 @@ fun CampusHiveApp() {
         currentRoute == Screen.Profile.route
     )
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        bottomBar = { if (showBottomBar) BottomBar(navController, chatViewModel) },
-    ) { innerPadding ->
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
         NavHost(
             navController = navController,
             startDestination = startDestination,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
+            modifier = Modifier.fillMaxSize(),
             enterTransition = {
-                fadeIn(animationSpec = tween(180)) +
-                    scaleIn(
-                        initialScale = 0.985f,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioNoBouncy,
-                            stiffness = Spring.StiffnessMediumLow
-                        )
-                    )
+                fadeIn(animationSpec = tween(150, easing = FastOutSlowInEasing))
             },
             exitTransition = {
-                fadeOut(animationSpec = tween(140))
+                fadeOut(animationSpec = tween(110, easing = FastOutLinearInEasing))
             },
             popEnterTransition = {
-                fadeIn(animationSpec = tween(180))
+                fadeIn(animationSpec = tween(150, easing = FastOutSlowInEasing))
             },
             popExitTransition = {
-                fadeOut(animationSpec = tween(140))
+                fadeOut(animationSpec = tween(110, easing = FastOutLinearInEasing))
             }
         ) {
             // ==================================================================
@@ -124,6 +116,7 @@ fun CampusHiveApp() {
             // Login Screen
             composable(Screen.Login.route) {
                 LoginScreen(
+                    authViewModel = authViewModel,
                     onLoginSuccess = {
                         navController.navigate(Screen.Home.route) {
                             popUpTo(Screen.Login.route) { inclusive = true }
@@ -138,6 +131,7 @@ fun CampusHiveApp() {
             // Sign Up Screen
             composable(Screen.SignUp.route) {
                 SignUpScreen(
+                    authViewModel = authViewModel,
                     onSignUpSuccess = {
                         navController.navigate(Screen.Home.route) {
                             popUpTo(Screen.Login.route) { inclusive = true }
@@ -157,6 +151,7 @@ fun CampusHiveApp() {
             composable(Screen.Home.route) {
                 HomeScreen(
                     listingViewModel = listingViewModel,
+                    authViewModel = authViewModel,
                     chatViewModel = chatViewModel,
                     onListingClick = { listing ->
                         navController.navigate("service_detail/${listing.id}")
@@ -250,6 +245,7 @@ fun CampusHiveApp() {
             // Profile Screen
             composable(Screen.Profile.route) {
                 ProfileScreen(
+                    authViewModel = authViewModel,
                     listingViewModel = listingViewModel,
                     reviewViewModel = reviewViewModel,
                     onHelpdeskClick = {
@@ -257,6 +253,9 @@ fun CampusHiveApp() {
                     },
                     onCreateServiceClick = {
                         navController.navigate(Screen.Create.route)
+                    },
+                    onListingClick = { listing ->
+                        navController.navigate("service_detail/${listing.id}")
                     },
                     onSignOutClick = {
                         navController.navigate(Screen.Login.route) {
@@ -278,6 +277,7 @@ fun CampusHiveApp() {
                     listingViewModel = listingViewModel,
                     reviewViewModel = reviewViewModel,
                     helpdeskViewModel = helpdeskViewModel,
+                    chatViewModel = chatViewModel,
                     onBackClick = {
                         if (!navController.popBackStack()) {
                             navController.navigate(Screen.Search.route) {
@@ -326,6 +326,7 @@ fun CampusHiveApp() {
             composable(Screen.Create.route) {
                 CreateServiceScreen(
                     listingViewModel = listingViewModel,
+                    authViewModel = authViewModel,
                     onClose = {
                         navController.popBackStack()
                     },
@@ -456,6 +457,14 @@ fun CampusHiveApp() {
                     }
                 )
             }
+        }
+
+        if (showBottomBar) {
+            BottomBar(
+                nav = navController,
+                chatViewModel = chatViewModel,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
         }
     }
 }

@@ -1,22 +1,29 @@
 package com.example.campushive.components
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.example.campushive.model.UserProfile
 import com.example.campushive.ui.theme.*
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditProfileDialog(
     userProfile: UserProfile?,
@@ -24,163 +31,216 @@ fun EditProfileDialog(
     onDismiss: () -> Unit,
     onSave: (displayName: String, bio: String, campusLocation: String, facultyOrMajor: String, phoneNumber: String) -> Unit
 ) {
-    var displayName by remember { mutableStateOf(userProfile?.displayName?.ifBlank { currentDisplayName } ?: currentDisplayName) }
-    var bio by remember { mutableStateOf(userProfile?.bio ?: "CampusHive Member") }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var displayName by remember {
+        mutableStateOf(userProfile?.displayName?.ifBlank { currentDisplayName } ?: currentDisplayName)
+    }
+    var bio by remember {
+        mutableStateOf(
+            userProfile?.bio?.takeUnless { it.equals("CampusHive Member", ignoreCase = true) } ?: ""
+        )
+    }
     var campusLocation by remember { mutableStateOf(userProfile?.campusLocation ?: "HELP University S2") }
     var facultyOrMajor by remember { mutableStateOf(userProfile?.facultyOrMajor ?: "School of Computing & IT") }
     var phoneNumber by remember { mutableStateOf(userProfile?.phoneNumber ?: "") }
 
-    Dialog(
+    val fieldColors = OutlinedTextFieldDefaults.colors(
+        focusedContainerColor = Cream,
+        unfocusedContainerColor = Cream,
+        focusedBorderColor = Charcoal,
+        unfocusedBorderColor = Hairline,
+        focusedTextColor = Charcoal,
+        unfocusedTextColor = Charcoal,
+        focusedLabelColor = Charcoal,
+        unfocusedLabelColor = MutedText,
+        cursorColor = Charcoal
+    )
+
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        sheetState = sheetState,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        containerColor = CardWhite,
+        contentColor = Charcoal,
+        dragHandle = {
+            BottomSheetDefaults.DragHandle(
+                width = 40.dp,
+                height = 4.dp,
+                color = Hairline
+            )
+        }
     ) {
-        Surface(
+        Column(
             modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .wrapContentHeight()
+                .fillMaxWidth()
                 .navigationBarsPadding()
-                .imePadding(),
-            shape = Radius.Card,
-            color = Cream,
-            border = BorderStroke(1.dp, Hairline)
+                .imePadding()
         ) {
             Column(
                 modifier = Modifier
-                    .padding(20.dp)
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
                     .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Text(
-                    text = "Edit Student Profile",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = Charcoal
-                )
-
-                Text(
-                    text = "Customize how you appear to other students on CampusHive.",
-                    fontSize = 12.sp,
-                    color = MutedText,
-                    modifier = Modifier.padding(top = 2.dp, bottom = 16.dp)
-                )
-
-                // FULL NAME
-                OutlinedTextField(
-                    value = displayName,
-                    onValueChange = { displayName = it },
-                    label = { Text("Full Name", fontSize = 12.sp) },
-                    singleLine = true,
-                    shape = Radius.Tile,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = CardWhite,
-                        unfocusedContainerColor = CardWhite,
-                        focusedBorderColor = Honey,
-                        unfocusedBorderColor = Hairline
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(Modifier.height(10.dp))
-
-                // BIO / TAGLINE
-                OutlinedTextField(
-                    value = bio,
-                    onValueChange = { bio = it },
-                    label = { Text("Bio / Tagline", fontSize = 12.sp) },
-                    minLines = 2,
-                    maxLines = 3,
-                    shape = Radius.Tile,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = CardWhite,
-                        unfocusedContainerColor = CardWhite,
-                        focusedBorderColor = Honey,
-                        unfocusedBorderColor = Hairline
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(Modifier.height(10.dp))
-
-                // CAMPUS LOCATION
-                OutlinedTextField(
-                    value = campusLocation,
-                    onValueChange = { campusLocation = it },
-                    label = { Text("Campus / Location", fontSize = 12.sp) },
-                    singleLine = true,
-                    shape = Radius.Tile,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = CardWhite,
-                        unfocusedContainerColor = CardWhite,
-                        focusedBorderColor = Honey,
-                        unfocusedBorderColor = Hairline
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(Modifier.height(10.dp))
-
-                // FACULTY / MAJOR
-                OutlinedTextField(
-                    value = facultyOrMajor,
-                    onValueChange = { facultyOrMajor = it },
-                    label = { Text("Faculty / Major", fontSize = 12.sp) },
-                    singleLine = true,
-                    shape = Radius.Tile,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = CardWhite,
-                        unfocusedContainerColor = CardWhite,
-                        focusedBorderColor = Honey,
-                        unfocusedBorderColor = Hairline
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(Modifier.height(10.dp))
-
-                // PHONE / WHATSAPP NUMBER
-                OutlinedTextField(
-                    value = phoneNumber,
-                    onValueChange = { phoneNumber = it },
-                    label = { Text("Contact Number (WhatsApp/Phone)", fontSize = 12.sp) },
-                    singleLine = true,
-                    shape = Radius.Tile,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = CardWhite,
-                        unfocusedContainerColor = CardWhite,
-                        focusedBorderColor = Honey,
-                        unfocusedBorderColor = Hairline
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(Modifier.height(20.dp))
-
-                // ACTION BUTTONS
+                // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
                 ) {
-                    TextButton(
-                        onClick = onDismiss,
-                        shape = Radius.Tile
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text("Cancel", fontWeight = FontWeight.Bold, color = Charcoal)
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(HoneyTint),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Person,
+                                contentDescription = null,
+                                tint = if (CampusThemeState.isDark) BrandHoney else Charcoal,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                text = "Edit Profile",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 19.sp,
+                                color = Charcoal
+                            )
+                            Text(
+                                text = "Customize how you appear on CampusHive.",
+                                fontSize = 13.sp,
+                                color = MutedText
+                            )
+                        }
                     }
 
                     Spacer(Modifier.width(8.dp))
 
-                    Button(
-                        onClick = {
-                            if (displayName.isNotBlank()) {
-                                onSave(displayName, bio, campusLocation, facultyOrMajor, phoneNumber)
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
-                        shape = Radius.Tile,
-                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(CreamTint)
+                            .clickable(onClick = onDismiss),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text("Save Profile", fontWeight = FontWeight.Bold, color = CardWhite)
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = "Close",
+                            tint = Charcoal,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
+                }
+
+                Spacer(Modifier.height(2.dp))
+
+                // Full Name
+                OutlinedTextField(
+                    value = displayName,
+                    onValueChange = { displayName = it },
+                    label = { Text("Full name", fontSize = 13.sp) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = fieldColors,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Bio / Tagline
+                OutlinedTextField(
+                    value = bio,
+                    onValueChange = { bio = it },
+                    label = { Text("Bio / Tagline", fontSize = 13.sp) },
+                    minLines = 2,
+                    maxLines = 3,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = fieldColors,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Campus Location
+                OutlinedTextField(
+                    value = campusLocation,
+                    onValueChange = { campusLocation = it },
+                    label = { Text("Campus / Location", fontSize = 13.sp) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = fieldColors,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Faculty / Major
+                OutlinedTextField(
+                    value = facultyOrMajor,
+                    onValueChange = { facultyOrMajor = it },
+                    label = { Text("Faculty / Major", fontSize = 13.sp) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = fieldColors,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Phone / WhatsApp Number
+                OutlinedTextField(
+                    value = phoneNumber,
+                    onValueChange = { phoneNumber = it },
+                    label = { Text("Contact number (WhatsApp / Phone)", fontSize = 13.sp) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = fieldColors,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(Modifier.height(6.dp))
+            }
+
+            // Anchored bottom save bar
+            HorizontalDivider(thickness = 0.8.dp, color = Hairline)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 16.dp)
+            ) {
+                Button(
+                    onClick = {
+                        if (displayName.isNotBlank()) {
+                            onSave(
+                                displayName.trim(),
+                                bio.trim(),
+                                campusLocation.trim(),
+                                facultyOrMajor.trim(),
+                                phoneNumber.trim()
+                            )
+                        }
+                    },
+                    enabled = displayName.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Honey,
+                        contentColor = OnHoneyAccent,
+                        disabledContainerColor = CreamTint,
+                        disabledContentColor = MutedText
+                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                ) {
+                    Text(
+                        text = "Save Profile",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp
+                    )
                 }
             }
         }

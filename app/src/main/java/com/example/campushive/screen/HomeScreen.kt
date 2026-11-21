@@ -1,12 +1,19 @@
 package com.example.campushive.screen
 
+import android.content.Context
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import com.example.campushive.ui.theme.bounceClick
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -14,8 +21,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Code
@@ -36,11 +46,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campushive.components.NotificationCenterDialog
+import com.example.campushive.components.ServiceCategoryIconBox
 import com.example.campushive.model.ChatConversation
 import com.example.campushive.model.Listing
+import com.example.campushive.model.getCategoryVisual
 import com.example.campushive.ui.theme.*
+import com.example.campushive.util.FavoritesStore
+import com.example.campushive.util.ListingRecommender
 import com.example.campushive.viewmodel.AuthViewModel
 import com.example.campushive.viewmodel.ChatViewModel
 import com.example.campushive.viewmodel.ListingViewModel
@@ -51,28 +66,16 @@ import kotlin.time.Duration.Companion.milliseconds
 private data class ServiceCategory(
     val id: String,
     val name: String,
-    val backgroundColor: Color,
     val icon: ImageVector,
     val symbolText: String? = null
 )
 
 private val homeCategories = listOf(
-    ServiceCategory("tutoring", "Tutoring", CardWhite, Icons.Outlined.School, "Σ"),
-    ServiceCategory("design", "Design", CardWhite, Icons.Outlined.Palette, "✎"),
-    ServiceCategory("tech", "Tech Help", CardWhite, Icons.Outlined.Code, "</>"),
-    ServiceCategory("errands", "Errands", CardWhite, Icons.Filled.Check, "✓"),
-    ServiceCategory("others", "Others", CardWhite, Icons.Outlined.Category, "✦")
-)
-
-private data class QuickHelpItem(
-    val title: String,
-    val categoryQuery: String
-)
-
-private val quickHelpItems = listOf(
-    QuickHelpItem("Study for an exam", "Tutoring"),
-    QuickHelpItem("Design a poster", "Design"),
-    QuickHelpItem("Fix my code or laptop", "Tech Help")
+    ServiceCategory("tutoring", "Tutoring", Icons.Outlined.School, "Σ"),
+    ServiceCategory("design", "Design", Icons.Outlined.Palette, "✎"),
+    ServiceCategory("tech", "Tech Help", Icons.Outlined.Code, "</>"),
+    ServiceCategory("errands", "Errands", Icons.Filled.Check, "✓"),
+    ServiceCategory("others", "Others", Icons.Outlined.Category, "✦")
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -95,6 +98,12 @@ fun HomeScreen(
     var showNotificationsDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
+    val currentUid = authViewModel.currentUser?.uid.orEmpty()
+    val savedIds by FavoritesStore.savedIds.collectAsState()
+    LaunchedEffect(currentUid) {
+        FavoritesStore.load(context, currentUid)
+    }
+
     val totalUnreadCount = remember(conversations) {
         conversations.sumOf { it.unreadCount }
     }
@@ -106,7 +115,8 @@ fun HomeScreen(
     }
 
     val upNextChat = remember(conversations) {
-        conversations.firstOrNull { it.unreadCount > 0 || it.lastMessage.isNotBlank() }
+        conversations.firstOrNull { it.unreadCount > 0 }
+            ?: conversations.firstOrNull { it.lastMessage.isNotBlank() }
     }
 
     val currentUserName = userProfile?.displayName.orEmpty().ifBlank {
@@ -114,10 +124,63 @@ fun HomeScreen(
             authViewModel.currentUser?.email?.substringBefore("@").orEmpty().ifBlank { "Student" }
         }
     }
-
     val firstName = currentUserName.split(" ").firstOrNull() ?: "Student"
+    val initials = remember(currentUserName) {
+        currentUserName.split(" ")
+            .filter { it.isNotBlank() }
+            .take(2)
+            .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+            .joinToString("")
+            .ifEmpty { "S" }
+    }
+    val campusName = userProfile?.campusLocation?.takeIf { it.isNotBlank() } ?: "HELP University S2"
 
-    // In-app notification centre (compact dialog)
+    // Scenario-based greeting: Welcome (first visit) / Welcome back (returning) / Hello (recent session)
+    val heroGreeting = remember(currentUid) {
+        val prefs = context.getSharedPreferences("campushive_prefs", Context.MODE_PRIVATE)
+        val visitKey = "last_home_visit_${currentUid.ifBlank { "guest" }}"
+        val lastVisit = prefs.getLong(visitKey, 0L)
+        val now = System.currentTimeMillis()
+        val fourHoursMs = 4L * 60L * 60L * 1000L
+        when {
+            lastVisit == 0L -> "Welcome"
+            now - lastVisit >= fourHoursMs -> "Welcome back"
+            else -> "Hello"
+        }
+    }
+    val heroSubtitle = remember(heroGreeting) {
+        when (heroGreeting) {
+            "Welcome" -> "Find or offer services across campus"
+            "Welcome back" -> "Ready to explore campus today?"
+            else -> "What are you looking for today?"
+        }
+    }
+    LaunchedEffect(currentUid) {
+        val prefs = context.getSharedPreferences("campushive_prefs", Context.MODE_PRIVATE)
+        val visitKey = "last_home_visit_${currentUid.ifBlank { "guest" }}"
+        prefs.edit().putLong(visitKey, System.currentTimeMillis()).apply()
+    }
+
+    // Dismissible CampusHive 2.0 release announcement banner (persisted per user by announcement ID)
+    val currentAnnouncementId = "campushive_2_0"
+    val announcementPrefKey = "dismissed_announcement_${currentUid.ifBlank { "guest" }}"
+    var showAnnouncementBanner by remember(currentUid) {
+        val prefs = context.getSharedPreferences("campushive_prefs", Context.MODE_PRIVATE)
+        mutableStateOf(prefs.getString(announcementPrefKey, null) != currentAnnouncementId)
+    }
+
+    val recommendedListings = remember(liveListings, currentUid, currentUserName, userProfile, conversations, savedIds) {
+        ListingRecommender.recommend(
+            allListings = liveListings,
+            currentUid = currentUid,
+            currentUserName = currentUserName,
+            userProfile = userProfile,
+            conversations = conversations,
+            savedIds = savedIds,
+            limit = 6
+        )
+    }
+
     if (showNotificationsDialog) {
         NotificationCenterDialog(
             conversations = notificationConversations,
@@ -131,198 +194,401 @@ fun HomeScreen(
         )
     }
 
-    PullToRefreshBox(
-        isRefreshing = isRefreshing,
-        onRefresh = {
-            isRefreshing = true
-            scope.launch {
-                authViewModel.fetchUserProfile()
-                listingViewModel.refreshUserListings()
-                chatViewModel.refreshConversations()
-                delay(800.milliseconds)
-                isRefreshing = false
-                Toast.makeText(context, "Campus feeds updated", Toast.LENGTH_SHORT).show()
+    val subtleHoney = BrandHoney
+    val heroSearchSurface = if (CampusThemeState.isDark) Color(0xFF09090B) else Cream
+    val heroBellSurface = if (CampusThemeState.isDark) Color(0xFF202024) else Cream
+    val scrollState = rememberScrollState()
+    var isScrolled by remember { mutableStateOf(false) }
+    LaunchedEffect(scrollState) {
+        snapshotFlow { scrollState.value }.collect { offset ->
+            if (!isScrolled && offset > 72) {
+                isScrolled = true
+            } else if (isScrolled && offset < 12) {
+                isScrolled = false
             }
-        },
-        modifier = Modifier.fillMaxSize()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(HoneyBottomGradient)
-                .statusBarsPadding()
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = Spacing.bottomBarClearance)
-        ) {
-            Spacer(Modifier.height(28.dp))
+        }
+    }
 
-            // 1. Top Greeting Row ("Hi, $firstName" + Notification Bell Button with Unread Badge)
-            Row(
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(HoneyBottomGradient)
+    ) {
+        // =====================================================================
+        // 1. STICKY COLLAPSIBLE HERO HEADER (compact when scrolled, never clips camera)
+        // =====================================================================
+        Surface(
+            color = CardWhite,
+            border = BorderStroke(1.dp, Hairline),
+            shape = RoundedCornerShape(bottomStart = 26.dp, bottomEnd = 26.dp),
+            shadowElevation = if (isScrolled) 4.dp else 0.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = Spacing.gutter),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .statusBarsPadding()
+                    .padding(
+                        start = Spacing.gutter,
+                        end = Spacing.gutter,
+                        top = 12.dp,
+                        bottom = if (isScrolled) 12.dp else 16.dp
+                    )
             ) {
-                Text(
-                    text = "Hi, $firstName",
-                    fontSize = 34.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Charcoal,
-                    letterSpacing = (-0.8).sp
-                )
-
-                // Redesigned Modern Notification Bell Button
-                Box(contentAlignment = Alignment.TopEnd) {
-                    Surface(
-                        shape = CircleShape,
-                        color = CardWhite,
-                        border = BorderStroke(1.dp, if (totalUnreadCount > 0) Honey else Hairline),
-                        shadowElevation = 2.dp,
-                        modifier = Modifier
-                            .size(46.dp)
-                            .bounceClick(scaleDown = 0.90f) {
-                                showNotificationsDialog = true
-                            }
-                    ) {
+                // Always-Pinned Top Row: Avatar + Name/Campus + Notification Bell
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(HoneyTint)
+                                .border(BorderStroke(1.5.dp, TileOutline), CircleShape),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Notifications,
-                                contentDescription = "Notifications",
-                                tint = Charcoal,
-                                modifier = Modifier.size(22.dp)
+                            Text(
+                                text = initials,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Charcoal
+                            )
+                        }
+
+                        Spacer(Modifier.width(10.dp))
+
+                        Column {
+                            Text(
+                                text = firstName,
+                                fontSize = 21.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Charcoal
+                            )
+                            Text(
+                                text = campusName,
+                                fontSize = 11.sp,
+                                color = MutedText
                             )
                         }
                     }
 
-                    if (totalUnreadCount > 0) {
+                    // Notification Bell Button with Unread Badge
+                    Box(contentAlignment = Alignment.TopEnd) {
                         Surface(
-                            color = DangerFgStrong,
                             shape = CircleShape,
-                            border = BorderStroke(2.dp, CardWhite),
-                            shadowElevation = 1.dp,
+                            color = heroBellSurface,
+                            border = BorderStroke(
+                                1.dp,
+                                if (totalUnreadCount > 0) subtleHoney else Hairline
+                            ),
                             modifier = Modifier
-                                .offset(x = 4.dp, y = (-3).dp)
-                                .size(20.dp)
+                                .size(40.dp)
+                                .bounceClick(scaleDown = 0.90f) {
+                                    showNotificationsDialog = true
+                                }
                         ) {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier.fillMaxSize()
-                            ) {
-                                Text(
-                                    text = if (totalUnreadCount > 9) "9+" else totalUnreadCount.toString(),
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = CardWhite
+                            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Notifications,
+                                    contentDescription = "Notifications",
+                                    tint = Charcoal,
+                                    modifier = Modifier.size(19.dp)
                                 )
+                            }
+                        }
+
+                        if (totalUnreadCount > 0) {
+                            Surface(
+                                color = subtleHoney,
+                                shape = CircleShape,
+                                border = BorderStroke(2.dp, CardWhite),
+                                modifier = Modifier
+                                    .offset(x = 3.dp, y = (-2).dp)
+                                    .size(18.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = if (totalUnreadCount > 9) "9+" else totalUnreadCount.toString(),
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF09090B)
+                                    )
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            Spacer(Modifier.height(14.dp))
-
-            // 2. Search Services Bar
-            Surface(
-                shape = Radius.Pill,
-                color = CardWhite,
-                border = BorderStroke(1.dp, Hairline),
-                shadowElevation = 1.dp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-                    .padding(horizontal = Spacing.gutter)
-                    .bounceClick(scaleDown = 0.98f) { onSearchBarClick() }
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                // Collapsible Center Hero Greeting (hides smoothly on scroll with hysteresis)
+                AnimatedVisibility(
+                    visible = !isScrolled,
+                    enter = expandVertically(tween(180, easing = FastOutSlowInEasing)) + fadeIn(tween(150)),
+                    exit = shrinkVertically(tween(160, easing = FastOutSlowInEasing)) + fadeOut(tween(120))
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Search,
-                        contentDescription = "Search",
-                        tint = MutedText,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        text = "Search services",
-                        fontSize = 15.sp,
-                        color = MutedText,
-                        fontWeight = FontWeight.Medium
-                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 18.dp, bottom = 4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = heroGreeting,
+                            fontSize = 30.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Charcoal,
+                            letterSpacing = (-0.7).sp
+                        )
+                        Spacer(Modifier.height(3.dp))
+                        Text(
+                            text = heroSubtitle,
+                            fontSize = 13.sp,
+                            color = MutedText,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
-            }
 
-            Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(if (isScrolled) 10.dp else 14.dp))
 
-            // 3. Up Next Card
-            if (upNextChat != null) {
-                Card(
+                // Always-Sticky Search Pill
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = heroSearchSurface,
+                    border = BorderStroke(1.dp, Hairline),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = Spacing.gutter)
-                        .bounceClick(scaleDown = 0.98f) {
-                            chatViewModel.markConversationAsRead(upNextChat.id)
-                            onOpenChat(upNextChat.id, upNextChat.studentName, upNextChat.serviceTitle)
-                        },
-                    shape = Radius.Card,
-                    colors = CardDefaults.cardColors(containerColor = Charcoal),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        .bounceClick(scaleDown = 0.98f) { onSearchBarClick() }
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(start = 14.dp, end = 8.dp, top = 7.dp, bottom = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = if (upNextChat.unreadCount > 0)
-                                    "NEW MESSAGE (${upNextChat.unreadCount}) · ${upNextChat.timestamp.uppercase()}"
-                                else
-                                    "UP NEXT · ${upNextChat.timestamp.uppercase()}",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (upNextChat.unreadCount > 0) Honey else CardWhite.copy(alpha = 0.7f),
-                                letterSpacing = 0.6.sp
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Search,
+                                contentDescription = "Search",
+                                tint = MutedText,
+                                modifier = Modifier.size(18.dp)
                             )
-                            Spacer(Modifier.height(2.dp))
+                            Spacer(Modifier.width(10.dp))
                             Text(
-                                text = "${upNextChat.serviceTitle} with ${upNextChat.studentName}",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = CardWhite,
+                                text = "Search tutors, design, tech...",
+                                fontSize = 13.sp,
+                                color = MutedText,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
 
-                        Spacer(Modifier.width(12.dp))
+                        Spacer(Modifier.width(8.dp))
 
-                        Button(
-                            onClick = {
-                                chatViewModel.markConversationAsRead(upNextChat.id)
-                                onOpenChat(upNextChat.id, upNextChat.studentName, upNextChat.serviceTitle)
-                            },
-                            shape = Radius.Pill,
-                            colors = ButtonDefaults.buttonColors(containerColor = CardWhite, contentColor = Charcoal),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                            modifier = Modifier.heightIn(min = 44.dp)
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Honey
                         ) {
                             Text(
-                                text = "Open",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Charcoal
+                                text = "Explore",
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = OnHoneyAccent
                             )
+                        }
+                    }
+                }
+            }
+        }
+
+        // =====================================================================
+        // 2. SCROLLABLE FEED BELOW STICKY HEADER
+        // =====================================================================
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = {
+                isRefreshing = true
+                scope.launch {
+                    authViewModel.fetchUserProfile()
+                    listingViewModel.refreshUserListings()
+                    chatViewModel.refreshConversations()
+                    delay(800.milliseconds)
+                    isRefreshing = false
+                    Toast.makeText(context, "Campus feeds updated", Toast.LENGTH_SHORT).show()
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .padding(top = 14.dp)
+            ) {
+                // Dismissible CampusHive 2.0 Announcement Banner
+                AnimatedVisibility(
+                    visible = showAnnouncementBanner,
+                    exit = shrinkVertically(tween(200, easing = FastOutSlowInEasing)) + fadeOut(tween(150))
+                ) {
+                    Column {
+                        CampusAnnouncementBanner(
+                            onDismiss = {
+                                val prefs = context.getSharedPreferences("campushive_prefs", Context.MODE_PRIVATE)
+                                prefs.edit().putString(announcementPrefKey, currentAnnouncementId).apply()
+                                showAnnouncementBanner = false
+                            }
+                        )
+                        Spacer(Modifier.height(14.dp))
+                    }
+                }
+
+                // Quick 3-Action Dock Card (scrolls cleanly with content)
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = Spacing.gutter),
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(containerColor = CardWhite),
+                    border = BorderStroke(1.dp, Hairline),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        QuickDockAction(
+                            label = "Post Gig",
+                            icon = Icons.Filled.Add,
+                            isPrimary = true,
+                            onClick = onNavigateToCreateService
+                        )
+                        QuickDockAction(
+                            label = "Explore",
+                            icon = Icons.Outlined.Search,
+                            isPrimary = false,
+                            onClick = onSearchBarClick
+                        )
+                        QuickDockAction(
+                            label = if (totalUnreadCount > 0) "Inbox ($totalUnreadCount)" else "Inbox",
+                            icon = Icons.Outlined.ChatBubbleOutline,
+                            isPrimary = false,
+                            badgeCount = totalUnreadCount,
+                            onClick = {
+                                if (upNextChat != null) {
+                                    chatViewModel.markConversationAsRead(upNextChat.id)
+                                    onOpenChat(upNextChat.id, upNextChat.studentName, upNextChat.serviceTitle)
+                                } else {
+                                    showNotificationsDialog = true
+                                }
+                            }
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+            // =================================================================
+            // 2. FEATURED HIGHLIGHT BANNER (Top Recommendation or Offer Skill)
+            // =================================================================
+            val featuredRec = recommendedListings.firstOrNull()
+            if (featuredRec != null) {
+                val featured = featuredRec.listing
+                val featuredVisual = getCategoryVisual(featured.category)
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = Spacing.gutter)
+                        .bounceClick(scaleDown = 0.98f) { onListingClick(featured) },
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(containerColor = if (CampusThemeState.isDark) CardWhite else HoneyTint),
+                    border = BorderStroke(1.dp, if (CampusThemeState.isDark) Hairline else WarningBorder),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 18.dp, vertical = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = featuredRec.reason.uppercase(),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (CampusThemeState.isDark) subtleHoney else WarningFg,
+                                letterSpacing = 0.7.sp
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = featured.title,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Charcoal,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = "${featured.providerName} • RM ${"%.0f".format(featured.price)} ${featured.pricingType.shortLabel}",
+                                fontSize = 12.sp,
+                                color = MutedText,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(Modifier.height(10.dp))
+                            Surface(
+                                shape = Radius.Pill,
+                                color = Honey
+                            ) {
+                                Text(
+                                    text = "View Gig",
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = OnHoneyAccent
+                                )
+                            }
+                        }
+
+                        Spacer(Modifier.width(12.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .size(58.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(if (CampusThemeState.isDark) HoneyTint else CardWhite.copy(alpha = 0.8f))
+                                .border(BorderStroke(1.dp, TileOutline), RoundedCornerShape(16.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            val glyphTint = if (CampusThemeState.isDark) subtleHoney else Charcoal
+                            if (featuredVisual.symbol != null) {
+                                Text(
+                                    text = featuredVisual.symbol,
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = glyphTint
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = featuredVisual.icon,
+                                    contentDescription = featured.category,
+                                    tint = glyphTint,
+                                    modifier = Modifier.size(26.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -330,7 +596,9 @@ fun HomeScreen(
                 Spacer(Modifier.height(18.dp))
             }
 
-            // 4. Section Header: "Browse services"
+            // =================================================================
+            // 3. COMPACT CATEGORY PILLS ("Browse services")
+            // =================================================================
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -339,11 +607,10 @@ fun HomeScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Browse services",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Charcoal,
-                    letterSpacing = (-0.2).sp
+                    text = "Browse categories",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Charcoal
                 )
                 Text(
                     text = "See all",
@@ -356,75 +623,63 @@ fun HomeScreen(
 
             Spacer(Modifier.height(10.dp))
 
-            // 5. Browse Services Carousel
             LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(horizontal = Spacing.gutter)
             ) {
                 items(homeCategories) { cat ->
-                    Card(
-                        modifier = Modifier
-                            .width(140.dp)
-                            .height(120.dp)
-                            .clip(Radius.Card)
-                            .bounceClick(scaleDown = 0.94f) { onNavigateToSearch(cat.name) },
+                    val count = liveListings.count {
+                        it.category.equals(cat.name, ignoreCase = true) ||
+                            (cat.name.equals("Tech Help", ignoreCase = true) && (it.category.equals("Coding", ignoreCase = true) || it.category.equals("Tech", ignoreCase = true))) ||
+                            (cat.name.equals("Errands", ignoreCase = true) && it.category.equals("Campus Services", ignoreCase = true))
+                    }
+                    Surface(
                         shape = Radius.Card,
-                        colors = CardDefaults.cardColors(containerColor = CardWhite),
+                        color = CardWhite,
                         border = BorderStroke(1.dp, Hairline),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        modifier = Modifier.bounceClick(scaleDown = 0.94f) { onNavigateToSearch(cat.name) }
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(14.dp),
-                            verticalArrangement = Arrangement.SpaceBetween
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(38.dp)
-                                    .clip(Radius.Tile)
+                                    .size(28.dp)
+                                    .clip(RoundedCornerShape(8.dp))
                                     .background(HoneyTint)
-                                    .border(BorderStroke(1.5.dp, TileOutline), Radius.Tile),
+                                    .border(BorderStroke(1.dp, TileOutline), RoundedCornerShape(8.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
+                                val glyphColor = if (CampusThemeState.isDark) subtleHoney else Charcoal
                                 if (cat.symbolText != null) {
                                     Text(
                                         text = cat.symbolText,
-                                        fontSize = 16.sp,
+                                        fontSize = 12.sp,
                                         fontWeight = FontWeight.ExtraBold,
-                                        color = Charcoal
+                                        color = glyphColor
                                     )
                                 } else {
                                     Icon(
                                         imageVector = cat.icon,
                                         contentDescription = cat.name,
-                                        tint = Charcoal,
-                                        modifier = Modifier.size(18.dp)
+                                        tint = glyphColor,
+                                        modifier = Modifier.size(14.dp)
                                     )
                                 }
                             }
-
-                            val count = liveListings.count {
-                                it.category.equals(cat.name, ignoreCase = true) ||
-                                    (cat.name.equals("Tech Help", ignoreCase = true) && (it.category.equals("Coding", ignoreCase = true) || it.category.equals("Tech", ignoreCase = true))) ||
-                                    (cat.name.equals("Errands", ignoreCase = true) && it.category.equals("Campus Services", ignoreCase = true))
-                            }
-                            val countText = "$count ${if (count == 1) "listing" else "listings"}"
-
+                            Spacer(Modifier.width(8.dp))
                             Column {
                                 Text(
                                     text = cat.name,
-                                    fontSize = 15.sp,
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Charcoal,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    color = Charcoal
                                 )
                                 Text(
-                                    text = countText,
-                                    fontSize = 12.sp,
-                                    color = MutedText,
-                                    letterSpacing = 0.2.sp
+                                    text = "$count ${if (count == 1) "gig" else "gigs"}",
+                                    fontSize = 10.sp,
+                                    color = MutedText
                                 )
                             }
                         }
@@ -434,73 +689,264 @@ fun HomeScreen(
 
             Spacer(Modifier.height(20.dp))
 
-            // 6. Section Header: "What do you need help with?"
-            Column(modifier = Modifier.padding(horizontal = Spacing.gutter)) {
-                Text(
-                    text = "What do you need help with?",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Charcoal,
-                    letterSpacing = (-0.2).sp
-                )
+            // =================================================================
+            // 4. GROUPED RECOMMENDED FEED CARD (mirrors Recent Activity list)
+            // =================================================================
+            val feedItems = remember(recommendedListings, liveListings) {
+                if (recommendedListings.size > 1) {
+                    recommendedListings.drop(1)
+                } else if (recommendedListings.isNotEmpty()) {
+                    recommendedListings
+                } else {
+                    emptyList()
+                }
             }
 
-            Spacer(Modifier.height(10.dp))
+            if (feedItems.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = Spacing.gutter),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Recommended for you",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Charcoal
+                    )
+                    Text(
+                        text = "See all",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MutedText,
+                        modifier = Modifier.bounceClick { onNavigateToSearch("") }
+                    )
+                }
 
-            // 7. Grouped Help Action List
-            Column(modifier = Modifier.padding(horizontal = Spacing.gutter)) {
-                Surface(
-                    shape = Radius.Card,
-                    color = CardWhite,
+                Spacer(Modifier.height(10.dp))
+
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = Spacing.gutter),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = CardWhite),
                     border = BorderStroke(1.dp, Hairline),
-                    modifier = Modifier.fillMaxWidth()
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Column {
-                        quickHelpItems.forEachIndexed { index, item ->
+                        feedItems.forEachIndexed { index, rec ->
+                            val item = rec.listing
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .bounceClick { onNavigateToSearch(item.categoryQuery) }
-                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    .bounceClick(scaleDown = 0.98f) { onListingClick(item) }
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Spacer(Modifier.width(4.dp))
-
-                                Text(
-                                    text = item.title,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Charcoal,
-                                    modifier = Modifier.weight(1f)
+                                ServiceCategoryIconBox(
+                                    category = item.category,
+                                    size = 42.dp,
+                                    shape = CircleShape,
+                                    symbolFontSize = 16.sp,
+                                    iconSize = 18.dp
                                 )
 
-                                Surface(
-                                    shape = Radius.Pill,
-                                    color = Charcoal,
-                                    border = BorderStroke(1.dp, WarningFgStrong),
-                                    modifier = Modifier
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .heightIn(min = 44.dp)
-                                            .padding(horizontal = 16.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
+                                Spacer(Modifier.width(12.dp))
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = item.title,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Charcoal,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Spacer(Modifier.height(2.dp))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(
-                                            text = "Find",
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = CardWhite
+                                            text = "${item.providerName} • ${rec.reason}",
+                                            fontSize = 11.sp,
+                                            color = MutedText,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+
+                                Spacer(Modifier.width(10.dp))
+
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        text = "RM ${"%.0f".format(item.price)}",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Charcoal
+                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Star,
+                                            contentDescription = null,
+                                            tint = if (item.reviewCount > 0) StarGold else MutedText,
+                                            modifier = Modifier.size(11.dp)
+                                        )
+                                        Spacer(Modifier.width(2.dp))
+                                        Text(
+                                            text = if (item.reviewCount > 0) "%.1f".format(item.rating) else "New",
+                                            fontSize = 11.sp,
+                                            color = MutedText
                                         )
                                     }
                                 }
                             }
 
-                            if (index < quickHelpItems.lastIndex) {
+                            if (index < feedItems.lastIndex) {
                                 HorizontalDivider(
-                                    modifier = Modifier.padding(start = 64.dp),
+                                    modifier = Modifier.padding(horizontal = 14.dp),
                                     color = Hairline,
-                                    thickness = 0.5.dp
+                                    thickness = 0.8.dp
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+            }
+
+                Spacer(Modifier.height(rememberBottomBarClearance()))
+            }
+        }
+    }
+}
+
+@Composable
+private fun CampusAnnouncementBanner(
+    onDismiss: () -> Unit
+) {
+    var isExpanded by remember { mutableStateOf(false) }
+    val highlights = remember {
+        listOf(
+            "Refreshed UI & Dark Mode" to "Cleaner cards, sticky headers, and cohesive colors.",
+            "Fluid Drag Navigation" to "Glide across tabs or drop right onto + to post.",
+            "Upgraded Chat & Listings" to "Sleeker composer, inline validation, and faster flows."
+        )
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Spacing.gutter),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (CampusThemeState.isDark) CardWhite else HoneyTint
+        ),
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (CampusThemeState.isDark) BrandHoney.copy(alpha = 0.45f) else WarningBorder
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = Radius.Pill,
+                    color = Honey
+                ) {
+                    Text(
+                        text = "2.0",
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = OnHoneyAccent
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .clickable(onClick = onDismiss),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = "Dismiss announcement",
+                        tint = Charcoal,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            Text(
+                text = "CampusHive 2.0 is here",
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                color = Charcoal,
+                letterSpacing = (-0.3).sp
+            )
+
+            Spacer(Modifier.height(3.dp))
+
+            Text(
+                text = "Refreshed design, smoother navigation & faster chats",
+                fontSize = 13.sp,
+                color = MutedText,
+                lineHeight = 18.sp
+            )
+
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = expandVertically(tween(180, easing = FastOutSlowInEasing)) + fadeIn(tween(150)),
+                exit = shrinkVertically(tween(160, easing = FastOutSlowInEasing)) + fadeOut(tween(120))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    HorizontalDivider(
+                        color = if (CampusThemeState.isDark) Hairline else WarningBorder.copy(alpha = 0.6f),
+                        thickness = 0.8.dp
+                    )
+                    highlights.forEach { (title, subtitle) ->
+                        Row(
+                            verticalAlignment = Alignment.Top,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .padding(top = 6.dp)
+                                    .size(5.dp)
+                                    .clip(CircleShape)
+                                    .background(if (CampusThemeState.isDark) BrandHoney else Charcoal)
+                            )
+                            Column {
+                                Text(
+                                    text = title,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Charcoal
+                                )
+                                Text(
+                                    text = subtitle,
+                                    fontSize = 11.sp,
+                                    color = MutedText,
+                                    lineHeight = 15.sp
                                 )
                             }
                         }
@@ -508,58 +954,96 @@ fun HomeScreen(
                 }
             }
 
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(10.dp))
 
-            // 8. "WHAT'S NEW" Callout Offer Banner
-            Card(
+            Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = Spacing.gutter)
-                    .bounceClick(scaleDown = 0.98f) { onNavigateToCreateService() },
-                shape = Radius.Card,
-                colors = CardDefaults.cardColors(containerColor = CardWhite),
-                border = BorderStroke(1.dp, Hairline),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { isExpanded = !isExpanded }
+                    .padding(vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)
-                ) {
-                    Text(
-                        text = "WHAT'S NEW",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MutedText,
-                        letterSpacing = 0.6.sp
+                Text(
+                    text = if (isExpanded) "Hide details" else "What's new",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Charcoal
+                )
+                if (!isExpanded) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = Charcoal,
+                        modifier = Modifier.size(13.dp)
                     )
-
-                    Spacer(Modifier.height(2.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Got a skill? List it in 2 minutes.",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Charcoal,
-                            modifier = Modifier.weight(1f),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-
-                        Spacer(Modifier.width(8.dp))
-
-                        Text(
-                            text = "Offer →",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Charcoal
-                        )
-                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun QuickDockAction(
+    label: String,
+    icon: ImageVector,
+    isPrimary: Boolean,
+    badgeCount: Int = 0,
+    onClick: () -> Unit
+) {
+    val circleBg = if (isPrimary) Honey else HoneyTint
+    val iconTint = if (isPrimary) OnHoneyAccent else Charcoal
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clip(Radius.Inner)
+            .bounceClick(scaleDown = 0.92f, onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+    ) {
+        Box(contentAlignment = Alignment.TopEnd) {
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(CircleShape)
+                    .background(circleBg)
+                    .then(
+                        if (CampusThemeState.isDark && !isPrimary) {
+                            Modifier.border(BorderStroke(1.dp, TileOutline), CircleShape)
+                        } else {
+                            Modifier
+                        }
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = iconTint,
+                    modifier = Modifier.size(21.dp)
+                )
+            }
+
+            if (badgeCount > 0) {
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .offset(x = 2.dp, y = (-2).dp)
+                        .clip(CircleShape)
+                        .background(DangerFgStrong)
+                        .border(2.dp, CardWhite, CircleShape)
+                )
+            }
+        }
+
+        Spacer(Modifier.height(6.dp))
+
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Charcoal,
+            maxLines = 1
+        )
     }
 }

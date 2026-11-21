@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -235,6 +236,20 @@ class ChatViewModel(
 
     private fun formatLocalTime(date: Date): String {
         return SimpleDateFormat("h:mm a", Locale.getDefault()).format(date)
+    }
+
+    private fun formatConversationTimestamp(date: Date): String {
+        val now = Calendar.getInstance()
+        val target = Calendar.getInstance().apply { time = date }
+        val sameYear = now.get(Calendar.YEAR) == target.get(Calendar.YEAR)
+        val dayDiff = now.get(Calendar.DAY_OF_YEAR) - target.get(Calendar.DAY_OF_YEAR)
+        return when {
+            sameYear && dayDiff == 0 -> formatLocalTime(date)
+            sameYear && dayDiff == 1 -> "Yesterday"
+            sameYear && dayDiff in 2..6 -> SimpleDateFormat("EEE", Locale.getDefault()).format(date)
+            sameYear -> SimpleDateFormat("d MMM", Locale.getDefault()).format(date)
+            else -> SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(date)
+        }
     }
 
     private fun syncCurrentUserToFirestore(firebaseAuth: FirebaseAuth) {
@@ -670,7 +685,7 @@ class ChatViewModel(
                 val isVerified = doc.getBoolean("isVerifiedStudent") ?: true
 
                 val timeFormatted = lastMsgDate?.let { date ->
-                    formatLocalTime(date)
+                    formatConversationTimestamp(date)
                 } ?: "Just now"
 
                 val counterpartUid = if (amIProvider) seekerUid else providerUID
@@ -1008,7 +1023,9 @@ class ChatViewModel(
                             }
                         }
 
-                        val time = doc.getTimestamp("timestamp")?.toDate()?.let { date ->
+                        val msgDate = doc.getTimestamp("timestamp")?.toDate()
+                        val timestampMillis = msgDate?.time ?: 0L
+                        val time = msgDate?.let { date ->
                             formatLocalTime(date)
                         } ?: doc.getString("time") ?: formatLocalTime(Date())
 
@@ -1031,7 +1048,8 @@ class ChatViewModel(
                             attachmentSize = attachmentSize,
                             attachmentBase64 = attachmentBase64,
                             isEdited = isEdited,
-                            isDeleted = isDeleted
+                            isDeleted = isDeleted,
+                            timestampMillis = timestampMillis
                         )
                     } catch (e: Exception) {
                         Log.e("ChatViewModel", "Error parsing message ${doc.id}", e)
