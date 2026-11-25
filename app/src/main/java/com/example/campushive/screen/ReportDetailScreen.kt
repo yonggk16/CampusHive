@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import com.example.campushive.ui.theme.bounceClick
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -22,11 +23,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.campushive.components.CampusConfirmDialog
 import com.example.campushive.model.ReportStatus
 import com.example.campushive.model.ReportType
 import com.example.campushive.ui.theme.*
@@ -65,119 +69,55 @@ fun ReportDetailScreen(
     var isModerating by remember { mutableStateOf(false) }
     var showRemoveListingConfirmDialog by remember { mutableStateOf(false) }
 
-    // Confirmation Alert Dialog for Deleting Report Ticket
-    if (showDeleteTicketConfirmDialog && report != null) {
-        AlertDialog(
-            onDismissRequest = { showDeleteTicketConfirmDialog = false },
-            title = {
-                Text(
-                    text = "Delete Report Ticket?",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    color = Charcoal
-                )
-            },
-            text = {
-                Text(
-                    text = "Are you sure you want to delete this report ticket? This action cannot be undone.",
-                    fontSize = 13.sp,
-                    color = Charcoal,
-                    lineHeight = 18.sp
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showDeleteTicketConfirmDialog = false
-                        isDeleting = true
-                        helpdeskViewModel.deleteReport(report.reportId) { success ->
-                            isDeleting = false
-                            if (success) {
-                                Toast.makeText(context, "Report ticket deleted successfully", Toast.LENGTH_SHORT).show()
-                                onDeleteOrUpdate()
-                            } else {
-                                Toast.makeText(context, "Failed to delete report ticket", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = DangerFgStrong, contentColor = CardWhite),
-                    shape = Radius.Tile
-                ) {
-                    Text("Delete Ticket", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = CardWhite)
-                }
-            },
-            dismissButton = {
-                OutlinedButton(
-                    onClick = { showDeleteTicketConfirmDialog = false },
-                    shape = Radius.Tile,
-                    border = BorderStroke(1.dp, Hairline)
-                ) {
-                    Text("Cancel", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Charcoal)
-                }
-            },
-            containerColor = CardWhite,
-            shape = Radius.Card
-        )
-    }
-
-    // Confirmation Alert Dialog for Moderator Removing Listing
-    if (showRemoveListingConfirmDialog && report != null) {
-        AlertDialog(
-            onDismissRequest = { showRemoveListingConfirmDialog = false },
-            title = {
-                Text(
-                    text = "Remove Listing From Platform?",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    color = Charcoal
-                )
-            },
-            text = {
-                Text(
-                    text = "Are you sure you want to remove '${report.targetName}' from CampusHive? The listing will be marked DELETED and the ticket will be set to RESOLVED.",
-                    fontSize = 13.sp,
-                    color = Charcoal,
-                    lineHeight = 18.sp
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showRemoveListingConfirmDialog = false
-                        helpdeskViewModel.moderateListingStatus(report.targetId, "DELETED") {
-                            selectedModStatus = ReportStatus.RESOLVED
-                            moderatorNoteInput = "Listing '${report.targetName}' was removed for violating CampusHive guidelines."
-                            helpdeskViewModel.moderateReport(
-                                reportId = report.reportId,
-                                newStatus = ReportStatus.RESOLVED,
-                                moderatorNote = moderatorNoteInput
-                            )
-                            Toast.makeText(context, "Listing removed from CampusHive & ticket resolved", Toast.LENGTH_LONG).show()
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = DangerFgStrong, contentColor = CardWhite),
-                    shape = Radius.Tile
-                ) {
-                    Text("Remove Listing", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = CardWhite)
-                }
-            },
-            dismissButton = {
-                OutlinedButton(
-                    onClick = { showRemoveListingConfirmDialog = false },
-                    shape = Radius.Tile,
-                    border = BorderStroke(1.dp, Hairline)
-                ) {
-                    Text("Cancel", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Charcoal)
-                }
-            },
-            containerColor = CardWhite,
-            shape = Radius.Card
-        )
-    }
-
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy • hh:mm a", Locale.getDefault()) }
     val formattedDate = remember(report?.createdAt) {
         report?.createdAt?.toDate()?.let { dateFormat.format(it) } ?: "Just now"
+    }
+
+    // Confirmation Dialog for Deleting Report Ticket
+    if (showDeleteTicketConfirmDialog && report != null) {
+        CampusConfirmDialog(
+            title = "Delete Report Ticket?",
+            message = "Are you sure you want to delete this report ticket? This action cannot be undone.",
+            confirmLabel = "Delete Ticket",
+            onConfirm = {
+                showDeleteTicketConfirmDialog = false
+                isDeleting = true
+                helpdeskViewModel.deleteReport(report.reportId) { success ->
+                    isDeleting = false
+                    if (success) {
+                        Toast.makeText(context, "Report ticket deleted successfully", Toast.LENGTH_SHORT).show()
+                        onDeleteOrUpdate()
+                    } else {
+                        Toast.makeText(context, "Failed to delete report ticket", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+            onDismiss = { showDeleteTicketConfirmDialog = false }
+        )
+    }
+
+    // Confirmation Dialog for Moderator Removing Listing
+    if (showRemoveListingConfirmDialog && report != null) {
+        CampusConfirmDialog(
+            title = "Remove Listing?",
+            message = "Remove '${report.targetName}' from CampusHive? The listing will be marked DELETED and the ticket resolved.",
+            confirmLabel = "Remove",
+            onConfirm = {
+                showRemoveListingConfirmDialog = false
+                helpdeskViewModel.moderateListingStatus(report.targetId, "DELETED") {
+                    selectedModStatus = ReportStatus.RESOLVED
+                    moderatorNoteInput = "Listing '${report.targetName}' was removed for violating CampusHive guidelines."
+                    helpdeskViewModel.moderateReport(
+                        reportId = report.reportId,
+                        newStatus = ReportStatus.RESOLVED,
+                        moderatorNote = moderatorNoteInput
+                    )
+                    Toast.makeText(context, "Listing removed from CampusHive & ticket resolved", Toast.LENGTH_LONG).show()
+                }
+            },
+            onDismiss = { showRemoveListingConfirmDialog = false }
+        )
     }
 
     if (report == null) {
@@ -209,42 +149,89 @@ fun ReportDetailScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(HoneyBottomGradient)
-            .statusBarsPadding()
     ) {
-        // Top Header
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 8.dp, end = 8.dp, top = 18.dp, bottom = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        // Unified Curved White Top Header
+        Surface(
+            color = CardWhite,
+            border = BorderStroke(1.dp, Hairline),
+            shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBackClick) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Charcoal)
-                }
-                Text(
-                    text = if (isModeratorMode) "Moderate Ticket" else "Report Ticket Details",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Charcoal
-                )
-            }
-
-            Row {
-                IconButton(onClick = { isEditing = !isEditing }) {
-                    Icon(Icons.Filled.Edit, contentDescription = "Edit Report", tint = if (isEditing) Honey else Charcoal)
-                }
-                IconButton(
-                    onClick = { showDeleteTicketConfirmDialog = true },
-                    enabled = !isDeleting
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = Spacing.gutter, vertical = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Icon(Icons.Filled.Delete, contentDescription = "Delete Report", tint = Color.Red)
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(CreamTint)
+                            .bounceClick(scaleDown = 0.90f, onClick = onBackClick),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Charcoal,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = if (isModeratorMode) "Moderate Ticket" else "Ticket Details",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Charcoal,
+                        letterSpacing = (-0.4).sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(if (isEditing) HoneyTint else CreamTint)
+                            .bounceClick(scaleDown = 0.90f) { isEditing = !isEditing },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Edit,
+                            contentDescription = "Edit Report",
+                            tint = if (isEditing) BrandHoney else Charcoal,
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(DangerBgSoft)
+                            .bounceClick(scaleDown = 0.90f) {
+                                if (!isDeleting) showDeleteTicketConfirmDialog = true
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = "Delete Report",
+                            tint = DangerFgStrong,
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
                 }
             }
         }
-
-        HorizontalDivider(color = Hairline)
 
         Column(
             modifier = Modifier

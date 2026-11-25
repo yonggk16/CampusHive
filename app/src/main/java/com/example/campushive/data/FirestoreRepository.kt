@@ -413,10 +413,9 @@ class FirestoreRepository(
                 "facultyOrMajor" to profile.facultyOrMajor,
                 "phoneNumber" to profile.phoneNumber,
                 "isVerifiedStudent" to profile.isVerifiedStudent,
-                "isModerator" to profile.isModerator,
                 "createdAt" to profile.createdAt
             )
-            docRef.set(data).await()
+            docRef.set(data, SetOptions.merge()).await()
             Log.d("FirestoreRepository", "Successfully saved user profile: $uid")
             true
         } catch (e: Exception) {
@@ -428,7 +427,6 @@ class FirestoreRepository(
     /**
      * Fetch user profile once from Firestore
      */
-    @Suppress("unused")
     suspend fun getUserProfile(uid: String): UserProfile? {
         if (uid.isBlank()) return null
         return try {
@@ -485,28 +483,28 @@ class FirestoreRepository(
      * Real-time Flow listener for user's submitted reports/tickets
      */
     fun getUserReportsFlow(reporterUid: String = ""): Flow<List<HelpReport>> = callbackFlow {
-        val listener = reportsRef.addSnapshotListener { snapshot, error ->
-            if (error != null) {
-                Log.e("FirestoreRepository", "Error listening to user reports", error)
-                return@addSnapshotListener
-            }
-            if (snapshot == null) return@addSnapshotListener
-
-            val currentUid = reporterUid.ifBlank { Firebase.auth.currentUser?.uid.orEmpty() }
-
-            val reports = snapshot.documents
-                .mapNotNull { it.toHelpReportOrNull() }
-                .filter { report ->
-                    if (currentUid.isNotBlank()) {
-                        report.reporterUid == currentUid
-                    } else {
-                        false
-                    }
-                }
-                .sortedByDescending { it.createdAt.toDate().time }
-
-            trySend(reports)
+        val currentUid = reporterUid.ifBlank { Firebase.auth.currentUser?.uid.orEmpty() }
+        if (currentUid.isBlank()) {
+            trySend(emptyList())
+            awaitClose { }
+            return@callbackFlow
         }
+
+        val listener = reportsRef
+            .whereEqualTo("reporterUid", currentUid)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e("FirestoreRepository", "Error listening to user reports", error)
+                    return@addSnapshotListener
+                }
+                if (snapshot == null) return@addSnapshotListener
+
+                val reports = snapshot.documents
+                    .mapNotNull { it.toHelpReportOrNull() }
+                    .sortedByDescending { it.createdAt.toDate().time }
+
+                trySend(reports)
+            }
 
         awaitClose { listener.remove() }
     }

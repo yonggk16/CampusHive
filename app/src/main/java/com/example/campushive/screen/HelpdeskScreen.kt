@@ -36,8 +36,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.example.campushive.components.ReportDialog
 import com.example.campushive.model.ReportStatus
-import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
+
 import com.example.campushive.model.ReportType
 import com.example.campushive.ui.theme.*
 import com.example.campushive.viewmodel.AuthViewModel
@@ -80,7 +79,7 @@ fun HelpdeskScreen(
     var isRefreshing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    val isDynamicModerator = userProfile?.isModerator == true || HelpdeskViewModel.isModeratorEmail(Firebase.auth.currentUser?.email)
+    val isDynamicModerator = userProfile?.isModerator == true
 
     LaunchedEffect(userProfile) {
         helpdeskViewModel.refreshModeratorAccess(userProfile)
@@ -130,62 +129,87 @@ fun HelpdeskScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(HoneyBottomGradient)
-                .statusBarsPadding()
         ) {
-        // Top Header with Moderator Mode Switch
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = Spacing.gutter, end = Spacing.gutter, top = Spacing.topInset, bottom = Spacing.sm),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        // Unified Curved White Top Header (matches Home, Search, Chats & Profile silhouette)
+        Surface(
+            color = CardWhite,
+            border = BorderStroke(1.dp, Hairline),
+            shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBackClick) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Charcoal)
-                }
-                Text(
-                    text = "Help & Support",
-                    fontSize = 23.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Charcoal
-                )
-            }
-
-            // Moderator Role Pill Toggle (Visible for whitelisted or Firestore-marked moderators)
-            if (isDynamicModerator) {
-                Surface(
-                    color = if (isModeratorMode) Charcoal else CardWhite,
-                    contentColor = if (isModeratorMode) CardWhite else Charcoal,
-                    shape = Radius.Card,
-                    border = BorderStroke(1.dp, if (isModeratorMode) Charcoal else Hairline),
-                    modifier = Modifier
-                        .padding(end = 8.dp)
-                        .bounceClick { helpdeskViewModel.toggleModeratorMode(userProfile) }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = Spacing.gutter, vertical = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(CreamTint)
+                            .bounceClick(scaleDown = 0.90f, onClick = onBackClick),
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.AdminPanelSettings,
-                            contentDescription = "Moderator Mode",
-                            tint = if (isModeratorMode) CardWhite else Charcoal,
-                            modifier = Modifier.size(15.dp)
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Charcoal,
+                            modifier = Modifier.size(18.dp)
                         )
-                        Text(
-                            text = if (isModeratorMode) "Moderator ON" else "Moderator View",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isModeratorMode) CardWhite else Charcoal
-                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = "Help & Support",
+                        fontSize = 23.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Charcoal,
+                        letterSpacing = (-0.4).sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                // Moderator Role Pill Toggle (Visible for whitelisted or Firestore-marked moderators)
+                if (isDynamicModerator) {
+                    Spacer(Modifier.width(8.dp))
+                    Surface(
+                        color = if (isModeratorMode) Honey else CreamTint,
+                        contentColor = if (isModeratorMode) OnHoneyAccent else Charcoal,
+                        shape = Radius.Pill,
+                        border = BorderStroke(1.dp, if (isModeratorMode) Honey else Hairline),
+                        modifier = Modifier.bounceClick(scaleDown = 0.94f) {
+                            helpdeskViewModel.toggleModeratorMode(userProfile)
+                        }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.AdminPanelSettings,
+                                contentDescription = "Moderator Mode",
+                                tint = if (isModeratorMode) OnHoneyAccent else Charcoal,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Text(
+                                text = if (isModeratorMode) "Mod ON" else "Mod View",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isModeratorMode) OnHoneyAccent else Charcoal
+                            )
+                        }
                     }
                 }
             }
         }
-
-        HorizontalDivider(color = Hairline)
 
         Column(
             modifier = Modifier

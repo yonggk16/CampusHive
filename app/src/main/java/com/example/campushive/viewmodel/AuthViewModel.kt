@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeoutOrNull
 
 // ==============================================================================
 // AUTH UI STATE CONTRACT
@@ -69,7 +71,7 @@ class AuthViewModel(
                             displayName = user.displayName.orEmpty().ifBlank { "Student User" },
                             email = user.email.orEmpty(),
                             isVerifiedStudent = user.isEmailVerified,
-                            isModerator = HelpdeskViewModel.isModeratorEmail(user.email)
+                            isModerator = false
                         )
                     }
                 }
@@ -165,7 +167,7 @@ class AuthViewModel(
                             displayName = fullName.trim(),
                             email = email.trim(),
                             isVerifiedStudent = false,
-                            isModerator = HelpdeskViewModel.isModeratorEmail(email)
+                            isModerator = false
                         )
                         viewModelScope.launch {
                             repository.saveUserProfile(initialProfile)
@@ -203,15 +205,28 @@ class AuthViewModel(
                         return@addOnCompleteListener
                     }
 
-                    // Sync user profile to Firestore
-                    val profile = UserProfile(
-                        uid = user?.uid.orEmpty(),
-                        displayName = user?.displayName.orEmpty().ifBlank { "Student User" },
-                        email = email,
-                        isVerifiedStudent = true,
-                        isModerator = HelpdeskViewModel.isModeratorEmail(email)
-                    )
+                    // Sync user profile to Firestore without overwriting existing custom fields
+                    val uid = user?.uid.orEmpty()
+                    val fallbackName = user?.displayName.orEmpty().ifBlank { "Student User" }
                     viewModelScope.launch {
+                        val existing = repository.getUserProfile(uid)
+                        val profile = if (existing != null) {
+                            existing.copy(
+                                displayName = existing.displayName.takeIf {
+                                    it.isNotBlank() && it != "Student User"
+                                } ?: fallbackName,
+                                email = existing.email.ifBlank { email },
+                                isVerifiedStudent = true
+                            )
+                        } else {
+                            UserProfile(
+                                uid = uid,
+                                displayName = fallbackName,
+                                email = email,
+                                isVerifiedStudent = true,
+                                isModerator = false
+                            )
+                        }
                         repository.saveUserProfile(profile)
                         updateUserPresence(isOnline = true)
                         _uiState.value = AuthUiState.Success("Signed in with Google!")
@@ -226,11 +241,31 @@ class AuthViewModel(
     }
 
     fun signOut(onSignOutComplete: () -> Unit) {
-        updateUserPresence(isOnline = false)
-        auth.signOut()
-        _uiState.value = AuthUiState.Idle
-        _userProfile.value = null
-        onSignOutComplete()
+        val user = auth.currentUser
+        viewModelScope.launch {
+            if (user != null) {
+                // Wait briefly for the offline write to commit while still authenticated
+                withTimeoutOrNull(1_500L) {
+                    runCatching {
+                        FirebaseFirestore.getInstance()
+                            .collection("users")
+                            .document(user.uid)
+                            .set(
+                                mapOf(
+                                    "isOnline" to false,
+                                    "lastSeen" to Timestamp.now()
+                                ),
+                                SetOptions.merge()
+                            )
+                            .await()
+                    }
+                }
+            }
+            auth.signOut()
+            _uiState.value = AuthUiState.Idle
+            _userProfile.value = null
+            onSignOutComplete()
+        }
     }
 
     // ==========================================================================
@@ -346,6 +381,7 @@ class AuthViewModel(
                 viewModelScope.launch {
                     val saved = repository.saveUserProfile(updated)
                     if (saved) {
+                        syncRenamedDisplayNameAcrossChats(user.uid, displayName.trim())
                         _uiState.value = AuthUiState.Success("Profile updated successfully!")
                         onComplete(true)
                     } else {
@@ -362,6 +398,38 @@ class AuthViewModel(
     }
 
     /**
+     * Keeps fullName and denormalized conversation participant names synced after a profile rename
+     */
+    private fun syncRenamedDisplayNameAcrossChats(uid: String, newName: String) {
+        if (uid.isBlank() || newName.isBlank()) return
+        val db = FirebaseFirestore.getInstance()
+        db.collection("users").document(uid).set(
+            mapOf("displayName" to newName, "fullName" to newName),
+            SetOptions.merge()
+        )
+
+        val convs = db.collection("conversations")
+        convs.whereEqualTo("seekerUid", uid).get().addOnSuccessListener { snap ->
+            snap.documents.forEach { doc ->
+                doc.reference.set(
+                    mapOf("seekerName" to newName, "studentName" to newName),
+                    SetOptions.merge()
+                )
+            }
+        }
+        convs.whereEqualTo("providerUID", uid).get().addOnSuccessListener { snap ->
+            snap.documents.forEach { doc ->
+                doc.reference.set(mapOf("providerName" to newName), SetOptions.merge())
+            }
+        }
+        convs.whereEqualTo("providerUid", uid).get().addOnSuccessListener { snap ->
+            snap.documents.forEach { doc ->
+                doc.reference.set(mapOf("providerName" to newName), SetOptions.merge())
+            }
+        }
+    }
+
+    /**
      * Updates student's real-time online presence in Cloud Firestore
      */
     fun updateUserPresence(isOnline: Boolean) {
@@ -370,11 +438,14 @@ class AuthViewModel(
 
         val presenceData = hashMapOf<String, Any>(
             "uid" to user.uid,
-            "displayName" to (user.displayName ?: "Student"),
             "email" to (user.email ?: ""),
             "isOnline" to isOnline,
             "lastSeen" to Timestamp.now()
         )
+        user.displayName?.trim()?.takeIf { it.isNotBlank() }?.let { name ->
+            presenceData["displayName"] = name
+            presenceData["fullName"] = name
+        }
 
         userDocRef.set(presenceData, SetOptions.merge())
     }

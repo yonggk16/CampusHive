@@ -74,10 +74,11 @@ private val profileTab = Tab(Screen.Profile, Icons.Outlined.PersonOutline)
 @Composable
 fun BottomBar(
     nav: NavController,
+    currentRoute: String? = null,
     chatViewModel: ChatViewModel = viewModel(),
     modifier: Modifier = Modifier
 ) {
-    val current = nav.currentBackStackEntryAsState().value?.destination?.route
+    val current = currentRoute ?: nav.currentBackStackEntryAsState().value?.destination?.route
     val conversations by chatViewModel.conversations.collectAsState()
     val totalUnread = remember(conversations) { conversations.sumOf { it.unreadCount } }
     val haptic = LocalHapticFeedback.current
@@ -85,27 +86,38 @@ fun BottomBar(
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
 
+    var lastValidTabSlot by remember { mutableIntStateOf(0) }
+    val selectedSlot = remember(current) {
+        val mapped = when {
+            current == Screen.Home.route -> 0
+            current?.startsWith("search") == true || current == Screen.Search.route -> 1
+            current?.startsWith("chats") == true || current == Screen.Chats.route -> 3
+            current?.startsWith("profile") == true || current == Screen.Profile.route -> 4
+            else -> null
+        }
+        if (mapped != null) {
+            lastValidTabSlot = mapped
+            mapped
+        } else {
+            lastValidTabSlot
+        }
+    }
+
     fun go(s: Screen) {
         if (s == Screen.Create) {
             nav.navigate(s.route) {
                 launchSingleTop = true
             }
         } else {
+            val liveRoute = nav.currentDestination?.route
+            val alreadyOnTab = s.route == liveRoute ||
+                (s == Screen.Search && liveRoute?.startsWith("search") == true)
+            if (alreadyOnTab) return
             nav.navigate(s.route) {
                 popUpTo(nav.graph.findStartDestination().id) { saveState = true }
                 launchSingleTop = true
                 restoreState = true
             }
-        }
-    }
-
-    val selectedSlot = remember(current) {
-        when {
-            current == null || current == Screen.Home.route -> 0
-            current.startsWith("search") || current == Screen.Search.route -> 1
-            current.startsWith("chats") || current == Screen.Chats.route -> 3
-            current.startsWith("profile") || current == Screen.Profile.route -> 4
-            else -> 0
         }
     }
 
@@ -322,10 +334,8 @@ fun BottomBar(
                         modifier = Modifier
                             .weight(1f)
                             .onGloballyPositioned { coords ->
-                                slotBounds[0] = ItemBounds(
-                                    left = coords.positionInParent().x,
-                                    width = coords.size.width.toFloat()
-                                )
+                                val next = ItemBounds(coords.positionInParent().x, coords.size.width.toFloat())
+                                if (slotBounds[0] != next) slotBounds[0] = next
                             }
                     )
 
@@ -336,10 +346,8 @@ fun BottomBar(
                         modifier = Modifier
                             .weight(1f)
                             .onGloballyPositioned { coords ->
-                                slotBounds[1] = ItemBounds(
-                                    left = coords.positionInParent().x,
-                                    width = coords.size.width.toFloat()
-                                )
+                                val next = ItemBounds(coords.positionInParent().x, coords.size.width.toFloat())
+                                if (slotBounds[1] != next) slotBounds[1] = next
                             }
                     )
 
@@ -348,10 +356,8 @@ fun BottomBar(
                         modifier = Modifier
                             .padding(horizontal = 6.dp)
                             .onGloballyPositioned { coords ->
-                                slotBounds[2] = ItemBounds(
-                                    left = coords.positionInParent().x,
-                                    width = coords.size.width.toFloat()
-                                )
+                                val next = ItemBounds(coords.positionInParent().x, coords.size.width.toFloat())
+                                if (slotBounds[2] != next) slotBounds[2] = next
                             },
                         contentAlignment = Alignment.Center
                     ) {
@@ -361,6 +367,7 @@ fun BottomBar(
                             shadowElevation = if (isHoveringAdd) 8.dp else 4.dp,
                             modifier = Modifier
                                 .size(46.dp)
+                                .guideTarget(GuideTarget.BOTTOM_CREATE)
                                 .graphicsLayer {
                                     scaleX = addButtonScale
                                     scaleY = addButtonScale
@@ -386,11 +393,10 @@ fun BottomBar(
                         unreadCount = totalUnread,
                         modifier = Modifier
                             .weight(1f)
+                            .guideTarget(GuideTarget.BOTTOM_CHATS)
                             .onGloballyPositioned { coords ->
-                                slotBounds[3] = ItemBounds(
-                                    left = coords.positionInParent().x,
-                                    width = coords.size.width.toFloat()
-                                )
+                                val next = ItemBounds(coords.positionInParent().x, coords.size.width.toFloat())
+                                if (slotBounds[3] != next) slotBounds[3] = next
                             }
                     )
 
@@ -400,11 +406,10 @@ fun BottomBar(
                         unreadCount = 0,
                         modifier = Modifier
                             .weight(1f)
+                            .guideTarget(GuideTarget.BOTTOM_PROFILE)
                             .onGloballyPositioned { coords ->
-                                slotBounds[4] = ItemBounds(
-                                    left = coords.positionInParent().x,
-                                    width = coords.size.width.toFloat()
-                                )
+                                val next = ItemBounds(coords.positionInParent().x, coords.size.width.toFloat())
+                                if (slotBounds[4] != next) slotBounds[4] = next
                             }
                     )
                 }
@@ -421,20 +426,18 @@ private fun TabItem(
     modifier: Modifier
 ) {
     val activeTabColor = if (CampusThemeState.isDark) Honey else Charcoal
-    Column(
+    Box(
         modifier = modifier
             .fillMaxHeight()
-            .clip(RoundedCornerShape(50))
-            .padding(vertical = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .clip(RoundedCornerShape(50)),
+        contentAlignment = Alignment.Center
     ) {
         Box(contentAlignment = Alignment.TopEnd) {
             Icon(
                 imageVector = tab.icon,
                 contentDescription = tab.screen.title,
                 tint = if (selected) activeTabColor else MutedText,
-                modifier = Modifier.size(21.dp)
+                modifier = Modifier.size(24.dp)
             )
 
             if (tab.screen == Screen.Chats && unreadCount > 0) {
@@ -447,16 +450,5 @@ private fun TabItem(
                 )
             }
         }
-
-        Spacer(Modifier.height(2.dp))
-
-        Text(
-            text = tab.screen.title,
-            style = MaterialTheme.typography.labelSmall,
-            fontSize = 11.sp,
-            color = if (selected) activeTabColor else MutedText,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
     }
 }

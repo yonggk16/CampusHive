@@ -30,7 +30,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -55,6 +54,8 @@ fun NotificationCenterDialog(
     conversations: List<ChatConversation>,
     onDismiss: () -> Unit,
     onMarkAllRead: () -> Unit,
+    onClearAll: () -> Unit,
+    onClearOne: (ChatConversation) -> Unit,
     onOpenChat: (ChatConversation) -> Unit,
 ) {
     val unreadTotal = remember(conversations) { conversations.sumOf { it.unreadCount } }
@@ -165,7 +166,13 @@ fun NotificationCenterDialog(
                             .padding(horizontal = 24.dp)
                     ) {
                         if (conversations.isEmpty()) {
-                            EmptyNotifications()
+                            CampusEmptyState(
+                                icon = Icons.Outlined.Notifications,
+                                title = "Nothing new yet",
+                                subtitle = "Message replies from seekers and providers will appear here.",
+                                compact = true,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
                         } else {
                             LazyColumn(
                                 modifier = Modifier
@@ -175,57 +182,96 @@ fun NotificationCenterDialog(
                                 verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 items(conversations, key = { it.id }) { chat ->
-                                    NotificationRow(chat) {
-                                        onOpenChat(chat)
-                                    }
+                                    NotificationRow(
+                                        chat = chat,
+                                        onClear = { onClearOne(chat) },
+                                        onClick = { onOpenChat(chat) }
+                                    )
                                 }
                             }
                         }
                     }
 
-                    // Anchored action bar
-                    HorizontalDivider(thickness = 0.8.dp, color = Hairline)
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 24.dp, end = 24.dp, top = 14.dp, bottom = 10.dp)
-                    ) {
-                        if (unreadTotal > 0) {
-                            Button(
-                                onClick = onMarkAllRead,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(50.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Honey,
-                                    contentColor = OnHoneyAccent
-                                ),
-                                shape = RoundedCornerShape(16.dp)
-                            ) {
-                                Text(
-                                    text = "Mark all as read",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
-                                )
-                            }
-                        } else {
-                            Button(
-                                onClick = { dismissAnimated() },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(50.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = CreamTint,
-                                    contentColor = Charcoal
-                                ),
-                                shape = RoundedCornerShape(16.dp),
-                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
-                            ) {
-                                Text(
-                                    text = "Done",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
-                                )
+                    // Anchored action bar (shown only when there are notifications to act on)
+                    if (conversations.isNotEmpty()) {
+                        HorizontalDivider(thickness = 0.8.dp, color = Hairline)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 24.dp, end = 24.dp, top = 14.dp, bottom = 10.dp)
+                        ) {
+                            if (unreadTotal > 0) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Button(
+                                        onClick = onClearAll,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(50.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = CreamTint,
+                                            contentColor = Charcoal
+                                        ),
+                                        shape = RoundedCornerShape(16.dp),
+                                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Close,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(
+                                            text = "Clear all",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp
+                                        )
+                                    }
+                                    Button(
+                                        onClick = onMarkAllRead,
+                                        modifier = Modifier
+                                            .weight(1.3f)
+                                            .height(50.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Honey,
+                                            contentColor = OnHoneyAccent
+                                        ),
+                                        shape = RoundedCornerShape(16.dp)
+                                    ) {
+                                        Text(
+                                            text = "Mark all read",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp
+                                        )
+                                    }
+                                }
+                            } else {
+                                Button(
+                                    onClick = onClearAll,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(50.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = CreamTint,
+                                        contentColor = Charcoal
+                                    ),
+                                    shape = RoundedCornerShape(16.dp),
+                                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Close,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        text = "Clear all",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp
+                                    )
+                                }
                             }
                         }
                     }
@@ -322,13 +368,19 @@ private fun NotificationSheetHeader(
 }
 
 @Composable
-private fun NotificationRow(chat: ChatConversation, onClick: () -> Unit) {
+private fun NotificationRow(
+    chat: ChatConversation,
+    onClear: () -> Unit,
+    onClick: () -> Unit
+) {
     val isUnread = chat.unreadCount > 0
     val previewText = remember(chat.lastMessage) {
         val raw = chat.lastMessage.trim()
         when {
             raw.isEmpty() -> "Sent you a message"
             raw.equals("[Photo]", ignoreCase = true) -> "Photo attachment"
+            raw.equals("[GIF]", ignoreCase = true) -> "GIF"
+            raw.equals("[Sticker]", ignoreCase = true) -> "Sticker"
             else -> raw
         }
     }
@@ -365,26 +417,34 @@ private fun NotificationRow(chat: ChatConversation, onClick: () -> Unit) {
             Spacer(Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = chat.studentName.ifBlank { "Campus Student" },
-                        fontWeight = if (isUnread) FontWeight.Bold else FontWeight.SemiBold,
-                        fontSize = 14.sp,
-                        color = Charcoal,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-                    if (chat.isVerifiedStudent) {
-                        Spacer(Modifier.width(4.dp))
-                        Icon(
-                            imageVector = Icons.Filled.CheckCircle,
-                            contentDescription = "Verified student",
-                            tint = Charcoal,
-                            modifier = Modifier.size(13.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = chat.studentName.ifBlank { "Campus Student" },
+                            fontWeight = if (isUnread) FontWeight.Bold else FontWeight.SemiBold,
+                            fontSize = 14.sp,
+                            color = Charcoal,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
                         )
+                        if (chat.isVerifiedStudent) {
+                            Spacer(Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Filled.CheckCircle,
+                                contentDescription = "Verified student",
+                                tint = Charcoal,
+                                modifier = Modifier.size(13.dp)
+                            )
+                        }
                     }
-                    Spacer(Modifier.weight(1f))
+                    Spacer(Modifier.width(8.dp))
                     Text(
                         text = chat.timestamp,
                         fontSize = 11.sp,
@@ -417,7 +477,7 @@ private fun NotificationRow(chat: ChatConversation, onClick: () -> Unit) {
             }
 
             if (isUnread) {
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(8.dp))
                 Box(
                     modifier = Modifier
                         .size(20.dp)
@@ -433,51 +493,25 @@ private fun NotificationRow(chat: ChatConversation, onClick: () -> Unit) {
                     )
                 }
             }
+
+            Spacer(Modifier.width(8.dp))
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(CreamTint)
+                    .border(1.dp, Hairline, CircleShape)
+                    .clickable(onClick = onClear),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = "Clear notification",
+                    tint = Charcoal,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
         }
     }
 }
 
-@Composable
-private fun EmptyNotifications() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 16.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(Cream)
-            .border(1.dp, Hairline, RoundedCornerShape(16.dp))
-            .padding(horizontal = 24.dp, vertical = 28.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Box(
-            modifier = Modifier
-                .size(46.dp)
-                .clip(CircleShape)
-                .background(HoneyTint)
-                .border(1.5.dp, AvatarOutline, CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Notifications,
-                contentDescription = null,
-                tint = if (CampusThemeState.isDark) BrandHoney else Charcoal,
-                modifier = Modifier.size(22.dp)
-            )
-        }
-        Spacer(Modifier.height(12.dp))
-        Text(
-            text = "Nothing new yet",
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Bold,
-            color = Charcoal
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = "Message replies from seekers and providers will appear here.",
-            fontSize = 13.sp,
-            color = MutedText,
-            textAlign = TextAlign.Center,
-            lineHeight = 18.sp
-        )
-    }
-}

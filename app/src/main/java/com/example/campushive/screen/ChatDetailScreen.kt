@@ -3,41 +3,78 @@ package com.example.campushive.screen
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
+import android.graphics.drawable.AnimatedImageDrawable
+import android.graphics.drawable.Drawable
 import android.net.Uri
+import android.os.Build
 import android.provider.OpenableColumns
 import android.util.Base64
+import android.util.LruCache
+import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import com.example.campushive.ui.theme.bounceClick
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.content.MediaType
+import androidx.compose.foundation.content.ReceiveContentListener
+import androidx.compose.foundation.content.contentReceiver
+import androidx.compose.foundation.content.hasMediaType
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.clearText
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.MoreVert
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlin.math.roundToInt
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.EmojiEmotions
 import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.material.icons.outlined.GifBox
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.ReportProblem
 import androidx.compose.material3.*
@@ -55,8 +92,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.campushive.components.CampusStickerCard
+import com.example.campushive.components.CampusStickerPack
 import com.example.campushive.components.ReportDialog
 import com.example.campushive.components.ServiceCategoryIconBox
 import com.example.campushive.components.ChatNotificationHelper
@@ -71,6 +111,7 @@ import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.nio.ByteBuffer
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -78,13 +119,14 @@ import java.util.Locale
 import androidx.core.graphics.scale
 
 private data class PendingAttachment(
-    val type: String, // "IMAGE" | "FILE"
+    val type: String, // "IMAGE" | "GIF" | "FILE"
     val name: String,
     val sizeLabel: String,
     val base64Data: String,
     val previewBitmap: ImageBitmap? = null
 )
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ChatDetailScreen(
     chatId: String,
@@ -97,8 +139,10 @@ fun ChatDetailScreen(
     onViewServiceClick: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
-    var messageText by remember { mutableStateOf("") }
+    val messageFieldState = rememberTextFieldState()
+    val messageText = messageFieldState.text.toString()
     var showAttachMenu by remember { mutableStateOf(false) }
+    var showStickerTray by remember { mutableStateOf(false) }
     var pendingAttachment by remember { mutableStateOf<PendingAttachment?>(null) }
     var fullScreenImage by remember { mutableStateOf<ImageBitmap?>(null) }
 
@@ -109,10 +153,21 @@ fun ChatDetailScreen(
     var activeReportTargetId by remember { mutableStateOf("") }
     var activeReportTargetName by remember { mutableStateOf("") }
 
-    // Message being edited
+    // Message being edited or replied to
     var editingMessage by remember { mutableStateOf<ChatMessage?>(null) }
+    var replyingToMessage by remember { mutableStateOf<ChatMessage?>(null) }
+    var highlightedMessageId by remember { mutableStateOf<String?>(null) }
+    val coroutineScope = rememberCoroutineScope()
 
-    val liveMessages by chatViewModel.getMessagesFlow(chatId).collectAsState(initial = emptyList())
+    LaunchedEffect(highlightedMessageId) {
+        if (highlightedMessageId != null) {
+            delay(1200L)
+            highlightedMessageId = null
+        }
+    }
+
+    val messagesFlow = remember(chatId) { chatViewModel.getMessagesFlow(chatId) }
+    val liveMessages by messagesFlow.collectAsState(initial = emptyList())
     val conversations by chatViewModel.conversations.collectAsState()
     val userOnlineStatus by chatViewModel.userOnlineStatus.collectAsState()
     val userLastSeenMillis by chatViewModel.userLastSeenMillis.collectAsState()
@@ -125,13 +180,28 @@ fun ChatDetailScreen(
         // doesn't linger in the shade after the user has already read the message.
         ChatNotificationHelper.clearChatNotification(context, chatId)
         onDispose {
+            chatViewModel.setTypingStatus(chatId, false)
             chatViewModel.setActiveOpenChat("")
         }
     }
 
-    LaunchedEffect(chatId, liveMessages.size) {
+    // Debounced typing indicator broadcast
+    LaunchedEffect(chatId, messageText) {
+        if (chatId.isBlank()) return@LaunchedEffect
+        if (messageText.isNotBlank()) {
+            chatViewModel.setTypingStatus(chatId, true)
+            delay(3000L)
+            chatViewModel.setTypingStatus(chatId, false)
+        } else {
+            chatViewModel.setTypingStatus(chatId, false)
+        }
+    }
+
+    val latestMsgId = liveMessages.lastOrNull()?.id
+    val latestMsgMillis = liveMessages.lastOrNull()?.timestampMillis ?: 0L
+    LaunchedEffect(chatId, liveMessages.size, latestMsgId, latestMsgMillis) {
         if (chatId.isNotBlank()) {
-            chatViewModel.markConversationAsRead(chatId)
+            chatViewModel.markConversationAsRead(chatId, latestMsgMillis)
         }
     }
 
@@ -217,8 +287,28 @@ fun ChatDetailScreen(
         }
     }
 
-    val statusLabel = remember(isPartnerOnline, partnerLastSeenMillis) {
-        if (isPartnerOnline) {
+    var typingExpired by remember(currentConversation?.partnerTypingUpdatedAtMillis, currentConversation?.isPartnerTyping) {
+        mutableStateOf(false)
+    }
+    LaunchedEffect(currentConversation?.isPartnerTyping, currentConversation?.partnerTypingUpdatedAtMillis) {
+        if (currentConversation?.isPartnerTyping == true) {
+            val remaining = 6_000L - (System.currentTimeMillis() - currentConversation.partnerTypingUpdatedAtMillis)
+            if (remaining > 0L) {
+                delay(remaining)
+            }
+            typingExpired = true
+        }
+    }
+    val isPartnerTyping = (currentConversation?.isPartnerTyping == true) && !typingExpired
+    val partnerLastReadMillis = currentConversation?.partnerLastReadMillis ?: 0L
+    val latestOutgoingMessageId = remember(liveMessages) {
+        liveMessages.lastOrNull { it.isFromMe && !it.isDeleted }?.id
+    }
+
+    val statusLabel = remember(isPartnerTyping, isPartnerOnline, partnerLastSeenMillis) {
+        if (isPartnerTyping) {
+            "typing..."
+        } else if (isPartnerOnline) {
             "Online now"
         } else if (partnerLastSeenMillis > 0L) {
             val formatted = formatLastSeenTimestamp(partnerLastSeenMillis)
@@ -255,17 +345,116 @@ fun ChatDetailScreen(
         )
     }
 
+    fun sendQuickAttachment(
+        type: String,
+        name: String,
+        sizeLabel: String = "",
+        base64Data: String = ""
+    ) {
+        val currentReply = replyingToMessage
+        replyingToMessage = null
+        editingMessage = null
+        val replySender = currentReply?.let { r ->
+            if (r.isFromMe) myName.ifBlank { "You" } else r.senderName.ifBlank { partnerName }
+        } ?: ""
+        val replyPreview = currentReply?.let { formatReplyPreview(it) } ?: ""
+        chatViewModel.sendMessage(
+            conversationId = chatId,
+            text = "",
+            studentName = partnerName,
+            serviceTitle = serviceTitle,
+            attachmentType = type,
+            attachmentName = name,
+            attachmentSize = sizeLabel,
+            attachmentBase64 = base64Data,
+            listingIdHint = resolvedListingId,
+            providerUidHint = matchedListing?.providerUid.orEmpty()
+                .ifBlank { currentConversation?.providerUid.orEmpty() },
+            replyToMessageId = currentReply?.id ?: "",
+            replyToSenderName = replySender,
+            replyToPreviewText = replyPreview,
+            replyToAttachmentType = currentReply?.attachmentType ?: ""
+        )
+    }
+
+    // Keyboard rich-content listener (Gboard / Samsung Keyboard GIFs & Stickers)
+    val receiveContentListener = remember(
+        chatId,
+        partnerName,
+        serviceTitle,
+        resolvedListingId,
+        matchedListing,
+        currentConversation
+    ) {
+        ReceiveContentListener { transferableContent ->
+            if (!transferableContent.hasMediaType(MediaType.Image)) {
+                return@ReceiveContentListener transferableContent
+            }
+            val clipData = transferableContent.clipEntry.clipData
+            var handledUri: Uri? = null
+            for (i in 0 until clipData.itemCount) {
+                val uri = clipData.getItemAt(i)?.uri
+                if (uri != null) {
+                    handledUri = uri
+                    break
+                }
+            }
+            if (handledUri != null) {
+                val mime = context.contentResolver.getType(handledUri)?.lowercase(Locale.US) ?: ""
+                val attachment = if (mime.contains("gif") || mime.contains("webp")) {
+                    processGifUri(context, handledUri)
+                } else {
+                    processImageUri(context, handledUri)
+                }
+                if (attachment != null) {
+                    sendQuickAttachment(
+                        type = attachment.type,
+                        name = attachment.name,
+                        sizeLabel = attachment.sizeLabel,
+                        base64Data = attachment.base64Data
+                    )
+                    null
+                } else {
+                    Toast.makeText(context, "Could not load selected GIF or sticker", Toast.LENGTH_SHORT).show()
+                    transferableContent
+                }
+            } else {
+                transferableContent
+            }
+        }
+    }
+
     // Image picker launcher
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         showAttachMenu = false
         if (uri != null) {
-            val attachment = processImageUri(context, uri)
+            val mime = context.contentResolver.getType(uri)?.lowercase(Locale.US) ?: ""
+            val attachment = if (mime.contains("gif")) {
+                processGifUri(context, uri)
+            } else {
+                processImageUri(context, uri)
+            }
             if (attachment != null) {
                 pendingAttachment = attachment
             } else {
                 Toast.makeText(context, "Could not load selected image", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // GIF file picker launcher
+    val gifPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        showAttachMenu = false
+        if (uri != null) {
+            val attachment = processGifUri(context, uri)
+            if (attachment != null) {
+                pendingAttachment = attachment
+            } else {
+                Toast.makeText(context, "Could not load selected GIF", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -290,10 +479,11 @@ fun ChatDetailScreen(
         }
     }
 
-    // Scroll to bottom when new messages arrive
-    LaunchedEffect(liveMessages.size) {
-        if (liveMessages.isNotEmpty()) {
-            listState.animateScrollToItem(liveMessages.lastIndex)
+    // Scroll to bottom when new messages arrive or partner starts typing
+    LaunchedEffect(liveMessages.size, isPartnerTyping) {
+        val targetIndex = liveMessages.size + (if (isPartnerTyping) 1 else 0) - 1
+        if (targetIndex >= 0) {
+            listState.animateScrollToItem(targetIndex)
         }
     }
 
@@ -336,7 +526,6 @@ fun ChatDetailScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(HoneyBottomGradient)
-            .navigationBarsPadding()
             .imePadding()
     ) {
         // Unified Curved White Top Header (matches Home, Search, Chats & Profile silhouette)
@@ -429,8 +618,9 @@ fun ChatDetailScreen(
                             Text(
                                 text = statusLabel,
                                 fontSize = 11.sp,
-                                color = if (isPartnerOnline) OnlineGreen else MutedText,
-                                fontWeight = FontWeight.Medium,
+                                color = if (isPartnerTyping || isPartnerOnline) OnlineGreen else MutedText,
+                                fontWeight = if (isPartnerTyping) FontWeight.SemiBold else FontWeight.Medium,
+                                fontStyle = if (isPartnerTyping) FontStyle.Italic else FontStyle.Normal,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -688,30 +878,130 @@ fun ChatDetailScreen(
                             }
                         }
                     }
+                    val isMsgRead = msg.isFromMe &&
+                        partnerLastReadMillis > 0L &&
+                        msg.timestampMillis > 0L &&
+                        msg.timestampMillis <= partnerLastReadMillis
                     MessageBubble(
                         message = msg,
+                        currentUid = currentUid,
+                        isRead = isMsgRead,
+                        showSeenLabel = isMsgRead && msg.id == latestOutgoingMessageId,
+                        isHighlighted = msg.id == highlightedMessageId,
                         onImageClick = { bitmap -> fullScreenImage = bitmap },
                         onFileClick = { fileMsg -> saveAndNotifyFile(context, fileMsg) },
+                        onToggleReaction = { emoji ->
+                            chatViewModel.toggleMessageReaction(chatId, msg.id, emoji)
+                        },
+                        onReplyMessage = { msgToReply ->
+                            editingMessage = null
+                            replyingToMessage = msgToReply
+                        },
+                        onQuotedReplyClick = { targetId ->
+                            val targetIdx = liveMessages.indexOfFirst { it.id == targetId }
+                            if (targetIdx >= 0) {
+                                coroutineScope.launch {
+                                    listState.animateScrollToItem(targetIdx)
+                                    highlightedMessageId = targetId
+                                }
+                            }
+                        },
                         onEditMessage = { msgToEdit ->
+                            replyingToMessage = null
                             editingMessage = msgToEdit
-                            messageText = msgToEdit.text
+                            messageFieldState.setTextAndPlaceCursorAtEnd(msgToEdit.text)
                         },
                         onDeleteMessage = { msgToDelete ->
+                            if (replyingToMessage?.id == msgToDelete.id) replyingToMessage = null
                             chatViewModel.deleteMessage(chatId, msgToDelete.id)
                             Toast.makeText(context, "Message deleted", Toast.LENGTH_SHORT).show()
                         }
                     )
                 }
             }
+            if (isPartnerTyping) {
+                item(key = "typing_indicator") {
+                    TypingIndicatorBubble()
+                }
+            }
         }
 
-        // Floating Pill Bottom Composer (matches the floating pill silhouette of BottomBar)
+        // Unified Curved White Bottom Composer Dock (mirrors the curved top header silhouette)
+        Surface(
+            color = CardWhite,
+            border = BorderStroke(1.dp, Hairline),
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            shadowElevation = 8.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = Spacing.gutter, end = Spacing.gutter, top = 4.dp, bottom = 14.dp),
+                .navigationBarsPadding()
+                .padding(start = Spacing.gutter, end = Spacing.gutter, top = 12.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // Inline Replying-To Preview Banner Bar
+            replyingToMessage?.let { target ->
+                val replySender = if (target.isFromMe) "You" else target.senderName.ifBlank { partnerName }
+                val replyPreview = formatReplyPreview(target)
+                Surface(
+                    color = CardWhite,
+                    border = BorderStroke(1.dp, Hairline),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(3.5.dp)
+                                    .height(32.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(Honey)
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "Replying to $replySender",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Charcoal
+                                )
+                                Text(
+                                    text = replyPreview,
+                                    fontSize = 12.sp,
+                                    color = MutedText,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+
+                        IconButton(
+                            onClick = { replyingToMessage = null },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = "Cancel reply",
+                                tint = Charcoal,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
             // Inline Editing Message Banner Bar
             editingMessage?.let { editing ->
                 Surface(
@@ -766,7 +1056,7 @@ fun ChatDetailScreen(
                         IconButton(
                             onClick = {
                                 editingMessage = null
-                                messageText = ""
+                                messageFieldState.clearText()
                             },
                             modifier = Modifier.size(28.dp)
                         ) {
@@ -781,11 +1071,11 @@ fun ChatDetailScreen(
                 }
             }
 
-            // Expandable Upload Picker Menu (Picture vs File)
+            // Expandable Upload Picker Menu (Picture, GIF, File)
             AnimatedVisibility(visible = showAttachMenu) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Surface(
                         shape = RoundedCornerShape(16.dp),
@@ -796,7 +1086,7 @@ fun ChatDetailScreen(
                             .bounceClick(scaleDown = 0.94f) { imagePickerLauncher.launch("image/*") }
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 11.dp),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 11.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center
                         ) {
@@ -806,10 +1096,39 @@ fun ChatDetailScreen(
                                 tint = Charcoal,
                                 modifier = Modifier.size(18.dp)
                             )
-                            Spacer(Modifier.width(7.dp))
+                            Spacer(Modifier.width(6.dp))
                             Text(
                                 text = "Picture",
-                                fontSize = 13.sp,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Charcoal
+                            )
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = CardWhite,
+                        border = BorderStroke(1.dp, Hairline),
+                        modifier = Modifier
+                            .weight(1f)
+                            .bounceClick(scaleDown = 0.94f) { gifPickerLauncher.launch("image/gif") }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.GifBox,
+                                contentDescription = "Attach GIF",
+                                tint = Charcoal,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = "GIF",
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Charcoal
                             )
@@ -825,7 +1144,7 @@ fun ChatDetailScreen(
                             .bounceClick(scaleDown = 0.94f) { filePickerLauncher.launch("*/*") }
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 11.dp),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 11.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center
                         ) {
@@ -835,13 +1154,73 @@ fun ChatDetailScreen(
                                 tint = Charcoal,
                                 modifier = Modifier.size(18.dp)
                             )
-                            Spacer(Modifier.width(7.dp))
+                            Spacer(Modifier.width(6.dp))
                             Text(
                                 text = "File",
-                                fontSize = 13.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Charcoal
                             )
+                        }
+                    }
+                }
+            }
+
+            // Expandable CampusHive Sticker Tray
+            AnimatedVisibility(visible = showStickerTray) {
+                Surface(
+                    color = CardWhite,
+                    shape = RoundedCornerShape(20.dp),
+                    border = BorderStroke(1.dp, Hairline),
+                    shadowElevation = 4.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "CampusHive Stickers",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Charcoal
+                            )
+                            Text(
+                                text = "Keyboard GIFs also supported",
+                                fontSize = 10.sp,
+                                color = MutedText
+                            )
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(3),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 200.dp)
+                        ) {
+                            items(CampusStickerPack.stickers, key = { it.id }) { sticker ->
+                                CampusStickerCard(
+                                    sticker = sticker,
+                                    compact = true,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .bounceClick(scaleDown = 0.92f) {
+                                            showStickerTray = false
+                                            sendQuickAttachment(
+                                                type = "STICKER",
+                                                name = sticker.id
+                                            )
+                                        }
+                                )
+                            }
                         }
                     }
                 }
@@ -859,7 +1238,7 @@ fun ChatDetailScreen(
                         modifier = Modifier.padding(10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (staged.type == "IMAGE" && staged.previewBitmap != null) {
+                        if ((staged.type == "IMAGE" || staged.type == "GIF") && staged.previewBitmap != null) {
                             Image(
                                 bitmap = staged.previewBitmap,
                                 contentDescription = staged.name,
@@ -897,8 +1276,13 @@ fun ChatDetailScreen(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
+                            val typeLabel = when (staged.type) {
+                                "IMAGE" -> "Picture"
+                                "GIF" -> "GIF"
+                                else -> "File"
+                            }
                             Text(
-                                text = "${if (staged.type == "IMAGE") "Picture" else "File"} • ${staged.sizeLabel}",
+                                text = "$typeLabel • ${staged.sizeLabel}",
                                 fontSize = 11.sp,
                                 color = MutedText
                             )
@@ -919,12 +1303,12 @@ fun ChatDetailScreen(
                 }
             }
 
-            // Floating Pill Composer Bar
+            // Pill Composer Input nestled inside the Curved White Dock
             Surface(
                 shape = Radius.Pill,
-                color = CardWhite,
+                color = Cream,
                 border = BorderStroke(1.dp, Hairline),
-                shadowElevation = 8.dp,
+                shadowElevation = 0.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -939,12 +1323,15 @@ fun ChatDetailScreen(
                             .size(40.dp)
                             .clip(CircleShape)
                             .background(if (showAttachMenu) Honey else CreamTint)
-                            .bounceClick(scaleDown = 0.90f) { showAttachMenu = !showAttachMenu },
+                            .bounceClick(scaleDown = 0.90f) {
+                                showAttachMenu = !showAttachMenu
+                                if (showAttachMenu) showStickerTray = false
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = if (showAttachMenu) Icons.Filled.Close else Icons.Filled.Add,
-                            contentDescription = "Attach Picture or File",
+                            contentDescription = "Attach Picture, GIF, or File",
                             tint = if (showAttachMenu) OnHoneyAccent else Charcoal,
                             modifier = Modifier.size(20.dp)
                         )
@@ -952,7 +1339,7 @@ fun ChatDetailScreen(
 
                     Spacer(Modifier.width(10.dp))
 
-                    // Sleek borderless input inside the floating pill
+                    // Sleek borderless input inside the floating pill (supports Gboard GIFs & stickers)
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -973,19 +1360,42 @@ fun ChatDetailScreen(
                             )
                         }
                         BasicTextField(
-                            value = messageText,
-                            onValueChange = { messageText = it },
+                            state = messageFieldState,
                             textStyle = TextStyle(
                                 fontSize = 14.sp,
                                 color = Charcoal
                             ),
                             cursorBrush = SolidColor(Charcoal),
-                            maxLines = 4,
-                            modifier = Modifier.fillMaxWidth()
+                            lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 4),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .contentReceiver(receiveContentListener)
                         )
                     }
 
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(6.dp))
+
+                    // Sticker Tray Toggle Button
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(if (showStickerTray) Honey else Color.Transparent)
+                            .bounceClick(scaleDown = 0.90f) {
+                                showStickerTray = !showStickerTray
+                                if (showStickerTray) showAttachMenu = false
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.EmojiEmotions,
+                            contentDescription = "CampusHive Stickers",
+                            tint = if (showStickerTray) OnHoneyAccent else MutedText,
+                            modifier = Modifier.size(21.dp)
+                        )
+                    }
+
+                    Spacer(Modifier.width(6.dp))
 
                     // Circular Send Button
                     val canSend = messageText.isNotBlank() || pendingAttachment != null
@@ -997,17 +1407,24 @@ fun ChatDetailScreen(
                             .bounceClick(scaleDown = 0.90f) {
                                 val currentStaged = pendingAttachment
                                 val currentEditing = editingMessage
+                                val currentReply = replyingToMessage
                                 if (messageText.isNotBlank() || currentStaged != null) {
                                     val textToSend = messageText.trim()
-                                    messageText = ""
+                                    messageFieldState.clearText()
                                     pendingAttachment = null
+                                    replyingToMessage = null
                                     showAttachMenu = false
+                                    showStickerTray = false
 
                                     if (currentEditing != null) {
                                         editingMessage = null
                                         chatViewModel.editMessage(chatId, currentEditing.id, textToSend)
                                         Toast.makeText(context, "Message edited", Toast.LENGTH_SHORT).show()
                                     } else {
+                                        val replySender = currentReply?.let { r ->
+                                            if (r.isFromMe) myName.ifBlank { "You" } else r.senderName.ifBlank { partnerName }
+                                        } ?: ""
+                                        val replyPreview = currentReply?.let { formatReplyPreview(it) } ?: ""
                                         chatViewModel.sendMessage(
                                             conversationId = chatId,
                                             text = textToSend,
@@ -1019,7 +1436,11 @@ fun ChatDetailScreen(
                                             attachmentBase64 = currentStaged?.base64Data ?: "",
                                             listingIdHint = resolvedListingId,
                                             providerUidHint = matchedListing?.providerUid.orEmpty()
-                                                .ifBlank { currentConversation?.providerUid.orEmpty() }
+                                                .ifBlank { currentConversation?.providerUid.orEmpty() },
+                                            replyToMessageId = currentReply?.id ?: "",
+                                            replyToSenderName = replySender,
+                                            replyToPreviewText = replyPreview,
+                                            replyToAttachmentType = currentReply?.attachmentType ?: ""
                                         )
                                     }
                                 }
@@ -1036,95 +1457,341 @@ fun ChatDetailScreen(
                 }
             }
         }
+        }
     }
 }
+
+@Composable
+private fun TypingIndicatorBubble() {
+    val transition = rememberInfiniteTransition(label = "typing_dots")
+    val dotAlphas = (0..2).map { index ->
+        transition.animateFloat(
+            initialValue = 0.25f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 550, delayMillis = index * 150),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "dot_$index"
+        )
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Start
+    ) {
+        Surface(
+            color = CardWhite,
+            shape = RoundedCornerShape(
+                topStart = 18.dp,
+                topEnd = 18.dp,
+                bottomStart = 4.dp,
+                bottomEnd = 18.dp
+            ),
+            shadowElevation = 0.8.dp,
+            border = BorderStroke(1.dp, Hairline)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                dotAlphas.forEach { alphaState ->
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(MutedText.copy(alpha = alphaState.value))
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun formatReplyPreview(message: ChatMessage): String {
+    return when {
+        message.text.isNotBlank() -> message.text.trim()
+        message.attachmentType == "IMAGE" -> "Photo"
+        message.attachmentType == "GIF" -> "GIF"
+        message.attachmentType == "STICKER" -> "Sticker"
+        message.attachmentType == "FILE" -> message.attachmentName.ifBlank { "File attachment" }
+        else -> "Message"
+    }
+}
+
+private val QUICK_REACT_EMOJIS = listOf("👍", "❤️", "😂", "😮", "😢", "🙏")
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MessageBubble(
     message: ChatMessage,
+    currentUid: String = "",
+    isRead: Boolean = false,
+    showSeenLabel: Boolean = false,
+    isHighlighted: Boolean = false,
     onImageClick: (ImageBitmap) -> Unit,
     onFileClick: (ChatMessage) -> Unit,
+    onToggleReaction: (String) -> Unit,
+    onReplyMessage: (ChatMessage) -> Unit,
+    onQuotedReplyClick: (String) -> Unit,
     onEditMessage: (ChatMessage) -> Unit,
     onDeleteMessage: (ChatMessage) -> Unit
 ) {
     val isMe = message.isFromMe
     var showMenu by remember { mutableStateOf(false) }
+    val dragOffsetX = remember(message.id) { Animatable(0f) }
+    val dragScope = rememberCoroutineScope()
 
-    val decodedBitmap: ImageBitmap? = remember(message.attachmentType, message.attachmentBase64) {
-        if (message.attachmentType == "IMAGE" && message.attachmentBase64.isNotBlank()) {
-            try {
-                val bytes = Base64.decode(message.attachmentBase64, Base64.DEFAULT)
-                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
-            } catch (_: Exception) {
-                null
+    val highlightBg by animateColorAsState(
+        targetValue = if (isHighlighted) Honey.copy(alpha = 0.22f) else Color.Transparent,
+        animationSpec = tween(durationMillis = 300),
+        label = "reply_highlight"
+    )
+
+    val decodedBitmap: ImageBitmap? by produceState<ImageBitmap?>(
+        initialValue = if (!message.isDeleted && message.attachmentType == "IMAGE" && message.attachmentBase64.isNotBlank()) {
+            chatImageCache.get(message.id.ifBlank { message.attachmentBase64.hashCode().toString() })
+        } else null,
+        key1 = message.id,
+        key2 = message.attachmentBase64,
+        key3 = message.isDeleted
+    ) {
+        if (message.isDeleted) {
+            value = null
+            return@produceState
+        }
+        if (message.attachmentType == "IMAGE" && message.attachmentBase64.isNotBlank() && value == null) {
+            val cacheKey = message.id.ifBlank { message.attachmentBase64.hashCode().toString() }
+            val decoded = withContext(Dispatchers.Default) {
+                try {
+                    val bytes = Base64.decode(message.attachmentBase64, Base64.DEFAULT)
+                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+                } catch (_: Exception) {
+                    null
+                }
             }
-        } else {
-            null
+            if (decoded != null) {
+                chatImageCache.put(cacheKey, decoded)
+            }
+            value = decoded
         }
     }
+    val campusSticker = remember(message.attachmentType, message.attachmentName, message.isDeleted) {
+        if (!message.isDeleted && message.attachmentType == "STICKER") CampusStickerPack.findById(message.attachmentName) else null
+    }
+    val isGif = !message.isDeleted && message.attachmentType == "GIF" && message.attachmentBase64.isNotBlank()
+    val hasMediaContent = !message.isDeleted && (decodedBitmap != null || isGif || campusSticker != null)
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isMe) Arrangement.End else Arrangement.Start
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(highlightBg, RoundedCornerShape(16.dp))
+            .pointerInput(message.id, message.isDeleted) {
+                if (message.isDeleted) return@pointerInput
+                detectHorizontalDragGestures(
+                    onDragEnd = {
+                        if (dragOffsetX.value >= 80f) {
+                            onReplyMessage(message)
+                        }
+                        dragScope.launch { dragOffsetX.animateTo(0f, tween(180)) }
+                    },
+                    onDragCancel = {
+                        dragScope.launch { dragOffsetX.animateTo(0f, tween(180)) }
+                    },
+                    onHorizontalDrag = { _, dragAmount ->
+                        val next = (dragOffsetX.value + dragAmount).coerceIn(0f, 140f)
+                        dragScope.launch { dragOffsetX.snapTo(next) }
+                    }
+                )
+            }
     ) {
-        Column(
-            horizontalAlignment = if (isMe) Alignment.End else Alignment.Start
+        if (dragOffsetX.value > 12f) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 6.dp)
+                    .size(30.dp)
+                    .clip(CircleShape)
+                    .background(HoneyTint),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Reply,
+                    contentDescription = "Reply",
+                    tint = Charcoal,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .offset { IntOffset(dragOffsetX.value.roundToInt(), 0) },
+            horizontalArrangement = if (isMe) Arrangement.End else Arrangement.Start
         ) {
-            Box {
-                Surface(
-                    color = if (isMe) (if (message.isDeleted) OnDarkStrong else Charcoal) else CardWhite,
-                    shape = RoundedCornerShape(
-                        topStart = 18.dp,
-                        topEnd = 18.dp,
-                        bottomStart = if (isMe) 18.dp else 4.dp,
-                        bottomEnd = if (isMe) 4.dp else 18.dp
-                    ),
-                    shadowElevation = 0.8.dp,
-                    border = if (isMe) null else BorderStroke(1.dp, Hairline),
-                    modifier = Modifier
-                        .widthIn(max = 260.dp)
-                        .combinedClickable(
-                            onClick = {},
-                            onLongClick = {
-                                if (isMe && !message.isDeleted) {
-                                    showMenu = true
+            Column(
+                horizontalAlignment = if (isMe) Alignment.End else Alignment.Start
+            ) {
+                Box {
+                    Surface(
+                        color = if (isMe) (if (message.isDeleted) OnDarkStrong else Charcoal) else CardWhite,
+                        shape = RoundedCornerShape(
+                            topStart = 18.dp,
+                            topEnd = 18.dp,
+                            bottomStart = if (isMe) 18.dp else 4.dp,
+                            bottomEnd = if (isMe) 4.dp else 18.dp
+                        ),
+                        shadowElevation = 0.8.dp,
+                        border = if (isMe) null else BorderStroke(1.dp, Hairline),
+                        modifier = Modifier
+                            .widthIn(max = 260.dp)
+                            .combinedClickable(
+                                onClick = {},
+                                onLongClick = {
+                                    if (!message.isDeleted) {
+                                        showMenu = true
+                                    }
+                                }
+                            )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(
+                                horizontal = if (hasMediaContent) 8.dp else 14.dp,
+                                vertical = if (hasMediaContent) 8.dp else 10.dp
+                            )
+                        ) {
+                            // 0. Quoted Reply Preview
+                            if (message.replyToMessageId.isNotBlank() && !message.isDeleted) {
+                                Surface(
+                                    color = if (isMe) OnDarkSurface else Cream,
+                                    shape = RoundedCornerShape(10.dp),
+                                    border = BorderStroke(1.dp, if (isMe) OnDarkBorder else Hairline),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 6.dp)
+                                        .clickable { onQuotedReplyClick(message.replyToMessageId) }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .width(3.dp)
+                                                .height(28.dp)
+                                                .clip(RoundedCornerShape(3.dp))
+                                                .background(Honey)
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = message.replyToSenderName.ifBlank { "Message" },
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isMe) BrandHoney else Charcoal,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                text = message.replyToPreviewText.ifBlank { "Original message" },
+                                                fontSize = 11.sp,
+                                                color = if (isMe) OnDarkMuted else MutedText,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
                                 }
                             }
-                        )
-                ) {
-                    Column(
-                        modifier = Modifier.padding(
-                            horizontal = if (decodedBitmap != null) 8.dp else 14.dp,
-                            vertical = if (decodedBitmap != null) 8.dp else 10.dp
-                        )
-                    ) {
-                        // 1. Picture Attachment
-                        if (decodedBitmap != null) {
-                            Image(
-                                bitmap = decodedBitmap,
-                                contentDescription = message.attachmentName.ifBlank { "Shared image" },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(min = 120.dp, max = 220.dp)
-                                    .clip(Radius.Tile)
-                                    .bounceClick { onImageClick(decodedBitmap) },
-                                contentScale = ContentScale.Crop
+
+                            // 1. Bundled Sticker Attachment
+                        if (!message.isDeleted && campusSticker != null) {
+                            CampusStickerCard(
+                                sticker = campusSticker,
+                                compact = false,
+                                size = 136.dp
                             )
                             if (message.text.isNotBlank()) {
                                 Spacer(Modifier.height(6.dp))
                             }
                         }
 
+                        // 1b. Animated GIF Attachment
+                        if (isGif) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 120.dp, max = 220.dp)
+                                    .clip(Radius.Tile)
+                                    .combinedClickable(
+                                        onClick = {},
+                                        onLongClick = {
+                                            if (!message.isDeleted) showMenu = true
+                                        }
+                                    )
+                            ) {
+                                AnimatedGifView(
+                                    base64Data = message.attachmentBase64,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = 120.dp, max = 220.dp)
+                                )
+                                Surface(
+                                    color = Charcoal.copy(alpha = 0.72f),
+                                    shape = RoundedCornerShape(6.dp),
+                                    modifier = Modifier
+                                        .align(Alignment.BottomStart)
+                                        .padding(6.dp)
+                                ) {
+                                    Text(
+                                        text = "GIF",
+                                        color = CardWhite,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                            if (message.text.isNotBlank()) {
+                                Spacer(Modifier.height(6.dp))
+                            }
+                        }
+
+                        // 1c. Picture / Keyboard Sticker Attachment
+                        if (!message.isDeleted) {
+                            decodedBitmap?.let { bitmap ->
+                                Image(
+                                    bitmap = bitmap,
+                                    contentDescription = message.attachmentName.ifBlank { "Shared image" },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = 120.dp, max = 220.dp)
+                                        .clip(Radius.Tile)
+                                        .combinedClickable(
+                                            onClick = { onImageClick(bitmap) },
+                                            onLongClick = { showMenu = true }
+                                        ),
+                                    contentScale = ContentScale.Crop
+                                )
+                                if (message.text.isNotBlank()) {
+                                    Spacer(Modifier.height(6.dp))
+                                }
+                            }
+                        }
+
                         // 2. File / Document Attachment Card
-                        if (message.attachmentType == "FILE") {
+                        if (!message.isDeleted && message.attachmentType == "FILE") {
                             Surface(
                                 color = if (isMe) OnDarkSurface else Cream,
                                 shape = Radius.Tile,
                                 border = BorderStroke(1.dp, if (isMe) OnDarkBorder else Hairline),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .bounceClick { onFileClick(message) }
+                                    .combinedClickable(
+                                        onClick = { onFileClick(message) },
+                                        onLongClick = { showMenu = true }
+                                    )
                             ) {
                                 Row(
                                     modifier = Modifier.padding(10.dp),
@@ -1172,8 +1839,8 @@ private fun MessageBubble(
                             Text(
                                 text = message.text,
                                 modifier = Modifier.padding(
-                                    horizontal = if (decodedBitmap != null) 6.dp else 0.dp,
-                                    vertical = if (decodedBitmap != null) 2.dp else 0.dp
+                                    horizontal = if (hasMediaContent) 6.dp else 0.dp,
+                                    vertical = if (hasMediaContent) 2.dp else 0.dp
                                 ),
                                 color = if (isMe) CardWhite else Charcoal,
                                 fontStyle = if (message.isDeleted) FontStyle.Italic else FontStyle.Normal,
@@ -1199,37 +1866,124 @@ private fun MessageBubble(
                         shadowElevation = 6.dp,
                         modifier = Modifier.background(CardWhite)
                     ) {
+                        // Quick Emoji Reaction Bar
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            QUICK_REACT_EMOJIS.forEach { emoji ->
+                                val isSelected = currentUid.isNotBlank() &&
+                                    message.reactions[emoji]?.contains(currentUid) == true
+                                Box(
+                                    modifier = Modifier
+                                        .size(34.dp)
+                                        .clip(CircleShape)
+                                        .background(if (isSelected) HoneyTint else Color.Transparent)
+                                        .then(
+                                            if (isSelected) Modifier.border(1.dp, BrandHoney, CircleShape)
+                                            else Modifier
+                                        )
+                                        .bounceClick(scaleDown = 0.86f) {
+                                            showMenu = false
+                                            onToggleReaction(emoji)
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(text = emoji, fontSize = 18.sp)
+                                }
+                            }
+                        }
+                        HorizontalDivider(color = Hairline)
                         DropdownMenuItem(
-                            text = { Text("Edit Message", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Charcoal) },
+                            text = { Text("Reply", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Charcoal) },
                             leadingIcon = {
                                 Icon(
-                                    imageVector = Icons.Outlined.Edit,
-                                    contentDescription = "Edit",
+                                    imageVector = Icons.AutoMirrored.Filled.Reply,
+                                    contentDescription = "Reply",
                                     tint = Charcoal,
                                     modifier = Modifier.size(18.dp)
                                 )
                             },
                             onClick = {
                                 showMenu = false
-                                onEditMessage(message)
+                                onReplyMessage(message)
                             }
                         )
-                        HorizontalDivider(color = Hairline)
-                        DropdownMenuItem(
-                            text = { Text("Delete Message", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = DangerFgStrong) },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Outlined.Delete,
-                                    contentDescription = "Delete",
-                                    tint = DangerFgStrong,
-                                    modifier = Modifier.size(18.dp)
+                        if (isMe) {
+                            if (message.text.isNotBlank()) {
+                                HorizontalDivider(color = Hairline)
+                                DropdownMenuItem(
+                                    text = { Text("Edit Message", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Charcoal) },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Edit,
+                                            contentDescription = "Edit",
+                                            tint = Charcoal,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    },
+                                    onClick = {
+                                        showMenu = false
+                                        onEditMessage(message)
+                                    }
                                 )
-                            },
-                            onClick = {
-                                showMenu = false
-                                onDeleteMessage(message)
                             }
-                        )
+                            HorizontalDivider(color = Hairline)
+                            DropdownMenuItem(
+                                text = { Text("Delete Message", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = DangerFgStrong) },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Delete,
+                                        contentDescription = "Delete",
+                                        tint = DangerFgStrong,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    onDeleteMessage(message)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Reaction Pills below bubble
+            if (message.reactions.isNotEmpty() && !message.isDeleted) {
+                Spacer(Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.padding(horizontal = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    message.reactions.entries.forEach { (emoji, uids) ->
+                        val reactedByMe = currentUid.isNotBlank() && uids.contains(currentUid)
+                        Surface(
+                            shape = Radius.Pill,
+                            color = if (reactedByMe) HoneyTint else CardWhite,
+                            border = BorderStroke(1.dp, if (reactedByMe) BrandHoney else Hairline),
+                            modifier = Modifier.bounceClick(scaleDown = 0.90f) {
+                                onToggleReaction(emoji)
+                            }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Text(text = emoji, fontSize = 12.sp)
+                                if (uids.size > 1) {
+                                    Text(
+                                        text = uids.size.toString(),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Charcoal
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1241,12 +1995,128 @@ private fun MessageBubble(
                 if (message.isEdited) append(" · edited")
             }
 
-            Text(
-                text = timeLabel,
-                fontSize = 10.sp,
-                color = MutedText
-            )
+            Row(
+                modifier = Modifier.padding(horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Text(
+                    text = timeLabel,
+                    fontSize = 10.sp,
+                    color = MutedText
+                )
+                if (isMe && !message.isDeleted) {
+                    Icon(
+                        imageVector = if (isRead) Icons.Filled.DoneAll else Icons.Filled.Check,
+                        contentDescription = if (isRead) "Read" else "Sent",
+                        tint = if (isRead) ReadReceiptBlue else MutedText,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
         }
+        }
+    }
+}
+
+private val chatImageCache = LruCache<String, ImageBitmap>(32)
+private val chatGifBytesCache = LruCache<Int, ByteArray>(16)
+
+/**
+ * Renders a Base64-encoded animated GIF or WebP natively using Android's ImageDecoder
+ * (API 28+) with off-main-thread decoding and tag-guarded updates to prevent flicker.
+ */
+@Composable
+private fun AnimatedGifView(
+    base64Data: String,
+    modifier: Modifier = Modifier
+) {
+    val cacheKey = remember(base64Data) { base64Data.hashCode() }
+    val decodedDrawable by produceState<Drawable?>(initialValue = null, key1 = cacheKey) {
+        value = withContext(Dispatchers.Default) {
+            try {
+                val rawBytes = chatGifBytesCache.get(cacheKey) ?: Base64.decode(base64Data, Base64.DEFAULT).also {
+                    if (it.isNotEmpty()) chatGifBytesCache.put(cacheKey, it)
+                }
+                if (rawBytes.isEmpty()) return@withContext null
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    val source = ImageDecoder.createSource(ByteBuffer.wrap(rawBytes))
+                    ImageDecoder.decodeDrawable(source)
+                } else {
+                    null
+                }
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+    val fallbackBitmap by produceState<Bitmap?>(initialValue = null, key1 = cacheKey) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
+            value = withContext(Dispatchers.Default) {
+                try {
+                    val rawBytes = chatGifBytesCache.get(cacheKey) ?: Base64.decode(base64Data, Base64.DEFAULT)
+                    BitmapFactory.decodeByteArray(rawBytes, 0, rawBytes.size)
+                } catch (_: Exception) {
+                    null
+                }
+            }
+        }
+    }
+
+    AndroidView(
+        modifier = modifier,
+        factory = { ctx ->
+            ImageView(ctx).apply {
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                adjustViewBounds = true
+                isClickable = false
+                isLongClickable = false
+            }
+        },
+        update = { imageView ->
+            if (imageView.tag == cacheKey && imageView.drawable != null) return@AndroidView
+            val drawable = decodedDrawable
+            if (drawable != null) {
+                imageView.tag = cacheKey
+                imageView.setImageDrawable(drawable)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && drawable is AnimatedImageDrawable) {
+                    drawable.start()
+                }
+            } else if (fallbackBitmap != null) {
+                imageView.tag = cacheKey
+                imageView.setImageBitmap(fallbackBitmap)
+            }
+        }
+    )
+}
+
+/**
+ * Reads a GIF/animated WebP Uri and preserves raw animated bytes (up to 700 KB) in Base64
+ * for Firestore transfer, falling back to a compressed static image if larger.
+ */
+private fun processGifUri(context: Context, uri: Uri): PendingAttachment? {
+    return try {
+        val (fileName, _) = queryFileMeta(context, uri, defaultName = "animation_${System.currentTimeMillis()}.gif")
+        val rawBytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return null
+        if (rawBytes.isEmpty()) return null
+
+        val maxGifBytes = 700 * 1024
+        if (rawBytes.size > maxGifBytes) {
+            Toast.makeText(context, "GIF is over 700 KB — sending as static image", Toast.LENGTH_SHORT).show()
+            return processImageUri(context, uri)
+        }
+
+        val base64Str = Base64.encodeToString(rawBytes, Base64.NO_WRAP)
+        val previewBitmap = BitmapFactory.decodeByteArray(rawBytes, 0, rawBytes.size)?.asImageBitmap()
+        PendingAttachment(
+            type = "GIF",
+            name = fileName,
+            sizeLabel = formatFileSize(rawBytes.size.toLong()),
+            base64Data = base64Str,
+            previewBitmap = previewBitmap
+        )
+    } catch (_: Exception) {
+        processImageUri(context, uri)
     }
 }
 

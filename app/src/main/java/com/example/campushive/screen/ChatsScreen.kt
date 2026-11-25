@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Close
@@ -31,6 +32,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.campushive.components.CampusEmptyState
 import com.example.campushive.model.ChatConversation
 import com.example.campushive.ui.theme.*
 import com.example.campushive.viewmodel.ChatViewModel
@@ -225,61 +227,28 @@ fun ChatsScreen(
                 .weight(1f)
         ) {
             if (filteredChats.isEmpty()) {
+                val hasFilter = searchQuery.isNotBlank() || selectedRoleFilter != "All"
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = Spacing.gutter, vertical = 24.dp),
+                        .padding(top = 28.dp),
                     contentAlignment = Alignment.TopCenter
                 ) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = CardWhite),
-                        border = BorderStroke(1.dp, Hairline),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 24.dp, vertical = 32.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(CircleShape)
-                                    .background(HoneyTint)
-                                    .border(BorderStroke(1.5.dp, AvatarOutline), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.ChatBubbleOutline,
-                                    contentDescription = null,
-                                    tint = if (CampusThemeState.isDark) BrandHoney else Charcoal,
-                                    modifier = Modifier.size(22.dp)
-                                )
+                    CampusEmptyState(
+                        icon = Icons.Outlined.ChatBubbleOutline,
+                        title = if (conversations.isEmpty()) "No chats yet" else "No matching chats",
+                        subtitle = if (conversations.isEmpty())
+                            "Chats start from a service listing. Find one you like, tap Chat, and message a peer."
+                        else
+                            "Try another student name, service title, or switch your role filter.",
+                        actionLabel = if (hasFilter && conversations.isNotEmpty()) "Reset Filters" else null,
+                        onAction = if (hasFilter && conversations.isNotEmpty()) {
+                            {
+                                searchQuery = ""
+                                selectedRoleFilter = "All"
                             }
-                            Spacer(Modifier.height(12.dp))
-                            Text(
-                                text = if (conversations.isEmpty()) "No chats yet" else "No matching chats",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Charcoal,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                text = if (conversations.isEmpty())
-                                    "Chats start from a service listing. Find one you like, tap Chat, and message a peer."
-                                else
-                                    "Try another student name, service title, or switch your role filter.",
-                                fontSize = 13.sp,
-                                color = MutedText,
-                                textAlign = TextAlign.Center,
-                                lineHeight = 18.sp
-                            )
-                        }
-                    }
+                        } else null
+                    )
                 }
             } else {
                 LazyColumn(
@@ -330,6 +299,8 @@ private fun ChatListRow(
         when {
             raw.isEmpty() -> "Tap to start chatting"
             raw.equals("[Photo]", ignoreCase = true) -> "Photo attachment"
+            raw.equals("[GIF]", ignoreCase = true) -> "GIF"
+            raw.equals("[Sticker]", ignoreCase = true) -> "Sticker"
             else -> raw
         }
     }
@@ -387,28 +358,34 @@ private fun ChatListRow(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = chat.studentName.ifBlank { "Campus Student" },
-                    fontWeight = if (isUnread) FontWeight.Bold else FontWeight.SemiBold,
-                    fontSize = 15.sp,
-                    color = Charcoal,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false)
-                )
-                if (chat.isVerifiedStudent) {
-                    Spacer(Modifier.width(4.dp))
-                    Icon(
-                        imageVector = Icons.Filled.CheckCircle,
-                        contentDescription = "Verified Student",
-                        tint = VerifiedGreen,
-                        modifier = Modifier.size(14.dp)
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = chat.studentName.ifBlank { "Campus Student" },
+                        fontWeight = if (isUnread) FontWeight.Bold else FontWeight.SemiBold,
+                        fontSize = 15.sp,
+                        color = Charcoal,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
+                    if (chat.isVerifiedStudent) {
+                        Spacer(Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Filled.CheckCircle,
+                            contentDescription = "Verified Student",
+                            tint = VerifiedGreen,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
                 }
-                Spacer(Modifier.weight(1f))
+                Spacer(Modifier.width(8.dp))
                 Text(
                     text = chat.timestamp,
                     fontSize = 11.sp,
+                    maxLines = 1,
                     fontWeight = if (isUnread) FontWeight.SemiBold else FontWeight.Normal,
                     color = if (isUnread) BrandHoney else MutedText
                 )
@@ -420,15 +397,40 @@ private fun ChatListRow(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = formattedPreview,
-                    fontSize = 13.sp,
-                    fontWeight = if (isUnread) FontWeight.SemiBold else FontWeight.Normal,
-                    color = if (isUnread) Charcoal else MutedText,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
+                val isLastRead = chat.isLastMessageFromMe &&
+                    chat.lastMessageMillis > 0L &&
+                    chat.partnerLastReadMillis >= chat.lastMessageMillis
+
+                if (chat.isPartnerTyping) {
+                    Text(
+                        text = "typing...",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = OnlineGreen,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                } else {
+                    if (chat.isLastMessageFromMe && chat.lastMessage.isNotBlank()) {
+                        Icon(
+                            imageVector = if (isLastRead) Icons.Filled.DoneAll else Icons.Filled.Check,
+                            contentDescription = if (isLastRead) "Read" else "Sent",
+                            tint = if (isLastRead) ReadReceiptBlue else MutedText,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                    }
+                    Text(
+                        text = formattedPreview,
+                        fontSize = 13.sp,
+                        fontWeight = if (isUnread) FontWeight.SemiBold else FontWeight.Normal,
+                        color = if (isUnread) Charcoal else MutedText,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
 
                 if (isUnread) {
                     Spacer(Modifier.width(8.dp))

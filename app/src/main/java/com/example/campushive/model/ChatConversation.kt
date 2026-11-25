@@ -18,5 +18,9 @@ data class ChatConversation(
     val lastSeenMillis: Long = 0L,
     val lastMessageMillis: Long = 0L,
     val lastSenderUid: String = "",
-    val lastSenderName: String = ""
+    val lastSenderName: String = "",
+    val isPartnerTyping: Boolean = false,
+    val partnerTypingUpdatedAtMillis: Long = 0L,
+    val partnerLastReadMillis: Long = 0L,
+    val isLastMessageFromMe: Boolean = false
 )

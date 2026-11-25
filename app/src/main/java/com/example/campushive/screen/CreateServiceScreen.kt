@@ -1,6 +1,11 @@
 package com.example.campushive.screen
 
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material3.*
@@ -65,11 +71,40 @@ fun CreateServiceScreen(
     var selectedDays by remember { mutableStateOf(setOf("Mon", "Tue", "Wed", "Thu", "Fri")) }
     var selectedTimeSlots by remember { mutableStateOf(setOf("Afternoon (12pm–5pm)")) }
 
+    var hasAttemptedPublish by remember { mutableStateOf(false) }
+
     val currentUser = Firebase.auth.currentUser
     val isGoogleUser = currentUser?.providerData?.any { it.providerId == "google.com" } == true
     val isVerifiedStudent = isGoogleUser || currentUser?.isEmailVerified == true || userProfile?.isVerifiedStudent == true
 
+    val maxAllowedPrice = if (selectedPricingType == PricingType.PER_HOUR) 50.0 else 1000.0
     val maxPriceHint = if (selectedPricingType == PricingType.PER_HOUR) "Max RM 50 / hr" else "Max RM 1,000"
+    val parsedPriceInput = priceText.trim().toDoubleOrNull()
+
+    val titleError = if (hasAttemptedPublish && title.isBlank()) {
+        "Please enter a service title"
+    } else null
+
+    val priceError = when {
+        priceText.isNotBlank() && parsedPriceInput == null -> "Enter a valid number"
+        priceText.isNotBlank() && parsedPriceInput != null && parsedPriceInput <= 0.0 -> "Price must be greater than RM 0"
+        priceText.isNotBlank() && parsedPriceInput != null && parsedPriceInput > maxAllowedPrice -> {
+            if (selectedPricingType == PricingType.PER_HOUR) {
+                "Exceeds max rate of RM 50 / hr"
+            } else {
+                "Exceeds max price of RM 1,000"
+            }
+        }
+        hasAttemptedPublish && priceText.isBlank() -> "Please enter a price"
+        else -> null
+    }
+
+    val availabilityError = when {
+        hasAttemptedPublish && selectedDays.isEmpty() -> "Select at least one available day"
+        hasAttemptedPublish && selectedTimeSlots.isEmpty() -> "Select at least one preferred time slot"
+        else -> null
+    }
+
     val availabilitySummary = remember(selectedDays, selectedTimeSlots) {
         val dayLabel = "${selectedDays.size} ${if (selectedDays.size == 1) "day" else "days"}"
         val slotLabel = "${selectedTimeSlots.size} ${if (selectedTimeSlots.size == 1) "slot" else "slots"}"
@@ -253,8 +288,11 @@ fun CreateServiceScreen(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
-                    color = Cream,
-                    border = BorderStroke(1.dp, Hairline)
+                    color = if (titleError != null) DangerBgSoft else Cream,
+                    border = BorderStroke(
+                        width = if (titleError != null) 1.5.dp else 1.dp,
+                        color = if (titleError != null) DangerFgStrong else Hairline
+                    )
                 ) {
                     Box(
                         modifier = Modifier
@@ -284,6 +322,7 @@ fun CreateServiceScreen(
                         )
                     }
                 }
+                InlineValidationError(message = titleError)
 
                 Spacer(Modifier.height(16.dp))
 
@@ -347,7 +386,8 @@ fun CreateServiceScreen(
             // -----------------------------------------------------------------
             FormSectionCard(
                 sectionTitle = "PRICING",
-                trailingLabel = maxPriceHint
+                trailingLabel = maxPriceHint,
+                isTrailingError = priceError != null
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -360,8 +400,11 @@ fun CreateServiceScreen(
                             .weight(1f)
                             .height(50.dp),
                         shape = RoundedCornerShape(14.dp),
-                        color = Cream,
-                        border = BorderStroke(1.dp, Hairline)
+                        color = if (priceError != null) DangerBgSoft else Cream,
+                        border = BorderStroke(
+                            width = if (priceError != null) 1.5.dp else 1.dp,
+                            color = if (priceError != null) DangerFgStrong else Hairline
+                        )
                     ) {
                         Row(
                             modifier = Modifier
@@ -373,7 +416,7 @@ fun CreateServiceScreen(
                                 text = "RM",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = MutedText
+                                color = if (priceError != null) DangerFgStrong else MutedText
                             )
                             Spacer(Modifier.width(8.dp))
                             Box(modifier = Modifier.weight(1f)) {
@@ -387,14 +430,19 @@ fun CreateServiceScreen(
                                 }
                                 BasicTextField(
                                     value = priceText,
-                                    onValueChange = { priceText = it },
+                                    onValueChange = { input ->
+                                        val cleaned = input.filter { it.isDigit() || it == '.' }
+                                        if (cleaned.count { it == '.' } <= 1) {
+                                            priceText = cleaned
+                                        }
+                                    },
                                     textStyle = TextStyle(
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Charcoal
+                                        color = if (priceError != null) DangerFgStrong else Charcoal
                                     ),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    cursorBrush = SolidColor(Charcoal),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                    cursorBrush = SolidColor(if (priceError != null) DangerFgStrong else Charcoal),
                                     singleLine = true,
                                     modifier = Modifier.fillMaxWidth()
                                 )
@@ -434,6 +482,7 @@ fun CreateServiceScreen(
                         }
                     }
                 }
+                InlineValidationError(message = priceError)
             }
 
             // -----------------------------------------------------------------
@@ -526,47 +575,47 @@ fun CreateServiceScreen(
                         }
                     }
                 }
+                InlineValidationError(message = availabilityError)
             }
 
             Spacer(Modifier.height(4.dp))
         }
 
         // =====================================================================
-        // 3. ANCHORED BOTTOM PUBLISH BAR
+        // 3. ANCHORED CURVED BOTTOM PUBLISH BAR
         // =====================================================================
         Surface(
             color = CardWhite,
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .imePadding()
+            border = BorderStroke(1.dp, Hairline),
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                HorizontalDivider(thickness = 0.8.dp, color = Hairline)
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = Spacing.gutter, vertical = 14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .imePadding()
+                    .padding(horizontal = Spacing.gutter, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Info,
-                            contentDescription = null,
-                            tint = MutedText,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            text = "Your listing goes live as soon as you publish.",
-                            fontSize = 12.sp,
-                            color = MutedText
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Outlined.Info,
+                        contentDescription = null,
+                        tint = MutedText,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = "Your listing goes live as soon as you publish.",
+                        fontSize = 12.sp,
+                        color = MutedText
+                    )
+                }
 
                     Button(
                         onClick = {
@@ -578,19 +627,17 @@ fun CreateServiceScreen(
                                 ).show()
                                 return@Button
                             }
-                            if (title.isBlank() || priceText.isBlank()) {
-                                Toast.makeText(context, "Please enter a title and price", Toast.LENGTH_SHORT).show()
+                            hasAttemptedPublish = true
+                            val rawPrice = priceText.trim().toDoubleOrNull()
+                            val hasErrors = title.isBlank() ||
+                                rawPrice == null ||
+                                rawPrice <= 0.0 ||
+                                rawPrice > maxAllowedPrice ||
+                                selectedDays.isEmpty() ||
+                                selectedTimeSlots.isEmpty()
+                            if (hasErrors) {
+                                return@Button
                             } else {
-                                val rawPrice = priceText.toDoubleOrNull() ?: 18.0
-                                val maxAllowedPrice = if (selectedPricingType == PricingType.PER_HOUR) 50.0 else 1000.0
-                                if (rawPrice > maxAllowedPrice) {
-                                    val limitMsg = if (selectedPricingType == PricingType.PER_HOUR)
-                                        "Maximum rate for hourly services is RM 50 / hr"
-                                    else
-                                        "Maximum price for fixed gig services is RM 1,000"
-                                    Toast.makeText(context, limitMsg, Toast.LENGTH_SHORT).show()
-                                    return@Button
-                                }
                                 val parsedPrice = rawPrice.coerceIn(0.0, maxAllowedPrice)
                                 isPublishing = true
                                 val user = Firebase.auth.currentUser
@@ -672,7 +719,36 @@ fun CreateServiceScreen(
                         }
                     }
                 }
-            }
+        }
+    }
+}
+
+@Composable
+private fun InlineValidationError(message: String?) {
+    AnimatedVisibility(
+        visible = !message.isNullOrBlank(),
+        enter = expandVertically() + fadeIn(),
+        exit = shrinkVertically() + fadeOut()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 6.dp, start = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.ErrorOutline,
+                contentDescription = null,
+                tint = DangerFgStrong,
+                modifier = Modifier.size(14.dp)
+            )
+            Text(
+                text = message.orEmpty(),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = DangerFgStrong
+            )
         }
     }
 }
@@ -681,6 +757,7 @@ fun CreateServiceScreen(
 private fun FormSectionCard(
     sectionTitle: String,
     trailingLabel: String? = null,
+    isTrailingError: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
@@ -711,8 +788,8 @@ private fun FormSectionCard(
                     Text(
                         text = trailingLabel,
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MutedText
+                        fontWeight = if (isTrailingError) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isTrailingError) DangerFgStrong else MutedText
                     )
                 }
             }

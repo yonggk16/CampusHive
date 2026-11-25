@@ -22,7 +22,7 @@ fun Modifier.bounceClick(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    val scale by animateFloatAsState(
+    val scaleState = animateFloatAsState(
         targetValue = if (isPressed) scaleDown else 1f,
         animationSpec = spring(
             dampingRatio = 0.85f,
@@ -33,6 +33,7 @@ fun Modifier.bounceClick(
 
     this
         .graphicsLayer {
+            val scale = scaleState.value
             if (scale != 1f) {
                 scaleX = scale
                 scaleY = scale

@@ -12,7 +12,6 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -21,10 +20,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
@@ -48,7 +45,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.campushive.components.ChatNotificationHelper
+import com.example.campushive.components.GuideTarget
 import com.example.campushive.components.NotificationCenterDialog
+import com.example.campushive.components.guideTarget
 import com.example.campushive.components.ServiceCategoryIconBox
 import com.example.campushive.model.ChatConversation
 import com.example.campushive.model.Listing
@@ -108,9 +108,22 @@ fun HomeScreen(
         conversations.sumOf { it.unreadCount }
     }
 
-    val notificationConversations = remember(conversations) {
+    // Track per-conversation cleared timestamps so cleared notifications stay hidden until a newer message arrives
+    val notifPrefs = remember(context) {
+        context.getSharedPreferences("campushive_prefs", Context.MODE_PRIVATE)
+    }
+    var clearedNotifVersion by remember { mutableIntStateOf(0) }
+    val notifKeyPrefix = "notif_cleared_${currentUid.ifBlank { "guest" }}_"
+
+    val notificationConversations = remember(conversations, currentUid, clearedNotifVersion) {
         conversations
-            .filter { it.lastMessage.isNotBlank() && !it.lastMessage.equals("Tap to start chatting", ignoreCase = true) }
+            .filter { chat ->
+                if (chat.lastMessage.isBlank() || chat.lastMessage.equals("Tap to start chatting", ignoreCase = true)) {
+                    return@filter false
+                }
+                val clearedAt = notifPrefs.getLong(notifKeyPrefix + chat.id, 0L)
+                clearedAt == 0L || chat.lastMessageMillis > clearedAt
+            }
             .sortedWith(compareByDescending<ChatConversation> { it.unreadCount > 0 }.thenByDescending { it.lastMessageMillis })
     }
 
@@ -161,14 +174,6 @@ fun HomeScreen(
         prefs.edit().putLong(visitKey, System.currentTimeMillis()).apply()
     }
 
-    // Dismissible CampusHive 2.0 release announcement banner (persisted per user by announcement ID)
-    val currentAnnouncementId = "campushive_2_0"
-    val announcementPrefKey = "dismissed_announcement_${currentUid.ifBlank { "guest" }}"
-    var showAnnouncementBanner by remember(currentUid) {
-        val prefs = context.getSharedPreferences("campushive_prefs", Context.MODE_PRIVATE)
-        mutableStateOf(prefs.getString(announcementPrefKey, null) != currentAnnouncementId)
-    }
-
     val recommendedListings = remember(liveListings, currentUid, currentUserName, userProfile, conversations, savedIds) {
         ListingRecommender.recommend(
             allListings = liveListings,
@@ -185,10 +190,34 @@ fun HomeScreen(
         NotificationCenterDialog(
             conversations = notificationConversations,
             onDismiss = { showNotificationsDialog = false },
-            onMarkAllRead = { chatViewModel.markAllConversationsAsRead() },
+            onMarkAllRead = {
+                chatViewModel.markAllConversationsAsRead()
+                notificationConversations.forEach { ChatNotificationHelper.clearChatNotification(context, it.id) }
+            },
+            onClearAll = {
+                val now = System.currentTimeMillis()
+                val editor = notifPrefs.edit()
+                notificationConversations.forEach { chat ->
+                    editor.putLong(notifKeyPrefix + chat.id, maxOf(now, chat.lastMessageMillis))
+                    ChatNotificationHelper.clearChatNotification(context, chat.id)
+                }
+                editor.apply()
+                chatViewModel.markAllConversationsAsRead()
+                clearedNotifVersion++
+            },
+            onClearOne = { chat ->
+                val clearedAt = maxOf(System.currentTimeMillis(), chat.lastMessageMillis)
+                notifPrefs.edit().putLong(notifKeyPrefix + chat.id, clearedAt).apply()
+                ChatNotificationHelper.clearChatNotification(context, chat.id)
+                if (chat.unreadCount > 0) {
+                    chatViewModel.markConversationAsRead(chat.id, chat.lastMessageMillis)
+                }
+                clearedNotifVersion++
+            },
             onOpenChat = { chat ->
                 showNotificationsDialog = false
-                chatViewModel.markConversationAsRead(chat.id)
+                chatViewModel.markConversationAsRead(chat.id, chat.lastMessageMillis)
+                ChatNotificationHelper.clearChatNotification(context, chat.id)
                 onOpenChat(chat.id, chat.studentName, chat.serviceTitle)
             }
         )
@@ -360,6 +389,7 @@ fun HomeScreen(
                     border = BorderStroke(1.dp, Hairline),
                     modifier = Modifier
                         .fillMaxWidth()
+                        .guideTarget(GuideTarget.HOME_SEARCH)
                         .bounceClick(scaleDown = 0.98f) { onSearchBarClick() }
                 ) {
                     Row(
@@ -434,28 +464,12 @@ fun HomeScreen(
                     .verticalScroll(scrollState)
                     .padding(top = 14.dp)
             ) {
-                // Dismissible CampusHive 2.0 Announcement Banner
-                AnimatedVisibility(
-                    visible = showAnnouncementBanner,
-                    exit = shrinkVertically(tween(200, easing = FastOutSlowInEasing)) + fadeOut(tween(150))
-                ) {
-                    Column {
-                        CampusAnnouncementBanner(
-                            onDismiss = {
-                                val prefs = context.getSharedPreferences("campushive_prefs", Context.MODE_PRIVATE)
-                                prefs.edit().putString(announcementPrefKey, currentAnnouncementId).apply()
-                                showAnnouncementBanner = false
-                            }
-                        )
-                        Spacer(Modifier.height(14.dp))
-                    }
-                }
-
                 // Quick 3-Action Dock Card (scrolls cleanly with content)
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = Spacing.gutter),
+                        .padding(horizontal = Spacing.gutter)
+                        .guideTarget(GuideTarget.HOME_QUICK_DOCK),
                     shape = RoundedCornerShape(22.dp),
                     colors = CardDefaults.cardColors(containerColor = CardWhite),
                     border = BorderStroke(1.dp, Hairline),
@@ -818,166 +832,6 @@ fun HomeScreen(
             }
 
                 Spacer(Modifier.height(rememberBottomBarClearance()))
-            }
-        }
-    }
-}
-
-@Composable
-private fun CampusAnnouncementBanner(
-    onDismiss: () -> Unit
-) {
-    var isExpanded by remember { mutableStateOf(false) }
-    val highlights = remember {
-        listOf(
-            "Refreshed UI & Dark Mode" to "Cleaner cards, sticky headers, and cohesive colors.",
-            "Fluid Drag Navigation" to "Glide across tabs or drop right onto + to post.",
-            "Upgraded Chat & Listings" to "Sleeker composer, inline validation, and faster flows."
-        )
-    }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = Spacing.gutter),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (CampusThemeState.isDark) CardWhite else HoneyTint
-        ),
-        border = BorderStroke(
-            width = 1.dp,
-            color = if (CampusThemeState.isDark) BrandHoney.copy(alpha = 0.45f) else WarningBorder
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Surface(
-                    shape = Radius.Pill,
-                    color = Honey
-                ) {
-                    Text(
-                        text = "2.0",
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = OnHoneyAccent
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clip(CircleShape)
-                        .clickable(onClick = onDismiss),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Close,
-                        contentDescription = "Dismiss announcement",
-                        tint = Charcoal,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            Text(
-                text = "CampusHive 2.0 is here",
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-                color = Charcoal,
-                letterSpacing = (-0.3).sp
-            )
-
-            Spacer(Modifier.height(3.dp))
-
-            Text(
-                text = "Refreshed design, smoother navigation & faster chats",
-                fontSize = 13.sp,
-                color = MutedText,
-                lineHeight = 18.sp
-            )
-
-            AnimatedVisibility(
-                visible = isExpanded,
-                enter = expandVertically(tween(180, easing = FastOutSlowInEasing)) + fadeIn(tween(150)),
-                exit = shrinkVertically(tween(160, easing = FastOutSlowInEasing)) + fadeOut(tween(120))
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    HorizontalDivider(
-                        color = if (CampusThemeState.isDark) Hairline else WarningBorder.copy(alpha = 0.6f),
-                        thickness = 0.8.dp
-                    )
-                    highlights.forEach { (title, subtitle) ->
-                        Row(
-                            verticalAlignment = Alignment.Top,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .padding(top = 6.dp)
-                                    .size(5.dp)
-                                    .clip(CircleShape)
-                                    .background(if (CampusThemeState.isDark) BrandHoney else Charcoal)
-                            )
-                            Column {
-                                Text(
-                                    text = title,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Charcoal
-                                )
-                                Text(
-                                    text = subtitle,
-                                    fontSize = 11.sp,
-                                    color = MutedText,
-                                    lineHeight = 15.sp
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(10.dp))
-
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable { isExpanded = !isExpanded }
-                    .padding(vertical = 2.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = if (isExpanded) "Hide details" else "What's new",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Charcoal
-                )
-                if (!isExpanded) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        tint = Charcoal,
-                        modifier = Modifier.size(13.dp)
-                    )
-                }
             }
         }
     }

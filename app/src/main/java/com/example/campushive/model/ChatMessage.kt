@@ -12,5 +12,11 @@ data class ChatMessage(
     val attachmentBase64: String = "",
     val isEdited: Boolean = false,
     val isDeleted: Boolean = false,
-    val timestampMillis: Long = 0L
+    val timestampMillis: Long = 0L,
+    val senderName: String = "",
+    val replyToMessageId: String = "",
+    val replyToSenderName: String = "",
+    val replyToPreviewText: String = "",
+    val replyToAttachmentType: String = "",
+    val reactions: Map<String, List<String>> = emptyMap()
 )

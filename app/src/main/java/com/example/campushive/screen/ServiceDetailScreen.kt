@@ -37,8 +37,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.campushive.components.CampusEmptyState
 import com.example.campushive.components.ReportDialog
-import com.example.campushive.components.ReviewDialog
 import com.example.campushive.components.ServiceCategoryIconBox
 import com.example.campushive.model.LISTING_TIME_SLOTS
 import com.example.campushive.model.Listing
@@ -72,7 +72,6 @@ fun ServiceDetailScreen(
     val context = LocalContext.current
     val liveListings by listingViewModel.listings.collectAsState()
     val listingReviews by reviewViewModel.listingReviews.collectAsState()
-    var showReviewDialog by remember { mutableStateOf(false) }
     var showProviderProfile by remember { mutableStateOf(false) }
     var showReportDialog by remember { mutableStateOf(false) }
     var reportSubmittedLocally by remember { mutableStateOf(false) }
@@ -113,17 +112,6 @@ fun ServiceDetailScreen(
         (currentUserName.isNotBlank() && listing.providerName.isNotBlank() && currentUserName.equals(listing.providerName, ignoreCase = true))
 
     val initials = listing.providerName.split(" ").mapNotNull { it.firstOrNull()?.uppercaseChar() }.take(2).joinToString("").ifBlank { "ST" }
-
-    if (showReviewDialog && !isOwnListing) {
-        ReviewDialog(
-            listingId = listing.id,
-            providerName = listing.providerName,
-            serviceTitle = listing.title,
-            reviewViewModel = reviewViewModel,
-            onDismiss = { showReviewDialog = false },
-            onSubmit = { showReviewDialog = false }
-        )
-    }
 
     // Provider profile preview — opened from the provider card
     if (showProviderProfile) {
@@ -572,53 +560,64 @@ fun ServiceDetailScreen(
                         SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault()).format(Date(it))
                     }
                 }
+                val shortSelectedDate = remember(selectedBookingDateMillis) {
+                    selectedBookingDateMillis?.let {
+                        SimpleDateFormat("EEE, d MMM", Locale.getDefault()).format(Date(it))
+                    }
+                }
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(
                                 text = "Availability",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Charcoal
+                                color = Charcoal,
+                                modifier = Modifier.weight(1f)
                             )
-                            Text(
-                                text = listing.availabilitySummary(),
-                                fontSize = 12.sp,
-                                color = MutedText
-                            )
-                        }
 
-                        if (!isOwnListing) {
-                            Surface(
-                                color = CardWhite,
-                                shape = Radius.Pill,
-                                border = BorderStroke(1.dp, Hairline),
-                                modifier = Modifier.bounceClick(scaleDown = 0.94f) { showDatePicker = true }
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                            if (!isOwnListing) {
+                                val hasDate = shortSelectedDate != null
+                                Surface(
+                                    color = if (hasDate) Honey else CardWhite,
+                                    shape = Radius.Pill,
+                                    border = BorderStroke(1.dp, if (hasDate) Honey else Hairline),
+                                    modifier = Modifier.bounceClick(scaleDown = 0.94f) { showDatePicker = true }
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.CalendarMonth,
-                                        contentDescription = null,
-                                        tint = Charcoal,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Spacer(Modifier.width(5.dp))
-                                    Text(
-                                        text = if (formattedSelectedDate != null) "Change date" else "Pick date",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Charcoal
-                                    )
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.CalendarMonth,
+                                            contentDescription = null,
+                                            tint = if (hasDate) OnHoneyAccent else Charcoal,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(
+                                            text = shortSelectedDate ?: "Pick date",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = if (hasDate) OnHoneyAccent else Charcoal,
+                                            maxLines = 1,
+                                            softWrap = false
+                                        )
+                                    }
                                 }
                             }
                         }
+
+                        Text(
+                            text = listing.availabilitySummary(),
+                            fontSize = 12.sp,
+                            color = MutedText,
+                            lineHeight = 17.sp
+                        )
                     }
 
                     if (!isOwnListing) {
@@ -691,64 +690,22 @@ fun ServiceDetailScreen(
 
                 HorizontalDivider(color = Hairline, thickness = 0.8.dp)
 
-                // 5. Unified Reviews Section (grouped card + calm neutral tags)
+                // 5. Unified Reviews Section (read-only on listing details; seekers review from Chats)
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (listingReviews.isNotEmpty()) "Reviews (${listingReviews.size})" else "Reviews",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Charcoal
-                        )
-
-                        if (!isOwnListing) {
-                            Surface(
-                                color = CardWhite,
-                                shape = Radius.Pill,
-                                border = BorderStroke(1.dp, Hairline),
-                                modifier = Modifier.bounceClick(scaleDown = 0.95f) { showReviewDialog = true }
-                            ) {
-                                Text(
-                                    text = "Write review",
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Charcoal
-                                )
-                            }
-                        }
-                    }
+                    Text(
+                        text = if (listingReviews.isNotEmpty()) "Reviews (${listingReviews.size})" else "Reviews",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Charcoal
+                    )
 
                     if (listingReviews.isEmpty()) {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
-                            color = CardWhite,
-                            border = BorderStroke(1.dp, Hairline)
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(18.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(
-                                    text = "No reviews yet",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Charcoal
-                                )
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    text = if (isOwnListing) "Reviews from students will appear here."
-                                    else "Be the first student to share feedback after your session.",
-                                    fontSize = 12.sp,
-                                    color = MutedText
-                                )
-                            }
-                        }
+                        CampusEmptyState(
+                            icon = Icons.Filled.Star,
+                            title = "No reviews yet",
+                            subtitle = "Reviews from students will appear here.",
+                            compact = true
+                        )
                     } else {
                         Surface(
                             modifier = Modifier.fillMaxWidth(),

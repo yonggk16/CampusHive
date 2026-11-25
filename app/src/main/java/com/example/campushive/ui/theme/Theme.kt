@@ -64,7 +64,9 @@ fun CampusHiveTheme(
         SideEffect {
             val window = (view.context as? Activity)?.window
             if (window != null) {
-                WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !resolvedDark
+                val insetsController = WindowCompat.getInsetsController(window, view)
+                insetsController.isAppearanceLightStatusBars = !resolvedDark
+                insetsController.isAppearanceLightNavigationBars = !resolvedDark
             }
         }
     }

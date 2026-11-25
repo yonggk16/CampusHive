@@ -451,39 +451,14 @@ fun EditListingDialog(
     }
 
     if (showDeleteConfirm) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            title = {
-                Text(
-                    text = "Delete Listing?",
-                    fontWeight = FontWeight.Bold,
-                    color = Charcoal
-                )
-            },
-            text = {
-                Text(
-                    text = "Are you sure you want to delete '${listing.title}'? This action cannot be undone.",
-                    color = MutedText
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteConfirm = false
-                        onDelete(listing.id)
-                        Toast.makeText(context, "Listing deleted", Toast.LENGTH_SHORT).show()
-                    }
-                ) {
-                    Text("Delete", color = DangerFgStrong, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text("Cancel", color = Charcoal, fontWeight = FontWeight.Medium)
-                }
-            },
-            containerColor = CardWhite,
-            shape = Radius.Card
+        DeleteListingConfirmDialog(
+            listingTitle = listing.title,
+            onDismiss = { showDeleteConfirm = false },
+            onConfirmDelete = {
+                showDeleteConfirm = false
+                onDelete(listing.id)
+                Toast.makeText(context, "Listing deleted", Toast.LENGTH_SHORT).show()
+            }
         )
     }
 }

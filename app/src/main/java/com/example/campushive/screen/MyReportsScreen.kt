@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -22,17 +23,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.material.icons.outlined.Security
+import com.example.campushive.components.CampusEmptyState
 import com.example.campushive.model.HelpReport
 import com.example.campushive.model.ReportStatus
 import com.example.campushive.model.ReportType
 import com.example.campushive.ui.theme.*
 import com.example.campushive.viewmodel.AuthViewModel
 import com.example.campushive.viewmodel.HelpdeskViewModel
-import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
+
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -55,7 +58,7 @@ fun MyReportsScreen(
     var isRefreshing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    val isDynamicModerator = userProfile?.isModerator == true || HelpdeskViewModel.isModeratorEmail(Firebase.auth.currentUser?.email)
+    val isDynamicModerator = userProfile?.isModerator == true
 
     LaunchedEffect(userProfile) {
         helpdeskViewModel.refreshModeratorAccess(userProfile)
@@ -106,27 +109,49 @@ fun MyReportsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(HoneyBottomGradient)
-                .statusBarsPadding()
         ) {
-        // Top Header
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = Spacing.gutter, end = Spacing.gutter, top = Spacing.topInset, bottom = Spacing.sm),
-            verticalAlignment = Alignment.CenterVertically
+        // Unified Curved White Top Header (matches Home, Search, Chats & Profile silhouette)
+        Surface(
+            color = CardWhite,
+            border = BorderStroke(1.dp, Hairline),
+            shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            IconButton(onClick = onBackClick) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Charcoal)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = Spacing.gutter, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(CreamTint)
+                        .bounceClick(scaleDown = 0.90f, onClick = onBackClick),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Charcoal,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    text = if (showAllCampusQueue && isModeratorMode) "Moderator Incident Queue" else "My Reports & Tickets",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Charcoal,
+                    letterSpacing = (-0.4).sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
             }
-            Text(
-                text = if (showAllCampusQueue && isModeratorMode) "Moderator Incident Queue" else "My Reports & Tickets",
-                fontSize = 23.sp,
-                fontWeight = FontWeight.Bold,
-                color = Charcoal
-            )
         }
-
-        HorizontalDivider(color = Hairline)
 
         // Moderator Segmented Switcher ("My Tickets" vs "All Campus Queue") - ONLY visible for Platform Moderators
         if (isDynamicModerator && isModeratorMode) {
@@ -204,34 +229,17 @@ fun MyReportsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
+                    .padding(top = 40.dp),
+                contentAlignment = Alignment.TopCenter
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.TopCenter)
-                        .padding(top = 80.dp, start = 32.dp, end = 32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = if (showAllCampusQueue) "No matching reports in queue" else "No active reports",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Charcoal,
-                        textAlign = TextAlign.Center
-                    )
-
-                    Spacer(Modifier.height(10.dp))
-
-                    Text(
-                        text = if (showAllCampusQueue) "No campus reports match the '$selectedFilter' filter right now."
-                        else "You haven't submitted any support or safety tickets yet.",
-                        fontSize = 14.sp,
-                        color = MutedText,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 20.sp
-                    )
-                }
+                CampusEmptyState(
+                    icon = Icons.Outlined.Security,
+                    title = if (showAllCampusQueue) "No matching reports in queue" else "No active reports",
+                    subtitle = if (showAllCampusQueue)
+                        "No campus reports match the '$selectedFilter' filter right now."
+                    else
+                        "You haven't submitted any support or safety tickets yet."
+                )
             }
         } else {
             LazyColumn(

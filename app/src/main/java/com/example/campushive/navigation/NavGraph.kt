@@ -1,16 +1,24 @@
 package com.example.campushive.navigation
 
+import android.content.Context
 import android.net.Uri
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -25,8 +33,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.campushive.components.AppGuideOverlay
 import com.example.campushive.components.BottomBar
 import com.example.campushive.components.ChatNotificationHelper
+import com.example.campushive.components.LocalAppGuideController
+import com.example.campushive.components.rememberAppGuideController
+import kotlinx.coroutines.delay
 import com.example.campushive.screen.*
 import com.example.campushive.viewmodel.AuthViewModel
 import com.example.campushive.viewmodel.ChatViewModel
@@ -74,19 +86,37 @@ fun CampusHiveApp() {
         }
     }
 
-    // Start destination is Home if user is signed in, else Login
-    val startDestination = if (currentUser != null) Screen.Home.route else Screen.Login.route
+    // Start destination is Home if user is signed in, else Login (remembered so recompositions don't re-evaluate)
+    val startDestination = remember { if (currentUser != null) Screen.Home.route else Screen.Login.route }
 
-    val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    fun isMainTabRoute(route: String?): Boolean =
+        route == Screen.Home.route ||
+            route?.startsWith("search") == true ||
+            route == Screen.Chats.route ||
+            route == Screen.Profile.route
 
     // Show bottom bar on main tabs (Home, Search, Chats, Profile)
-    val showBottomBar = currentRoute != null && (
-        currentRoute == Screen.Home.route ||
-        currentRoute.startsWith("search") ||
-        currentRoute == Screen.Chats.route ||
-        currentRoute == Screen.Profile.route
-    )
+    val showBottomBar = isMainTabRoute(currentRoute)
+    val guideController = rememberAppGuideController()
+    val activeUid = auth.currentUser?.uid.orEmpty()
 
+    LaunchedEffect(currentRoute, activeUid, guideController.pendingReplay) {
+        if (currentRoute != Screen.Home.route) return@LaunchedEffect
+        val prefs = context.getSharedPreferences("campushive_prefs", Context.MODE_PRIVATE)
+        val guideKey = "seen_app_guide_${activeUid.ifBlank { "guest" }}"
+        if (guideController.pendingReplay) {
+            delay(320)
+            guideController.start()
+        } else if (activeUid.isNotBlank() && !prefs.getBoolean(guideKey, false)) {
+            delay(550)
+            guideController.start()
+        }
+    }
+
+    CompositionLocalProvider(LocalAppGuideController provides guideController) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -97,16 +127,52 @@ fun CampusHiveApp() {
             startDestination = startDestination,
             modifier = Modifier.fillMaxSize(),
             enterTransition = {
-                fadeIn(animationSpec = tween(150, easing = FastOutSlowInEasing))
+                if (isMainTabRoute(initialState.destination.route) && isMainTabRoute(targetState.destination.route)) {
+                    fadeIn(animationSpec = tween(120, easing = FastOutSlowInEasing))
+                } else {
+                    slideInHorizontally(animationSpec = tween(200, easing = FastOutSlowInEasing)) { it / 6 } +
+                        fadeIn(animationSpec = tween(160, easing = FastOutSlowInEasing))
+                }
             },
             exitTransition = {
-                fadeOut(animationSpec = tween(110, easing = FastOutLinearInEasing))
+                if (isMainTabRoute(initialState.destination.route) && isMainTabRoute(targetState.destination.route)) {
+                    fadeOut(animationSpec = tween(90, easing = FastOutLinearInEasing))
+                } else {
+                    slideOutHorizontally(animationSpec = tween(180, easing = FastOutLinearInEasing)) { -it / 10 } +
+                        fadeOut(animationSpec = tween(130, easing = FastOutLinearInEasing))
+                }
             },
             popEnterTransition = {
-                fadeIn(animationSpec = tween(150, easing = FastOutSlowInEasing))
+                if (isMainTabRoute(initialState.destination.route) && isMainTabRoute(targetState.destination.route)) {
+                    fadeIn(animationSpec = tween(120, easing = FastOutSlowInEasing))
+                } else {
+                    slideInHorizontally(animationSpec = tween(180, easing = FastOutSlowInEasing)) { -it / 10 } +
+                        fadeIn(animationSpec = tween(150, easing = FastOutSlowInEasing))
+                }
             },
             popExitTransition = {
-                fadeOut(animationSpec = tween(110, easing = FastOutLinearInEasing))
+                if (isMainTabRoute(initialState.destination.route) && isMainTabRoute(targetState.destination.route)) {
+                    fadeOut(animationSpec = tween(90, easing = FastOutLinearInEasing))
+                } else {
+                    slideOutHorizontally(animationSpec = tween(180, easing = FastOutLinearInEasing)) { it / 6 } +
+                        fadeOut(animationSpec = tween(130, easing = FastOutLinearInEasing))
+                }
+            },
+            predictivePopEnterTransition = { _ ->
+                if (isMainTabRoute(initialState.destination.route) && isMainTabRoute(targetState.destination.route)) {
+                    fadeIn(animationSpec = tween(160, easing = FastOutSlowInEasing))
+                } else {
+                    slideInHorizontally(animationSpec = tween(220, easing = FastOutSlowInEasing)) { -it / 5 } +
+                        fadeIn(animationSpec = tween(180, easing = FastOutSlowInEasing))
+                }
+            },
+            predictivePopExitTransition = { _ ->
+                if (isMainTabRoute(initialState.destination.route) && isMainTabRoute(targetState.destination.route)) {
+                    fadeOut(animationSpec = tween(140, easing = FastOutLinearInEasing))
+                } else {
+                    slideOutHorizontally(animationSpec = tween(220, easing = FastOutSlowInEasing)) { it } +
+                        fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing))
+                }
             }
         ) {
             // ==================================================================
@@ -251,6 +317,14 @@ fun CampusHiveApp() {
                     onHelpdeskClick = {
                         navController.navigate("helpdesk")
                     },
+                    onReplayGuideClick = {
+                        guideController.pendingReplay = true
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
                     onCreateServiceClick = {
                         navController.navigate(Screen.Create.route)
                     },
@@ -356,6 +430,7 @@ fun CampusHiveApp() {
                     studentName = studentName,
                     serviceTitle = serviceTitle,
                     chatViewModel = chatViewModel,
+                    listingViewModel = listingViewModel,
                     helpdeskViewModel = helpdeskViewModel,
                     onBackClick = {
                         if (!navController.popBackStack()) {
@@ -408,6 +483,7 @@ fun CampusHiveApp() {
             composable("helpdesk") {
                 HelpdeskScreen(
                     helpdeskViewModel = helpdeskViewModel,
+                    authViewModel = authViewModel,
                     onBackClick = { navController.popBackStack() },
                     onNavigateToMyReports = {
                         navController.navigate("my_reports")
@@ -422,6 +498,7 @@ fun CampusHiveApp() {
             composable("my_reports") {
                 MyReportsScreen(
                     helpdeskViewModel = helpdeskViewModel,
+                    authViewModel = authViewModel,
                     initialModeratorTab = false,
                     onBackClick = { navController.popBackStack() },
                     onReportClick = { reportId ->
@@ -434,6 +511,7 @@ fun CampusHiveApp() {
             composable("moderator_queue") {
                 MyReportsScreen(
                     helpdeskViewModel = helpdeskViewModel,
+                    authViewModel = authViewModel,
                     initialModeratorTab = true,
                     onBackClick = { navController.popBackStack() },
                     onReportClick = { reportId ->
@@ -459,12 +537,29 @@ fun CampusHiveApp() {
             }
         }
 
-        if (showBottomBar) {
+        AnimatedVisibility(
+            visible = showBottomBar,
+            enter = fadeIn(tween(140, easing = FastOutSlowInEasing)) +
+                slideInVertically(tween(160, easing = FastOutSlowInEasing)) { it / 2 },
+            exit = fadeOut(tween(100, easing = FastOutLinearInEasing)) +
+                slideOutVertically(tween(120, easing = FastOutLinearInEasing)) { it / 2 },
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
             BottomBar(
                 nav = navController,
-                chatViewModel = chatViewModel,
-                modifier = Modifier.align(Alignment.BottomCenter)
+                currentRoute = currentRoute,
+                chatViewModel = chatViewModel
             )
         }
+
+        AppGuideOverlay(
+            controller = guideController,
+            onGuideCompleted = {
+                val uid = auth.currentUser?.uid.orEmpty()
+                val prefs = context.getSharedPreferences("campushive_prefs", Context.MODE_PRIVATE)
+                prefs.edit().putBoolean("seen_app_guide_${uid.ifBlank { "guest" }}", true).apply()
+            }
+        )
+    }
     }
 }

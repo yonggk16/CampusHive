@@ -45,16 +45,14 @@ class HelpdeskViewModel(
     // 2. MODERATOR PRIVILEGE VERIFICATION & ACCESS CONTROL
     // ==========================================================================
 
-    fun isModeratorUser(email: String?, userProfile: UserProfile? = null): Boolean {
+    fun isModeratorUser(userProfile: UserProfile? = null): Boolean {
         val targetProfile = userProfile ?: cachedUserProfile
-        if (targetProfile?.isModerator == true) return true
-        return isModeratorEmail(email)
+        return targetProfile?.isModerator == true
     }
 
     fun checkDefaultModeratorAccess(userProfile: UserProfile? = null): Boolean {
         if (userProfile != null) cachedUserProfile = userProfile
-        val email = Firebase.auth.currentUser?.email
-        return isModeratorUser(email, userProfile ?: cachedUserProfile)
+        return isModeratorUser(userProfile ?: cachedUserProfile)
     }
 
     /**
@@ -281,20 +279,4 @@ class HelpdeskViewModel(
         }
     }
 
-    // ==========================================================================
-    // 6. MODERATOR EMAIL WHITELIST
-    // ==========================================================================
-
-    companion object {
-        private val MODERATOR_EMAILS = setOf(
-            "yonggk07@gmail.com",
-            "b2501286@helplive.edu.my"
-        )
-
-        fun isModeratorEmail(email: String?): Boolean {
-            val normalized = email?.trim()?.lowercase().orEmpty()
-            if (normalized.isBlank()) return false
-            return normalized in MODERATOR_EMAILS
-        }
-    }
 }

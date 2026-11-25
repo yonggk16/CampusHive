@@ -18,7 +18,9 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.LightMode
@@ -46,6 +48,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.campushive.components.CampusConfirmDialog
+import com.example.campushive.components.CampusEmptyState
+import com.example.campushive.components.DeleteListingConfirmDialog
 import com.example.campushive.components.EditListingDialog
 import com.example.campushive.components.EditProfileDialog
 import com.example.campushive.components.ServiceCategoryIconBox
@@ -66,6 +71,7 @@ fun ProfileScreen(
     listingViewModel: ListingViewModel = viewModel(),
     reviewViewModel: ReviewViewModel = viewModel(),
     onHelpdeskClick: () -> Unit = {},
+    onReplayGuideClick: () -> Unit = {},
     onCreateServiceClick: () -> Unit = {},
     onListingClick: (Listing) -> Unit = {},
     onSignOutClick: () -> Unit = {},
@@ -81,6 +87,7 @@ fun ProfileScreen(
     val campus = userProfile?.campusLocation ?: "HELP University S2"
     val major = userProfile?.facultyOrMajor ?: "General Student"
     val phone = userProfile?.phoneNumber ?: ""
+    val bio = userProfile?.bio?.trim().orEmpty()
 
     val isGoogleUser = currentUser?.providerData?.any { it.providerId == "google.com" } == true
     val isVerified = isGoogleUser || (authViewModel.isEmailVerified && userProfile?.isVerifiedStudent == true)
@@ -117,6 +124,7 @@ fun ProfileScreen(
     }
 
     var editingListing by remember { mutableStateOf<Listing?>(null) }
+    var listingPendingDelete by remember { mutableStateOf<Listing?>(null) }
     var showEditProfileDialog by remember { mutableStateOf(false) }
     var showSignOutConfirmDialog by remember { mutableStateOf(false) }
     var showAppearanceDialog by remember { mutableStateOf(false) }
@@ -211,53 +219,30 @@ fun ProfileScreen(
         )
     }
 
+    listingPendingDelete?.let { pending ->
+        DeleteListingConfirmDialog(
+            listingTitle = pending.title,
+            onDismiss = { listingPendingDelete = null },
+            onConfirmDelete = {
+                listingViewModel.deleteListing(pending.id)
+                listingPendingDelete = null
+                Toast.makeText(context, "Listing deleted", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
     if (showSignOutConfirmDialog) {
-        AlertDialog(
-            onDismissRequest = { showSignOutConfirmDialog = false },
-            title = {
-                Text(
-                    text = "Confirm Log Out",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    color = Charcoal
-                )
-            },
-            text = {
-                Text(
-                    text = "Are you sure you want to log out of your CampusHive account?",
-                    fontSize = 13.sp,
-                    color = Charcoal,
-                    lineHeight = 18.sp
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showSignOutConfirmDialog = false
-                        authViewModel.signOut {
-                            onSignOutClick()
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = DangerFgStrong,
-                        contentColor = CardWhite
-                    ),
-                    shape = Radius.Tile
-                ) {
-                    Text("Log Out", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = CardWhite)
+        CampusConfirmDialog(
+            title = "Confirm Log Out",
+            message = "Are you sure you want to log out of your CampusHive account?",
+            confirmLabel = "Log Out",
+            onConfirm = {
+                showSignOutConfirmDialog = false
+                authViewModel.signOut {
+                    onSignOutClick()
                 }
             },
-            dismissButton = {
-                OutlinedButton(
-                    onClick = { showSignOutConfirmDialog = false },
-                    shape = Radius.Tile,
-                    border = BorderStroke(1.dp, Hairline)
-                ) {
-                    Text("Cancel", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Charcoal)
-                }
-            },
-            containerColor = CardWhite,
-            shape = Radius.Card
+            onDismiss = { showSignOutConfirmDialog = false }
         )
     }
 
@@ -464,6 +449,16 @@ fun ProfileScreen(
                                     modifier = Modifier.padding(top = 2.dp)
                                 )
                             }
+                        }
+
+                        if (bio.isNotBlank()) {
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                text = bio,
+                                fontSize = 13.sp,
+                                color = Charcoal.copy(alpha = 0.85f),
+                                lineHeight = 18.sp
+                            )
                         }
 
                         Spacer(Modifier.height(14.dp))
@@ -798,59 +793,15 @@ fun ProfileScreen(
         // Tab Content
         if (selectedTab == "My listings") {
             if (myListings.isEmpty()) {
-                // Empty State Box matching reference image
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = Radius.Card,
-                    color = CardWhite,
-                    border = BorderStroke(1.dp, Hairline)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(CircleShape)
-                                .background(HoneyTint)
-                                .border(BorderStroke(1.5.dp, AvatarOutline), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.WorkOutline,
-                                contentDescription = null,
-                                tint = Charcoal,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-
-                        Spacer(Modifier.height(12.dp))
-
-                        Text(
-                            "No active service listings",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                            color = Charcoal
-                        )
-
-                        Spacer(Modifier.height(6.dp))
-
-                        Text(
-                            text = "Offer your skills to earn income on campus.\nPick a category to get started.",
-                            fontSize = 13.sp,
-                            color = MutedText,
-                            textAlign = TextAlign.Center,
-                            lineHeight = 18.sp
-                        )
-
-                        Spacer(Modifier.height(16.dp))
-
-                        // Category Quick Select Pills
+                CampusEmptyState(
+                    icon = Icons.Outlined.WorkOutline,
+                    title = "No active service listings",
+                    subtitle = "Offer your skills to earn income on campus.\nPick a category to get started.",
+                    actionLabel = "+ Add a service",
+                    onAction = onCreateServiceClick,
+                    extraContent = {
                         LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             items(emptyStateCategories) { cat ->
@@ -870,39 +821,64 @@ fun ProfileScreen(
                                 }
                             }
                         }
-
-                        Spacer(Modifier.height(20.dp))
-
-                        // Full-Width "+ Add a service" Button
-                        Button(
-                            onClick = onCreateServiceClick,
-                            colors = ButtonDefaults.buttonColors(containerColor = Charcoal, contentColor = CardWhite),
-                            shape = Radius.Pill,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp)
-                                .bounceClick(scaleDown = 0.95f)
-                        ) {
-                            Text(
-                                "+ Add a service",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp,
-                                color = CardWhite
-                            )
-                        }
                     }
-                }
+                )
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     myListings.forEach { listing ->
-                        val isActive = listing.status == "ACTIVE"
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(18.dp),
-                            colors = CardDefaults.cardColors(containerColor = CardWhite),
-                            border = BorderStroke(1.dp, Hairline),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                        ) {
+                        key(listing.id) {
+                            val isActive = listing.status == "ACTIVE"
+                            val dismissState = rememberSwipeToDismissBoxState(
+                                confirmValueChange = { value ->
+                                    if (value == SwipeToDismissBoxValue.EndToStart) {
+                                        listingPendingDelete = listing
+                                    }
+                                    false
+                                }
+                            )
+                            SwipeToDismissBox(
+                                state = dismissState,
+                                enableDismissFromStartToEnd = false,
+                                enableDismissFromEndToStart = true,
+                                backgroundContent = {
+                                    val isSwiping = dismissState.targetValue == SwipeToDismissBoxValue.EndToStart ||
+                                        dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(RoundedCornerShape(18.dp))
+                                            .background(if (isSwiping) DangerFgStrong else DangerBg)
+                                            .border(BorderStroke(1.dp, DangerBorder), RoundedCornerShape(18.dp))
+                                            .padding(horizontal = 20.dp),
+                                        contentAlignment = Alignment.CenterEnd
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Delete,
+                                                contentDescription = "Delete listing",
+                                                tint = if (isSwiping) CardWhite else DangerFgStrong,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Text(
+                                                text = "Delete",
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isSwiping) CardWhite else DangerFgStrong
+                                            )
+                                        }
+                                    }
+                                }
+                            ) {
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(18.dp),
+                                    colors = CardDefaults.cardColors(containerColor = CardWhite),
+                                    border = BorderStroke(1.dp, Hairline),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                                ) {
                             Column(modifier = Modifier.padding(14.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -1074,55 +1050,19 @@ fun ProfileScreen(
                                 }
                             }
                         }
+                            }
+                        }
                     }
                 }
             }
         } else if (selectedTab == "Saved") {
             if (savedListings.isEmpty()) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = Radius.Card,
-                    color = CardWhite,
-                    border = BorderStroke(1.dp, Hairline)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(CircleShape)
-                                .background(HoneyTint)
-                                .border(BorderStroke(1.5.dp, AvatarOutline), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.FavoriteBorder,
-                                contentDescription = null,
-                                tint = if (CampusThemeState.isDark) Honey else Charcoal,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                        Spacer(Modifier.height(12.dp))
-                        Text(
-                            text = "No saved services yet",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            color = Charcoal
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = "Tap the heart icon on any service listing to bookmark it for later.",
-                            fontSize = 12.sp,
-                            color = MutedText,
-                            textAlign = TextAlign.Center,
-                            lineHeight = 17.sp
-                        )
-                    }
-                }
+                CampusEmptyState(
+                    icon = Icons.Outlined.FavoriteBorder,
+                    title = "No saved services yet",
+                    subtitle = "Tap the heart icon on any service listing to bookmark it for later.",
+                    compact = true
+                )
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     savedListings.forEach { listing ->
@@ -1242,24 +1182,15 @@ fun ProfileScreen(
                 val activeReviews = if (selectedReviewType == "Received") reviewsReceived else reviewsGiven
 
                 if (activeReviews.isEmpty()) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = Radius.Inner,
-                        colors = CardDefaults.cardColors(containerColor = CardWhite),
-                        border = BorderStroke(1.dp, Hairline)
-                    ) {
-                        Column(Modifier.padding(16.dp)) {
-                            Text(
-                                text = if (selectedReviewType == "Received")
-                                    "No reviews received yet. Reviews left by students for your services will appear here!"
-                                else
-                                    "No reviews submitted yet. Rate a service provider after completing a session to see your review history here!",
-                                fontSize = 12.sp,
-                                color = MutedText,
-                                lineHeight = 17.sp
-                            )
-                        }
-                    }
+                    CampusEmptyState(
+                        icon = Icons.Filled.Star,
+                        title = if (selectedReviewType == "Received") "No reviews received yet" else "No reviews submitted yet",
+                        subtitle = if (selectedReviewType == "Received")
+                            "Reviews left by students for your services will appear here."
+                        else
+                            "Rate a service provider after completing a session to see your review history here.",
+                        compact = true
+                    )
                 } else {
                     activeReviews.forEach { review ->
                         val isReceived = selectedReviewType == "Received"
@@ -1417,6 +1348,42 @@ fun ProfileScreen(
                             uncheckedBorderColor = MutedText
                         )
                     )
+                }
+
+                HorizontalDivider(color = Hairline)
+
+                // In-App New User Guide Replay Row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .bounceClick(onClick = onReplayGuideClick)
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Outlined.Explore,
+                            contentDescription = null,
+                            tint = Charcoal,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                "CampusHive Guide",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = Charcoal
+                            )
+                            Text(
+                                "Replay the interactive app walkthrough",
+                                fontSize = 11.sp,
+                                color = MutedText
+                            )
+                        }
+                    }
+                    Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MutedText)
                 }
 
                 HorizontalDivider(color = Hairline)

@@ -41,8 +41,12 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -52,6 +56,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.campushive.components.CampusEmptyState
 import com.example.campushive.components.ServiceCategoryIconBox
 import com.example.campushive.model.Listing
 import com.example.campushive.ui.theme.*
@@ -94,30 +99,47 @@ fun SearchScreen(
         (if (hasSortFilter) 1 else 0)
     val hasActiveFilters = searchQuery.isNotBlank() || activeFilterCount > 0
 
-    // Tracks whether user has scrolled down into the listings (with hysteresis to avoid mid-scroll jitter)
-    var isScrolled by remember { mutableStateOf(false) }
-    LaunchedEffect(listState) {
+    val searchFocusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+    var isSearchFocused by remember { mutableStateOf(false) }
+
+    // Show header at top or when scrolling up; collapse entire top portion when scrolling down
+    var isHeaderVisible by remember { mutableStateOf(true) }
+    LaunchedEffect(listState, isSearchFocused, filtersExpanded) {
+        if (isSearchFocused || filtersExpanded) {
+            isHeaderVisible = true
+            return@LaunchedEffect
+        }
         snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
             .collect { (index, offset) ->
-                if (!isScrolled && (index > 0 || offset > 72)) {
-                    isScrolled = true
-                } else if (isScrolled && index == 0 && offset < 12) {
-                    isScrolled = false
+                if (index == 0 && offset < 16) {
+                    isHeaderVisible = true
                 }
             }
     }
 
-    // Auto-collapse filters when the user starts scrolling down through listings
+    val headerNestedScroll = remember(listState) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (available.y < -10f && !isSearchFocused && !filtersExpanded) {
+                    if (listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 20) {
+                        isHeaderVisible = false
+                    }
+                } else if (available.y > 10f) {
+                    isHeaderVisible = true
+                }
+                return Offset.Zero
+            }
+        }
+    }
+
+    // Auto-collapse filters when the user starts scrolling through listings
     LaunchedEffect(listState.isScrollInProgress) {
         if (listState.isScrollInProgress && filtersExpanded) {
             filtersExpanded = false
         }
     }
-
-    val searchFocusRequester = remember { FocusRequester() }
-    val keyboardController = LocalSoftwareKeyboardController.current
-    val focusManager = LocalFocusManager.current
-    var isSearchFocused by remember { mutableStateOf(false) }
 
     val searchCornerRadius by animateDpAsState(
         targetValue = if (isSearchFocused) 16.dp else 20.dp,
@@ -220,32 +242,36 @@ fun SearchScreen(
         listingViewModel.setSelectedCategory("All Categories")
     }
 
+    LaunchedEffect(searchResults.isEmpty()) {
+        if (searchResults.isEmpty()) isHeaderVisible = true
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(HoneyBottomGradient)
+            .nestedScroll(headerNestedScroll)
     ) {
         // =====================================================================
-        // 1. STICKY HEADER: COLLAPSIBLE TITLE + ALWAYS-PINNED SEARCH + FILTERS
+        // 1. COLLAPSIBLE HEADER (hides on scroll down, reappears on scroll up)
         // =====================================================================
-        Surface(
-            color = CardWhite,
-            border = BorderStroke(1.dp, Hairline),
-            shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-            shadowElevation = if (isScrolled || filtersExpanded) 4.dp else 0.dp,
-            modifier = Modifier.fillMaxWidth()
+        AnimatedVisibility(
+            visible = isHeaderVisible,
+            enter = expandVertically(tween(200, easing = FastOutSlowInEasing)) + fadeIn(tween(160)),
+            exit = shrinkVertically(tween(180, easing = FastOutSlowInEasing)) + fadeOut(tween(120))
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = Spacing.gutter, vertical = 12.dp)
+            Surface(
+                color = CardWhite,
+                border = BorderStroke(1.dp, Hairline),
+                shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+                shadowElevation = if (filtersExpanded) 4.dp else 0.dp,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                // Title row collapses smoothly once the user scrolls down
-                AnimatedVisibility(
-                    visible = !isScrolled,
-                    enter = expandVertically(tween(180, easing = FastOutSlowInEasing)) + fadeIn(tween(150)),
-                    exit = shrinkVertically(tween(160, easing = FastOutSlowInEasing)) + fadeOut(tween(120))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = Spacing.gutter, vertical = 12.dp)
                 ) {
                     Row(
                         modifier = Modifier
@@ -278,9 +304,8 @@ fun SearchScreen(
                             )
                         }
                     }
-                }
 
-                // Always-Pinned Search Input + Collapsible Filters Button
+                // Search Input + Collapsible Filters Button
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -590,6 +615,16 @@ fun SearchScreen(
                     }
                 }
             }
+            }
+        }
+
+        // Preserve status bar inset when the top header is collapsed so listings stay below the notch/clock
+        AnimatedVisibility(
+            visible = !isHeaderVisible,
+            enter = expandVertically(tween(180, easing = FastOutSlowInEasing)),
+            exit = shrinkVertically(tween(180, easing = FastOutSlowInEasing))
+        ) {
+            Spacer(Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
         }
 
         // =====================================================================
@@ -656,57 +691,17 @@ fun SearchScreen(
                 // Results List or Empty State
                 if (searchResults.isEmpty()) {
                     item {
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 12.dp),
-                            shape = Radius.Card,
-                            colors = CardDefaults.cardColors(containerColor = CardWhite),
-                            border = BorderStroke(1.dp, Hairline)
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(24.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Search,
-                                    contentDescription = null,
-                                    tint = MutedText,
-                                    modifier = Modifier.size(32.dp)
-                                )
-                                Spacer(Modifier.height(10.dp))
-                                Text(
-                                    text = if (liveListings.isEmpty()) "No campus services yet" else "No matching services found",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Charcoal
-                                )
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    text = if (liveListings.isEmpty())
-                                        "Be the first student to publish a skill on CampusHive!"
-                                    else
-                                        "Try clearing your search or switching category and price filters.",
-                                    color = MutedText,
-                                    fontSize = 12.sp
-                                )
-                                if (hasActiveFilters && liveListings.isNotEmpty()) {
-                                    Spacer(Modifier.height(14.dp))
-                                    Button(
-                                        onClick = { resetAllFilters() },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = Honey,
-                                            contentColor = OnHoneyAccent
-                                        ),
-                                        shape = Radius.Pill
-                                    ) {
-                                        Text("Reset Filters", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-                            }
-                        }
+                        CampusEmptyState(
+                            icon = Icons.Outlined.Search,
+                            title = if (liveListings.isEmpty()) "No campus services yet" else "No matching services found",
+                            subtitle = if (liveListings.isEmpty())
+                                "Be the first student to publish a skill on CampusHive!"
+                            else
+                                "Try clearing your search or switching category and price filters.",
+                            actionLabel = if (hasActiveFilters && liveListings.isNotEmpty()) "Reset Filters" else null,
+                            onAction = if (hasActiveFilters && liveListings.isNotEmpty()) { { resetAllFilters() } } else null,
+                            modifier = Modifier.padding(top = 12.dp)
+                        )
                     }
                 } else {
                     items(searchResults, key = { it.id }) { listing ->

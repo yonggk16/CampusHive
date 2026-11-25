@@ -87,6 +87,7 @@ val MutedText: Color
 val VerifiedGreen: Color
     get() = Ink
 val OnlineGreen = Color(0xFF22C55E)
+val ReadReceiptBlue = Color(0xFF34B7F1)
 val OfflineGrey: Color
     get() = if (CampusThemeState.isDark) Color(0xFF71717A) else Color(0xFFB0ADA6)
 val VerifiedGreenBg: Color
@@ -139,6 +140,9 @@ val DangerFg: Color
     get() = if (CampusThemeState.isDark) Color(0xFFFCA5A5) else Color(0xFFC62828)
 val DangerFgStrong: Color
     get() = if (CampusThemeState.isDark) Color(0xFFF87171) else Color(0xFFD32F2F)
+val DangerButtonBg: Color
+    get() = if (CampusThemeState.isDark) Color(0xFFDC2626) else Color(0xFFD32F2F)
+val OnDangerButton: Color = Color(0xFFFFFFFF)
 
 // Neutral / closed / info
 val NeutralBg: Color
